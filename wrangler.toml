@@ -1,0 +1,21 @@
+name = "moikas-mc"
+compatibility_date = "2026-06-01"
+pages_build_output_dir = "./public"
+
+[vars]
+# Your Discord user ID (Discord → Settings → Advanced → Developer Mode, then right-click your name → Copy User ID).
+# This account is always admin.
+ADMIN_DISCORD_ID = "PUT_YOUR_DISCORD_USER_ID_HERE"
+# Discord application "Client ID" (public, not secret).
+DISCORD_CLIENT_ID = "PUT_DISCORD_CLIENT_ID_HERE"
+# Hostname shown for servers that don't set their own address (non-default ports become play.moikas.cc:PORT).
+PUBLIC_HOST = "play.moikas.cc"
+
+# Secrets are NOT stored here. Add them in Cloudflare → your Pages project → Settings → Variables and Secrets:
+#   DISCORD_CLIENT_SECRET   (from the Discord app's OAuth2 page)
+#   SYNC_SECRET             (a long random string; the same value goes in sync/sync.env on the NAS)
+
+[[d1_databases]]
+binding = "DB"
+database_name = "moikas-mc"
+database_id = "PUT_D1_DATABASE_ID_HERE"

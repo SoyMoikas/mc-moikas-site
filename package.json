@@ -1,0 +1,11 @@
+{
+  "name": "moikas-mc",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler pages dev",
+    "db:local": "wrangler d1 execute moikas-mc --local --file=schema.sql"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

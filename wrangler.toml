@@ -5,9 +5,9 @@ pages_build_output_dir = "./public"
 [vars]
 # Your Discord user ID (Discord → Settings → Advanced → Developer Mode, then right-click your name → Copy User ID).
 # This account is always admin.
-ADMIN_DISCORD_ID = "PUT_YOUR_DISCORD_USER_ID_HERE"
-# Discord application "Client ID" (public, not secret).
-DISCORD_CLIENT_ID = "PUT_DISCORD_CLIENT_ID_HERE"
+ADMIN_DISCORD_ID = "260485507882942476"
+# Discord application "Client_id" (public, not secret).
+DISCORD_CLIENT_ID = "1568770697231077420"
 # Hostname shown for servers that don't set their own address (non-default ports become play.moikas.cc:PORT).
 PUBLIC_HOST = "play.moikas.cc"
 
@@ -18,4 +18,4 @@ PUBLIC_HOST = "play.moikas.cc"
 [[d1_databases]]
 binding = "DB"
 database_name = "moikas-mc"
-database_id = "PUT_D1_DATABASE_ID_HERE"
+database_id = "439c5c05-9111-44e9-baa1-f2e803b4b682"

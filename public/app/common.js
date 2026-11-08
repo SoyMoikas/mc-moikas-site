@@ -180,6 +180,7 @@ export async function initPage() {
         ${railLink("/quests", "🎯", "nav.quests")}
         ${railLink("/ranking", "🏆", "nav.ranking")}
         ${railLink("/store", "🪙", "nav.store")}
+        ${SITE.maps?.length ? railLink("/map", "🗺️", "nav.map") : ""}
         ${isAdmin ? railLink("/admin", "⚙️", "nav.admin") : ""}
       </nav>
       ${SITE.games.length ? `

@@ -96,6 +96,7 @@ export async function initPage() {
   const navLink = (href, key) => `<a href="${href}" class="${here === href || (href !== "/" && here.startsWith(href)) ? "active" : ""}">${t(key)}</a>`;
   bar.innerHTML = `
     <div class="wrap">
+      <button class="menu-btn" aria-label="${esc(t("nav.menu"))}" aria-expanded="false">☰</button>
       <a class="brand" href="/">Moikas</a>
       <nav>
         ${navLink("/", "nav.home")}
@@ -143,8 +144,13 @@ export async function initPage() {
       ${SITE.games.length ? `
         <div class="rail-title">${t("nav.games")}</div>
         <nav class="rail-games">
-          ${SITE.games.map((x) => `<a href="/game?id=${encodeURIComponent(x.id)}" class="${x.id === curGame ? "active" : ""}" style="--gc:${esc(/^#[0-9a-f]{6}$/i.test(x.color || "") ? x.color : "#8a93a8")}">
-            <span class="gt">${esc(x.icon || "🎮")}</span><span class="gn">${esc(gameLabel(x))}</span></a>`).join("")}
+          ${SITE.games.map((x) => {
+            const gc = esc(/^#[0-9a-f]{6}$/i.test(x.color || "") ? x.color : "#8a93a8");
+            const curServer = here === "/server" ? new URLSearchParams(location.search).get("id") : null;
+            return `<a href="/game?id=${encodeURIComponent(x.id)}" class="${x.id === curGame ? "active" : ""}" style="--gc:${gc}">
+              <span class="gt">${esc(x.icon || "🎮")}</span><span class="gn">${esc(gameLabel(x))}</span></a>
+              ${(x.servers || []).map((sv) => `<a class="rail-server ${sv.id === curServer ? "active" : ""}" style="--gc:${gc}" href="/server?id=${encodeURIComponent(sv.id)}"><span class="rs-dot"></span>${esc(sv.name)}</a>`).join("")}`;
+          }).join("")}
         </nav>` : ""}
       ${user ? `
         <a class="rail-me" href="/profile" style="--rank:${l.color}">
@@ -158,6 +164,26 @@ export async function initPage() {
     shell.className = "shell";
     main.replaceWith(shell);
     shell.append(rail, main);
+    // On phones/tablets the rail is a slide-out drawer opened by the ☰ button.
+    const backdrop = document.createElement("div");
+    backdrop.className = "rail-backdrop";
+    document.body.append(backdrop);
+    const menuBtn = bar.querySelector(".menu-btn");
+    const setOpen = (open) => {
+      document.body.classList.toggle("rail-open", open);
+      menuBtn.setAttribute("aria-expanded", String(open));
+      menuBtn.textContent = open ? "✕" : "☰";
+    };
+    menuBtn.onclick = () => setOpen(!document.body.classList.contains("rail-open"));
+    backdrop.onclick = () => setOpen(false);
+    rail.addEventListener("click", (e) => { if (e.target.closest("a")) setOpen(false); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
+    if (!user) rail.insertAdjacentHTML("beforeend", `<a class="btn discord rail-login" href="/auth/login?next=${encodeURIComponent(location.pathname + location.search)}">${t("auth.login")}</a>`);
+    rail.insertAdjacentHTML("beforeend", `<div class="rail-foot">
+      ${user ? `<a class="small muted" href="/auth/logout">${t("auth.logout")}</a>` : ""}
+      <button class="lang" data-lang2="${lang === "es" ? "en" : "es"}">${t("lang.switch")}</button></div>`);
+    rail.querySelector("[data-lang2]").onclick = (e) => setLang(e.currentTarget.dataset.lang2);
+
     const footer = document.querySelector("body > footer");
     if (footer) main.append(footer);
     main.classList.add("page");
@@ -184,6 +210,38 @@ export async function initPage() {
     setTimeout(() => (b.textContent = t("copy")), 1500);
   });
   return user;
+}
+
+// Phones: bottom tab bar switching between the feed (announcements + posts) and a full-screen chat.
+export function mountMobileTabs() {
+  if (document.querySelector(".m-tabs")) return;
+  const bar = document.createElement("nav");
+  bar.className = "m-tabs";
+  bar.innerHTML = `
+    <button data-mtab="feed" class="active"><span>📰</span>${t("mtab.feed")}</button>
+    <button data-mtab="chat"><span>💬</span>${t("mtab.chat")}<i class="m-dot hidden"></i></button>`;
+  document.body.append(bar);
+  document.body.classList.add("has-mtabs", "mtab-feed");
+  const dot = bar.querySelector(".m-dot");
+  bar.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-mtab]");
+    if (!b) return;
+    const tab = b.dataset.mtab;
+    document.body.classList.toggle("mtab-feed", tab === "feed");
+    document.body.classList.toggle("mtab-chat", tab === "chat");
+    bar.querySelectorAll("[data-mtab]").forEach((x) => x.classList.toggle("active", x === b));
+    if (tab === "chat") {
+      dot.classList.add("hidden");
+      const log = document.querySelector(".side-chat .chat-log");
+      if (log) log.scrollTop = log.scrollHeight;
+    }
+    window.scrollTo(0, 0);
+  });
+  // Show a dot on the Chat tab when new messages arrive while you're on the feed.
+  const log = document.querySelector(".side-chat .chat-log");
+  if (log) new MutationObserver(() => {
+    if (document.body.classList.contains("mtab-feed")) dot.classList.remove("hidden");
+  }).observe(log, { childList: true });
 }
 
 // Thin XP bar with "X XP to level N" tooltip.

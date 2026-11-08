@@ -1,7 +1,7 @@
 import { mountChat } from "./chat.js";
 import { mountFeed } from "./feed.js";
 import {
-  api, esc, rich, can, t, initPage, statusBadge, renderPost, postForm, bindPostActions, onSubmit, toast, toISO, gameLabel, localized,
+  api, esc, rich, can, t, initPage, mountMobileTabs, statusBadge, renderPost, postForm, bindPostActions, onSubmit, toast, toISO, gameLabel, localized,
 } from "./common.js";
 
 const user = await initPage();
@@ -25,16 +25,20 @@ async function load() {
     </div>`;
 
   main.innerHTML = `
+    <header class="game-head"${g.image ? ` style="--banner:url('${esc(g.image)}')"` : ""}>
+      <span class="gh-icon">${esc(g.icon || "🎮")}</span>
+      <div class="gh-text">
+        <h1>${esc(gameLabel(g))}</h1>
+        ${localized(g.description, g.description_es) ? `<p>${rich(localized(g.description, g.description_es))}</p>` : ""}
+      </div>
+    </header>
     <div class="home-cols">
       <section class="col-main">
-        <header class="game-head"${g.image ? ` style="--banner:url('${esc(g.image)}')"` : ""}>
-          <span class="gh-icon">${esc(g.icon || "🎮")}</span>
-          <div class="gh-text">
-            <h1>${esc(gameLabel(g))}</h1>
-            ${localized(g.description, g.description_es) ? `<p>${rich(localized(g.description, g.description_es))}</p>` : ""}
-          </div>
-        </header>
-        <div class="srv-list">${servers.map(row).join("") || `<p class="muted">${t("home.noServers")}</p>`}</div>
+
+        <details class="srv-collapse" ${window.innerWidth > 860 ? "open" : ""}>
+          <summary>${t("home.servers")} <span class="muted">(${servers.length})</span></summary>
+          <div class="srv-list">${servers.map(row).join("") || `<p class="muted">${t("home.noServers")}</p>`}</div>
+        </details>
         <div class="section-head"><h2>${t("feed.gamePosts", { game: gameLabel(g) })}</h2></div>
         <div id="feed"></div>
       </section>
@@ -66,6 +70,7 @@ async function load() {
   };
   mountFeed(main.querySelector("#feed"), user, { game: g.id, modes: false });
   mountChat(main.querySelector("#chat"), `game:${g.id}`, user);
+  mountMobileTabs();
 }
 
 load();

@@ -654,3 +654,62 @@ main.page footer { padding: 24px 0; }
   .gh-icon { font-size: 2rem; }
 }
 @media (min-width: 1100px) { .userbox .me { display: none; } }
+
+/* ---------- menu drawer + mobile order ---------- */
+.menu-btn { display: none; background: none; border: 0; font-size: 1.4rem; padding: 4px 10px 4px 0; color: var(--text); line-height: 1; }
+.topbar nav { display: none !important; }          /* the rail/drawer replaces the old top links */
+.rail-server { padding: 4px 10px 4px 48px !important; font-size: .85rem; font-weight: 400 !important; color: var(--muted) !important; }
+.rail-server:hover { color: var(--text) !important; }
+.rail-server.active { color: var(--gc) !important; background: color-mix(in srgb, var(--gc) 10%, transparent); }
+.rs-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gc); opacity: .6; flex: none; }
+.rail-foot { display: none; justify-content: space-between; align-items: center; padding: 10px 4px 0; }
+.rail-login { margin-top: auto; text-align: center; }
+.rail-backdrop { display: none; }
+.srv-collapse > summary { list-style: none; cursor: pointer; font-weight: 600; font-size: 1.05rem; margin-bottom: 10px; }
+.srv-collapse > summary::-webkit-details-marker { display: none; }
+.srv-collapse > summary::after { content: " ▾"; color: var(--muted); }
+.srv-collapse[open] > summary::after { content: " ▴"; }
+
+@media (max-width: 1099px) {
+  .menu-btn { display: inline-block; }
+  .rail { display: flex; position: fixed; z-index: 50; top: 0; left: 0; bottom: 0; width: min(300px, 86vw); height: 100vh;
+    background: var(--bg); border-right: 1px solid var(--border); transform: translateX(-102%); transition: transform .2s ease;
+    padding-top: calc(var(--topbar) + 8px); }
+  body.rail-open .rail { transform: none; box-shadow: 8px 0 30px rgba(0,0,0,.5); }
+  .rail-backdrop { display: block; position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,.55); opacity: 0; pointer-events: none; transition: opacity .2s; }
+  body.rail-open .rail-backdrop { opacity: 1; pointer-events: auto; }
+  body.rail-open { overflow: hidden; }
+  .topbar { z-index: 60; }
+  .rail-foot { display: flex; }
+  .userbox .role, .userbox .logout, .userbox .lang { display: none; }
+}
+@media (max-width: 860px) {
+  /* one column: announcements, then the feed, then chat */
+  .col-side { display: contents; }
+  .col-side > .side-block:first-child { order: -1; max-height: none; }
+  .col-main { order: 0; }
+  .col-side > .side-chat { order: 1; }
+  .game-strip { display: none; }                   /* games and servers live in the ☰ menu */
+}
+@media (prefers-reduced-motion: reduce) { .rail, .rail-backdrop { transition: none; } }
+
+/* ---------- phone tabs: Feed / Chat ---------- */
+.m-tabs { display: none; }
+@media (max-width: 860px) {
+  .m-tabs { display: grid; grid-template-columns: 1fr 1fr; position: fixed; left: 0; right: 0; bottom: 0; z-index: 35;
+    background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(8px); border-top: 1px solid var(--border);
+    padding-bottom: env(safe-area-inset-bottom); }
+  .m-tabs button { position: relative; background: none; border: 0; padding: 8px 0 10px; display: flex; flex-direction: column; align-items: center;
+    gap: 2px; font-size: .78rem; color: var(--muted); }
+  .m-tabs button span { font-size: 1.25rem; line-height: 1; filter: grayscale(1); opacity: .7; }
+  .m-tabs button.active { color: var(--accent); }
+  .m-tabs button.active span { filter: none; opacity: 1; }
+  .m-dot { position: absolute; top: 6px; left: calc(50% + 12px); width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+  body.has-mtabs main.page { padding-bottom: 72px; }
+  body.has-mtabs main.page footer { display: none; }
+
+  body.mtab-feed .side-chat { display: none !important; }
+  body.mtab-chat .col-main, body.mtab-chat .col-side > .side-block:first-child, body.mtab-chat .game-head { display: none !important; }
+  body.mtab-chat .side-chat { display: flex !important; flex-direction: column; }
+  body.mtab-chat .side-chat .chat-log { height: calc(100dvh - var(--topbar) - 200px); max-height: none; flex: none; }
+}

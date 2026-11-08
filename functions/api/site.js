@@ -10,9 +10,15 @@ async function likeEmoji(env) {
 // Public site info used by every page: games for the nav menu, the like emoji.
 export async function onRequestGet({ env }) {
   const games = await listGames(env).catch(() => []);
+  const servers = (await env.DB.prepare(
+    `SELECT s.id, s.game_id, COALESCE(s.name, json_extract(p.data, '$.name'), s.id) AS name
+       FROM servers s LEFT JOIN ptero_servers p ON p.uuid = s.ptero_uuid
+      WHERE s.hidden = 0 ORDER BY s.sort_order, name`
+  ).all().catch(() => ({ results: [] }))).results;
   return json({
     like_emoji: await likeEmoji(env),
-    games: games.map((g) => ({ id: g.id, name: g.name, name_es: g.name_es, icon: g.icon, color: g.color })),
+    games: games.map((g) => ({ id: g.id, name: g.name, name_es: g.name_es, icon: g.icon, color: g.color,
+      servers: servers.filter((s) => s.game_id === g.id).map((s) => ({ id: s.id, name: s.name })) })),
   }, 200, { "cache-control": "public, max-age=30" });
 }
 

@@ -1,6 +1,6 @@
 import { mountChat } from "./chat.js";
 import { mountFeed } from "./feed.js";
-import { api, esc, can, t, initPage, renderPost, postForm, bindPostActions, onSubmit, toast, toISO, gameLabel, localized } from "./common.js";
+import { api, esc, can, t, initPage, mountMobileTabs, renderPost, postForm, bindPostActions, onSubmit, toast, toISO, gameLabel, localized } from "./common.js";
 
 const user = await initPage();
 let posts = [], games = [];
@@ -46,5 +46,6 @@ if (can(user, "staff")) {
 
 mountFeed(document.getElementById("feed"), user);
 mountChat(document.getElementById("chat"), "general", user);
+mountMobileTabs();
 loadGames();
 loadPosts();

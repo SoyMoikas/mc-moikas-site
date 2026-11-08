@@ -1,5 +1,5 @@
 import { json, err, body, now, str, HttpError } from "../../../lib/util.js";
-import { need, hasRole } from "../../../lib/auth.js";
+import { need, hasRole, hasPerm } from "../../../lib/auth.js";
 import { STICKER_RE, getItem, ownedSet, owns } from "../../../lib/catalog.js";
 
 // Channels: "general" or a server id. Members and up can read and post.
@@ -7,7 +7,7 @@ import { STICKER_RE, getItem, ownedSet, owns } from "../../../lib/catalog.js";
 async function checkChannel(env, channel, user) {
   if (channel === "general") return;
   const s = await env.DB.prepare("SELECT hidden FROM servers WHERE id = ?").bind(channel).first();
-  if (!s || (s.hidden && !hasRole(user, "admin"))) throw new HttpError(404, "Server not found");
+  if (!s || (s.hidden && !hasPerm(user, "servers"))) throw new HttpError(404, "Server not found");
 }
 
 // GET /api/chat/:channel            → latest 50 messages

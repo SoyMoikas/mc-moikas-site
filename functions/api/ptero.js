@@ -1,10 +1,10 @@
 import { json } from "../../lib/util.js";
-import { need } from "../../lib/auth.js";
+import { needPerm } from "../../lib/auth.js";
 import { pteroInfo } from "../../lib/servers.js";
 
 // Admin: everything the NAS sync has reported, and which page each is linked to.
 export async function onRequestGet({ request, env }) {
-  const user = await need(env, request, "admin");
+  const user = await needPerm(env, request, "servers");
   if (user instanceof Response) return user;
   const { results } = await env.DB.prepare(
     `SELECT p.uuid, p.data, p.synced_at, s.id AS linked_to

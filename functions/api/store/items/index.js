@@ -1,10 +1,10 @@
 import { json, err, body, now } from "../../../../lib/util.js";
-import { need } from "../../../../lib/auth.js";
+import { needPerm } from "../../../../lib/auth.js";
 import { itemFields, visualFields } from "../../../../lib/catalog.js";
 
 // Admin: add a store item.
 export async function onRequestPost({ request, env }) {
-  const user = await need(env, request, "admin");
+  const user = await needPerm(env, request, "store");
   if (user instanceof Response) return user;
   const b = await body(request);
   if (b instanceof Response) return b;

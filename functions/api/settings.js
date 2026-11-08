@@ -1,17 +1,17 @@
 import { json, body, int } from "../../lib/util.js";
-import { need } from "../../lib/auth.js";
+import { needPerm } from "../../lib/auth.js";
 import { getSettings } from "../../lib/catalog.js";
 import { recomputeXP } from "../../lib/xp.js";
 
 export async function onRequestGet({ request, env }) {
-  const user = await need(env, request, "admin");
+  const user = await needPerm(env, request, "store");
   if (user instanceof Response) return user;
   return json(await getSettings(env));
 }
 
 // Admin: { coins_base, coins_per_level } — coins for reaching level L = base + per_level × L.
 export async function onRequestPatch({ request, env }) {
-  const user = await need(env, request, "admin");
+  const user = await needPerm(env, request, "store");
   if (user instanceof Response) return user;
   const b = await body(request);
   if (b instanceof Response) return b;

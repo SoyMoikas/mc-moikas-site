@@ -1,5 +1,5 @@
 import { json, err, body, now, str, HttpError } from "../../../../lib/util.js";
-import { need } from "../../../../lib/auth.js";
+import { need, hasPerm } from "../../../../lib/auth.js";
 
 // Approved members and up can comment.
 export async function onRequestPost({ request, env, params }) {
@@ -10,8 +10,8 @@ export async function onRequestPost({ request, env, params }) {
   const text = str(b.body, 2000, "comment");
   if (!text) throw new HttpError(400, "Comment can't be empty");
 
-  const task = await env.DB.prepare("SELECT t.id FROM tasks t JOIN servers s ON s.id = t.server_id WHERE t.id = ? AND (s.hidden = 0 OR ? = 'admin')")
-    .bind(params.id, user.role).first();
+  const task = await env.DB.prepare("SELECT t.id FROM tasks t JOIN servers s ON s.id = t.server_id WHERE t.id = ? AND (s.hidden = 0 OR ? = 1)")
+    .bind(params.id, hasPerm(user, "servers") ? 1 : 0).first();
   if (!task) return err(404, "Task not found");
 
   // Basic flood control: max 10 comments per user per minute.

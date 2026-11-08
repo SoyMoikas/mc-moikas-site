@@ -1,5 +1,5 @@
 import { json } from "../../../lib/util.js";
-import { getUser, hasRole } from "../../../lib/auth.js";
+import { getUser, hasPerm } from "../../../lib/auth.js";
 import { recomputeXP } from "../../../lib/xp.js";
 import { loadItems, coinsOf, levelOf, owns, ownedSet, getSettings, rewardForLevel } from "../../../lib/catalog.js";
 
@@ -7,7 +7,7 @@ import { loadItems, coinsOf, levelOf, owns, ownedSet, getSettings, rewardForLeve
 export async function onRequestGet({ request, env }) {
   let user = await getUser(env, request);
   if (user) { await recomputeXP(env, user.id); user = await getUser(env, request); } // fresh coin balance
-  const admin = hasRole(user, "admin");
+  const admin = hasPerm(user, "store");
   const [items, settings] = await Promise.all([loadItems(env, { includeInactive: admin }), getSettings(env)]);
   const out = { items, settings, user: null };
   if (user) {

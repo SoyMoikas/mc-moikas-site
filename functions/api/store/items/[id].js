@@ -1,10 +1,10 @@
 import { json, err, body, now } from "../../../../lib/util.js";
-import { need } from "../../../../lib/auth.js";
+import { needPerm } from "../../../../lib/auth.js";
 import { getItem, itemFields, visualFields, SLOTS } from "../../../../lib/catalog.js";
 
 // Admin: edit an item (type and id can't change).
 export async function onRequestPatch({ request, env, params }) {
-  const user = await need(env, request, "admin");
+  const user = await needPerm(env, request, "store");
   if (user instanceof Response) return user;
   const item = await getItem(env, params.id);
   if (!item) return err(404, "Item not found");
@@ -21,7 +21,7 @@ export async function onRequestPatch({ request, env, params }) {
 
 // Admin: delete an item. Owners lose it and it's taken off anyone wearing it. Coins aren't refunded.
 export async function onRequestDelete({ request, env, params }) {
-  const user = await need(env, request, "admin");
+  const user = await needPerm(env, request, "store");
   if (user instanceof Response) return user;
   const item = await getItem(env, params.id);
   if (!item) return err(404, "Item not found");

@@ -1,12 +1,12 @@
 import { json, err, body, now } from "../../../lib/util.js";
-import { getUser, hasRole, need } from "../../../lib/auth.js";
+import { getUser, hasPerm, needPerm } from "../../../lib/auth.js";
 import { mergeServer, SERVER_SELECT, splitRow } from "../../../lib/servers.js";
 import { serverFields, setClause } from "../../../lib/fields.js";
 
 // Full server page: info + announcements + tasks.
 export async function onRequestGet({ request, env, params }) {
   const user = await getUser(env, request);
-  const admin = hasRole(user, "admin");
+  const admin = hasPerm(user, "servers");
   const r = await env.DB.prepare(`${SERVER_SELECT} WHERE s.id = ?`).bind(params.id).first();
   if (!r || (r.hidden && !admin)) return err(404, "Server not found");
 
@@ -35,7 +35,7 @@ export async function onRequestGet({ request, env, params }) {
 }
 
 export async function onRequestPatch({ request, env, params }) {
-  const user = await need(env, request, "admin");
+  const user = await needPerm(env, request, "servers");
   if (user instanceof Response) return user;
   const b = await body(request);
   if (b instanceof Response) return b;
@@ -55,7 +55,7 @@ export async function onRequestPatch({ request, env, params }) {
 }
 
 export async function onRequestDelete({ request, env, params }) {
-  const user = await need(env, request, "admin");
+  const user = await needPerm(env, request, "servers");
   if (user instanceof Response) return user;
   const [res] = await env.DB.batch([
     env.DB.prepare("DELETE FROM servers WHERE id = ?").bind(params.id),

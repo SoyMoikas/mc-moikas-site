@@ -1,12 +1,12 @@
 import { json, err, body, now, slugify, str } from "../../../lib/util.js";
-import { getUser, hasRole, need } from "../../../lib/auth.js";
+import { getUser, hasPerm, needPerm } from "../../../lib/auth.js";
 import { mergeServer, SERVER_SELECT, splitRow } from "../../../lib/servers.js";
 import { serverFields } from "../../../lib/fields.js";
 
 // Public list of server cards (admins also see hidden drafts).
 export async function onRequestGet({ request, env }) {
   const user = await getUser(env, request);
-  const admin = hasRole(user, "admin");
+  const admin = hasPerm(user, "servers");
   const { results } = await env.DB.prepare(
     `${SERVER_SELECT} ${admin ? "" : "WHERE s.hidden = 0"} ORDER BY s.sort_order, s.name, s.id`
   ).all();
@@ -26,7 +26,7 @@ export async function onRequestGet({ request, env }) {
 
 // Admin: create a server page (optionally linked to a Pterodactyl server).
 export async function onRequestPost({ request, env }) {
-  const user = await need(env, request, "admin");
+  const user = await needPerm(env, request, "servers");
   if (user instanceof Response) return user;
   const b = await body(request);
   if (b instanceof Response) return b;

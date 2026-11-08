@@ -1,5 +1,5 @@
 import { json, err, body, now } from "../../../lib/util.js";
-import { getUser, hasRole, need } from "../../../lib/auth.js";
+import { getUser, hasRole, hasPerm, need } from "../../../lib/auth.js";
 import { taskFields, setClause } from "../../../lib/fields.js";
 
 // Task with its discussion thread.
@@ -11,7 +11,7 @@ export async function onRequestGet({ request, env, params }) {
        LEFT JOIN users u ON u.id = t.created_by
       WHERE t.id = ?`
   ).bind(params.id).first();
-  if (!task || (task.server_hidden && !hasRole(user, "admin"))) return err(404, "Task not found");
+  if (!task || (task.server_hidden && !hasPerm(user, "servers"))) return err(404, "Task not found");
   delete task.server_hidden;
 
   const { results } = await env.DB.prepare(

@@ -71,13 +71,21 @@ function hatHTML(item) {
   if (!item) return "";
   const v = item.visual || {};
   if (v.halo) return `<span class="av-halo"></span>`;
-  // size: % of the avatar width (default 62) · pos: corner (default) | top | face
-  const size = Number(v.size) >= 30 && Number(v.size) <= 200 ? Number(v.size) : 62;
-  const cls = `av-hat${["top", "face"].includes(v.pos) ? ` hp-${v.pos}` : ""}`;
-  const style = size !== 62 ? ` style="--hs:${size / 100}"` : "";
-  if (v.image && safeUrl(v.image)) return `<span class="${cls}"${style}><img src="${esc(v.image)}" alt=""></span>`;
-  if (v.emoji) return `<span class="${cls}"${style}>${esc(v.emoji)}</span>`;
+  const p = hatPlacement(v);
+  const style = ` style="--hs:${p.size / 100};left:${50 + p.x}%;top:${50 + p.y}%;transform:translate(-50%,-50%) rotate(${p.rotate}deg)"`;
+  if (v.image && safeUrl(v.image)) return `<span class="av-hat"${style}><img src="${esc(v.image)}" alt=""></span>`;
+  if (v.emoji) return `<span class="av-hat"${style}>${esc(v.emoji)}</span>`;
   return "";
+}
+
+// Where a hat sits: size (% of avatar width), x/y (% of the avatar, from its centre; negative y = up), rotate (deg).
+// Items saved before x/y existed get the classic tilted top-right corner (scaled with their size).
+export function hatPlacement(v = {}) {
+  const size = Number(v.size) >= 30 && Number(v.size) <= 200 ? Number(v.size) : 62;
+  const hs = size / 100;
+  if (Number.isFinite(Number(v.x)) && Number.isFinite(Number(v.y)))
+    return { size, x: Number(v.x), y: Number(v.y), rotate: Number(v.rotate) || 0 };
+  return { size, x: Math.round((0.5 - 0.05 * hs) * 100), y: Math.round((-0.18 * hs - 0.5) * 100), rotate: 14 };
 }
 
 // Avatar with equipped frame and hat. Pass `over` = {frame, hat} item objects to preview unsaved items.

@@ -1,5 +1,5 @@
 import { api, esc, can, perm, t, initPage, SITE, gameLabel, localized, toISO, toLocalInput, onSubmit, toast, ago, fmtDate, statusBadge, roleLabel } from "./common.js";
-import { itemPreview, itemName, FONTS, EFFECTS, registerFont } from "./cosmetics.js";
+import { itemPreview, itemName, FONTS, EFFECTS, registerFont, hatPlacement } from "./cosmetics.js";
 
 const user = await initPage();
 const main = document.getElementById("main");
@@ -583,8 +583,9 @@ function editItem(item, items) {
             <label class="f-image">${t("ad.image")}<input name="image" value="${esc(v.image)}" placeholder="https://…/sticker.png"></label>
             <label class="f-color">${t("ad.color")}<input name="color" type="color" value="${esc(v.color || "#6fcf5a")}"></label>
             <label class="f-style">${t("ad.style")}<select name="style"></select></label>
-            <label class="f-hsize">${t("ad.hatSize")} <b class="hsize-val">${esc(v.size || 62)}%</b><input type="range" name="hsize" min="30" max="200" step="5" value="${esc(v.size || 62)}"></label>
-            <label class="f-hpos">${t("ad.hatPos")}<select name="hpos">${["corner", "top", "face"].map((x) => `<option value="${x}" ${(v.pos || "corner") === x ? "selected" : ""}>${t(`ad.hatPos.${x}`)}</option>`).join("")}</select></label>
+            ${(() => { const hp = hatPlacement(v); const sl = (n, label, min, max, val, unit) => `<label class="f-hat">${t(label)} <b data-val="${n}">${val}${unit}</b><input type="range" name="${n}" min="${min}" max="${max}" step="1" value="${val}"></label>`;
+              return sl("hsize", "ad.hatSize", 30, 200, hp.size, "%") + sl("hx", "ad.hatX", -100, 100, hp.x, "") + sl("hy", "ad.hatY", -120, 100, hp.y, "") + sl("hrot", "ad.hatRot", -180, 180, hp.rotate, "°")
+                + `<button type="button" class="f-hat link small" data-hat-reset>${t("ad.hatReset")}</button>`; })()}
             <label class="check f-halo"><input type="checkbox" name="halo" ${v.halo ? "checked" : ""}> ${t("ad.halo")}</label>
             <label class="f-color2">${t("ad.color2")}<input name="color2" type="color" value="${esc(v.color2 || "#3a4a6b")}"></label>
             <label class="f-pattern">${t("ad.pattern")}<select name="pattern">${["none", "dots", "grid", "stripes", "blocks", "bricks"].map((x) => `<option value="${x}" ${(v.pattern || "none") === x ? "selected" : ""}>${t(`ad.pattern.${x}`)}</option>`).join("")}</select></label>
@@ -635,7 +636,7 @@ function editItem(item, items) {
       color2: form.color2.value, animate: form.animate.checked || undefined };
     if (type === "hat") {
       if (form.halo.checked) return { halo: true };
-      const extra = { size: Number(form.hsize.value), pos: form.hpos.value === "corner" ? undefined : form.hpos.value };
+      const extra = { size: Number(form.hsize.value), x: Number(form.hx.value), y: Number(form.hy.value), rotate: Number(form.hrot.value) };
       return form.image.value.trim() ? { image: form.image.value.trim(), ...extra } : { emoji: form.emoji.value.trim(), ...extra };
     }
     return form.image.value.trim() ? { image: form.image.value.trim() } : form.text.value.trim() ? { text: form.text.value.trim().toUpperCase() } : { emoji: form.emoji.value.trim() };
@@ -646,8 +647,8 @@ function editItem(item, items) {
     show(".f-color", look && form.style.value !== "rainbow"); show(".f-style", look);
     show(".f-emoji", !look && !(type === "hat" && form.halo.checked)); show(".f-image", !look && !(type === "hat" && form.halo.checked));
     show(".f-text", type === "sticker"); show(".f-halo", type === "hat");
-    show(".f-hsize", type === "hat" && !form.halo.checked); show(".f-hpos", type === "hat" && !form.halo.checked);
-    form.querySelector(".hsize-val").textContent = `${form.hsize.value}%`;
+    form.querySelectorAll(".f-hat").forEach((el) => el.classList.toggle("hidden", !(type === "hat" && !form.halo.checked)));
+    for (const [n, unit] of [["hsize", "%"], ["hx", ""], ["hy", ""], ["hrot", "°"]]) form.querySelector(`[data-val="${n}"]`).textContent = form[n].value + unit;
     const bg = type === "banner" || type === "wallpaper";
     show(".f-color2", bg); show(".f-pattern", bg); show(".f-animate", bg);
     if (bg) { show(".f-color", true); show(".f-image", true); show(".f-emoji", false); show(".f-style", false); }
@@ -667,8 +668,28 @@ function editItem(item, items) {
     }
     form.querySelector(".look-hint").textContent = t(`ad.lookHint.${type}`);
     const preview = { type, name: form.name.value || "?", name_es: form.name_es.value, visual: visual() };
-    editor.querySelector("#live").innerHTML = itemPreview(preview, user, 64);
+    editor.querySelector("#live").innerHTML = itemPreview(preview, user, type === "hat" ? 104 : 64); // bigger for dragging hats
   }
+  // Hats: drag the hat around in the preview (X/Y sliders follow), or reset to the classic corner.
+  form.querySelector("[data-hat-reset]").onclick = () => {
+    const d = hatPlacement({ size: form.hsize.value });
+    form.hx.value = d.x; form.hy.value = d.y; form.hrot.value = d.rotate; refresh();
+  };
+  const live = editor.querySelector("#live");
+  live.addEventListener("pointerdown", (e) => {
+    const hat = e.target.closest(".av-hat");
+    if (!hat || typeOf() !== "hat") return;
+    e.preventDefault();
+    const av = hat.closest(".av").getBoundingClientRect();
+    const move = (ev) => {
+      form.hx.value = Math.round(((ev.clientX - av.left) / av.width - 0.5) * 100);
+      form.hy.value = Math.round(((ev.clientY - av.top) / av.height - 0.5) * 100);
+      refresh();
+    };
+    const up = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", up); };
+    addEventListener("pointermove", move); addEventListener("pointerup", up);
+  });
+
   // Upload a font right from the editor: it's saved, added to the list, selected, and the preview uses it.
   const fileIn = form.querySelector("[name=fontfile]");
   form.querySelector("[data-upload-font]").onclick = () => fileIn.click();

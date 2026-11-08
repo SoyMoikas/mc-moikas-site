@@ -1,5 +1,6 @@
 import { api, esc, t, initPage, onSubmit, toast, fmtDate, roleLabel, localized, avatarHTML, nameHTML } from "./common.js";
 import { levelInfo, fmtHours } from "./levels.js";
+import { itemName } from "./cosmetics.js";
 
 const user = await initPage();
 const main = document.getElementById("main");
@@ -32,6 +33,8 @@ async function load() {
         <div class="pc-rank" style="color:${l.color}">${esc(l.rank)}</div>
         <div class="xpbar"><div style="width:${l.pct}%"></div></div>
         <div class="small muted pc-xp">${t("pf2.toNext", { into: l.into.toLocaleString(), needed: l.needed.toLocaleString(), next: l.level + 1 })} · <b>${esc(t("xp.toNext", { n: (l.needed - l.into).toLocaleString(), level: l.level + 1 }))}</b></div>
+        ${p.next_reward ? `<div class="next-reward small">🎁 ${t("pf2.nextReward", { level: p.next_reward.level })}:
+          <b>+🪙 ${p.next_reward.coins}</b>${p.next_reward.items.map((i) => ` · <b>${esc(itemName(i))}</b>`).join("")}</div>` : ""}
         <div class="specs" style="margin-top:14px">
           <div class="spec"><span>XP</span><strong>${l.xp.toLocaleString()}</strong></div>
           <div class="spec"><span>${t("rk.hours")}</span><strong>${fmtHours(p.user.play_minutes)}</strong></div>

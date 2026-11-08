@@ -1,48 +1,77 @@
-// How store items look. Frames and name colors are CSS classes (style.css); hats and stickers are emoji.
-import { t } from "./i18n.js";
+// How store items look. Items come from the database (Admin → Store); this file turns them into HTML.
+// visual: frame {color, style: solid|glow|pulse|rainbow|shimmer} · color {color, style: solid|glow|rainbow}
+//         hat {emoji | image | halo} · sticker {emoji | text | image}
+import { t, lang } from "./i18n.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const safeColor = (c) => (/^#[0-9a-f]{6}$/i.test(c || "") ? c : "#9aa0aa");
+const safeUrl = (u) => (/^https:\/\/[^\s"'<>]+$/i.test(u || "") ? u : "");
 
-export const HATS = {
-  hat_party: "🎉", hat_cap: "🧢", hat_flower: "🌸", hat_tophat: "🎩", hat_grad: "🎓",
-  hat_star: "⭐", hat_fire: "🔥", hat_halo: "", hat_crown: "👑",
-};
+let CATALOG = {};
+export async function loadCatalog() {
+  try {
+    const r = await fetch("/api/store/catalog");
+    if (r.ok) CATALOG = (await r.json()).items || {};
+  } catch { /* render without cosmetics */ }
+}
+export const catalogItem = (id) => (id ? CATALOG[id] : null);
 
-// emoji, or text for word stickers
-export const STICKERS = {
-  st_gg: { text: "GG" }, st_heart: { emoji: "❤️" }, st_hi: { emoji: "👋" }, st_brb: { text: "BRB" },
-  st_pick: { emoji: "⛏️" }, st_lol: { emoji: "😂" }, st_sad: { emoji: "😭" }, st_sleep: { emoji: "😴" },
-  st_gem: { emoji: "💎" }, st_swords: { emoji: "⚔️" }, st_fire: { emoji: "🔥" }, st_alv: { text: "ALV" },
-  st_skull: { emoji: "💀" }, st_cake: { emoji: "🎂" }, st_party: { emoji: "🥳" }, st_rip: { emoji: "🪦" },
-  st_trophy: { emoji: "🏆" },
-};
+export const itemName = (item) => (item ? (lang === "es" && item.name_es ? item.name_es : item.name) : "");
 
 export const STICKER_RE = /^\[\[sticker:([a-z0-9_]{1,40})\]\]$/;
 export const stickerCode = (id) => `[[sticker:${id}]]`;
 
-export const itemName = (id) => t(`item.${id}`);
+function frameAttrs(item) {
+  if (!item) return { cls: "", style: "" };
+  const v = item.visual || {};
+  return { cls: ` framed fs-${esc(v.style || "solid")}`, style: `--fc:${safeColor(v.color)};` };
+}
 
-// Avatar with equipped frame and hat. `u` needs avatar, eq_frame, eq_hat.
-export function avatarHTML(u, size = 32) {
+function hatHTML(item) {
+  if (!item) return "";
+  const v = item.visual || {};
+  if (v.halo) return `<span class="av-halo"></span>`;
+  if (v.image && safeUrl(v.image)) return `<span class="av-hat"><img src="${esc(v.image)}" alt=""></span>`;
+  if (v.emoji) return `<span class="av-hat">${esc(v.emoji)}</span>`;
+  return "";
+}
+
+// Avatar with equipped frame and hat. Pass `over` = {frame, hat} item objects to preview unsaved items.
+export function avatarHTML(u, size = 32, over = {}) {
   const img = esc(u?.avatar || "https://cdn.discordapp.com/embed/avatars/0.png");
-  const frame = u?.eq_frame ? ` ${esc(u.eq_frame.replace(/_/g, "-"))}` : "";
-  const hat = u?.eq_hat;
-  let hatHTML = "";
-  if (hat === "hat_halo") hatHTML = `<span class="av-halo"></span>`;
-  else if (hat && HATS[hat]) hatHTML = `<span class="av-hat">${HATS[hat]}</span>`;
-  return `<span class="av${frame}" style="--av:${size}px"><img src="${img}" alt="" loading="lazy">${hatHTML}</span>`;
+  const frame = "frame" in over ? over.frame : catalogItem(u?.eq_frame);
+  const hat = "hat" in over ? over.hat : catalogItem(u?.eq_hat);
+  const f = frameAttrs(frame);
+  return `<span class="av${f.cls}" style="--av:${size}px;${f.style}"><img src="${img}" alt="" loading="lazy">${hatHTML(hat)}</span>`;
 }
 
-// Username with equipped name color.
-export function nameHTML(u, fallback = "") {
-  const color = u?.eq_color ? ` ${esc(u.eq_color.replace(/_/g, "-"))}` : "";
-  return `<b class="uname-c${color}">${esc(u?.username || fallback)}</b>`;
+// Username with equipped name color. `over` = color item to preview.
+export function nameHTML(u, fallback = "", over) {
+  const item = over !== undefined ? over : catalogItem(u?.eq_color);
+  const v = item?.visual || {};
+  const style = item && v.style !== "rainbow" ? ` style="color:${safeColor(v.color)}"` : "";
+  const cls = item ? ` nc-${esc(v.style || "solid")}` : "";
+  return `<b class="uname-c${cls}"${style}>${esc(u?.username || fallback)}</b>`;
 }
 
-export function stickerHTML(id, { small = false } = {}) {
-  const s = STICKERS[id];
-  if (!s) return "";
-  return `<span class="sticker ${small ? "small" : ""} ${s.text ? "word" : ""}" title="${esc(itemName(id))}">${s.text ? esc(s.text) : s.emoji}</span>`;
+// Sticker by id (from catalog) or from an item object (preview).
+export function stickerHTML(idOrItem, { small = false } = {}) {
+  const item = typeof idOrItem === "string" ? catalogItem(idOrItem) : idOrItem;
+  if (!item) return "";
+  const v = item.visual || {};
+  const title = esc(itemName(item));
+  if (v.image && safeUrl(v.image)) return `<span class="sticker img ${small ? "small" : ""}" title="${title}"><img src="${esc(v.image)}" alt="${title}"></span>`;
+  if (v.text) return `<span class="sticker word ${small ? "small" : ""}" title="${title}">${esc(v.text)}</span>`;
+  return `<span class="sticker ${small ? "small" : ""}" title="${title}">${esc(v.emoji || "?")}</span>`;
+}
+
+// Preview of any item, used by the store and the admin editor.
+export function itemPreview(item, user, size = 56) {
+  const base = user || { username: t("st.you"), avatar: null };
+  if (item.type === "frame") return avatarHTML(base, size, { frame: item, hat: null });
+  if (item.type === "hat") return avatarHTML(base, size, { frame: null, hat: item });
+  if (item.type === "color") return `<span class="color-preview">${nameHTML(base, "", item)}</span>`;
+  return stickerHTML(item);
 }
 
 // Author fields on posts come prefixed (author_avatar, author_frame…).

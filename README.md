@@ -81,7 +81,7 @@ The site picks Spanish for anyone whose browser is in Spanish; everyone can swit
 UI text lives in `public/js/i18n.js`. Each server has optional Spanish description and join steps (Admin → Edit).
 Announcements, tasks and comments are shown as written.
 
-Database updates for existing installs: run each `migrations-00X-*.sql` file you haven't run yet, once, in the D1 console (001 = Spanish fields, 002 = chat, 003 = levels & quests, 004 = store).
+Database updates for existing installs: run each `migrations-00X-*.sql` file you haven't run yet, once, in the D1 console (001 = Spanish fields, 002 = chat, 003 = levels & quests, 004 = store, 005 = coin economy + editable items).
 
 ## Levels & quests
 - XP = 1 per minute played on any server (from each world's `stats/<uuid>.json`) + quest XP. Level L needs 30·L² XP.
@@ -91,9 +91,9 @@ Database updates for existing installs: run each `migrations-00X-*.sql` file you
 - The sync script reads stats through Pterodactyl's file API every 10 minutes (`STATS_EVERY_MIN` in sync.env).
 
 ## Store
-- Coins = XP ÷ 10, minus what you've spent (spending never lowers your level).
-- Items (frames, hats, name colors, chat stickers) are defined in `lib/catalog.js` (price, level),
-  `public/js/cosmetics.js` (look) and `public/js/i18n.js` (`item.<id>` names). Add new ones in all three.
+- Coins come only from level-ups (base + per-level × level, set in Admin → Store) and from quests (each quest has a coin reward).
+- Items live in the database. Add/edit/hide/delete them in **Admin → Store**: frames (color + style), hats (emoji, image link or halo),
+  name colors, and chat stickers (emoji, short text, or an https image link). Each item can be sold for coins, given free at a level, or both.
 
 ## Adding another server later
 1. Create it in Pterodactyl, giving it its own port (e.g. 25566).

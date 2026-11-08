@@ -1,6 +1,6 @@
 import { json, err, body, now, str, HttpError } from "../../../lib/util.js";
 import { need, hasRole } from "../../../lib/auth.js";
-import { ITEMS, STICKER_RE, ownedSet, owns } from "../../../lib/catalog.js";
+import { STICKER_RE, getItem, ownedSet, owns } from "../../../lib/catalog.js";
 
 // Channels: "general" or a server id. Members and up can read and post.
 
@@ -58,7 +58,7 @@ export async function onRequestPost({ request, env, params }) {
   if (!text) return err(400, "Message can't be empty");
   const sticker = text.match(STICKER_RE);
   if (sticker) {
-    const item = ITEMS[sticker[1]];
+    const item = await getItem(env, sticker[1]);
     if (!item || item.type !== "sticker" || !owns(item, await ownedSet(env, user.id), user.xp)) return err(403, "You don't own that sticker");
   }
 

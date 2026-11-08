@@ -1,7 +1,7 @@
 // Shared helpers for every page.
 import { t, tErr, lang, locale, setLang, applyStatic } from "./i18n.js";
 import { levelBadge, levelInfo } from "./levels.js";
-import { avatarHTML, nameHTML, fromAuthor } from "./cosmetics.js";
+import { avatarHTML, nameHTML, fromAuthor, loadCatalog } from "./cosmetics.js";
 export { t, lang, levelBadge, avatarHTML, nameHTML };
 
 const RANK = { pending: 0, member: 1, staff: 2, admin: 3 };
@@ -71,7 +71,8 @@ export function toast(msg, error = false) {
 export async function initPage() {
   applyStatic();
   let user = null;
-  try { ({ user } = await api("/api/me")); } catch { /* offline: treat as logged out */ }
+  const [me] = await Promise.allSettled([api("/api/me"), loadCatalog()]);
+  if (me.status === "fulfilled") user = me.value.user;
 
   const bar = document.createElement("header");
   bar.className = "topbar";

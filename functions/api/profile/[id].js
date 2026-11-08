@@ -1,4 +1,5 @@
 import { json, err } from "../../../lib/util.js";
+import { getSettings, levelOf, rewardForLevel } from "../../../lib/catalog.js";
 
 // Public profile: level info, hours per server, completed quests.
 export async function onRequestGet({ env, params }) {
@@ -26,6 +27,12 @@ export async function onRequestGet({ env, params }) {
     ).bind(u.xp, u.xp, u.play_minutes),
   ]);
 
+  // What the next level-up gives.
+  const level = levelOf(u.xp);
+  const settings = await getSettings(env);
+  const { results: nextItems } = await env.DB.prepare(
+    "SELECT id, type, name, name_es FROM store_items WHERE active = 1 AND reward_level = ? ORDER BY sort_order"
+  ).bind(level + 1).all();
   const { mc_uuid, ...pub } = u;
   return json({
     user: { ...pub, linked: !!mc_uuid },
@@ -34,5 +41,6 @@ export async function onRequestGet({ env, params }) {
       .filter((s) => !s.hidden)
       .map((s) => ({ name: s.server_name || s.ptero_name || "?", server_id: s.server_id, minutes: s.play_minutes })),
     quests: quests.results,
+    next_reward: { level: level + 1, coins: rewardForLevel(level + 1, settings), items: nextItems },
   });
 }

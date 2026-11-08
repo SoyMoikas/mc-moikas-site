@@ -53,6 +53,7 @@ function questCard(q) {
     <article class="card quest ${q.active ? "" : "inactive"} ${q.my_status === "approved" ? "is-done" : ""}" data-quest="${q.id}">
       <div class="q-head">
         <span class="q-xp">+${q.xp.toLocaleString()} XP</span>
+        ${q.coins ? `<span class="q-xp">+🪙 ${q.coins.toLocaleString()}</span>` : ""}
         <span class="pill">${q.kind === "auto" ? t("q.auto") : t("q.manual")}</span>
         ${q.server_id ? `<a class="small" href="/server?id=${encodeURIComponent(q.server_id)}">${esc(q.server_name)}</a>` : `<span class="small muted">${t("q.anyServer")}</span>`}
         ${q.active ? "" : `<span class="draft">${t("q.inactive")}</span>`}
@@ -106,6 +107,7 @@ function questForm(q = {}) {
       </div>
       <div class="row">
         <label>XP<input name="xp" type="number" min="1" required value="${esc(q.xp ?? 100)}"></label>
+        <label>${t("q.fCoins")}<input name="coins" type="number" min="0" value="${esc(q.coins ?? 0)}"></label>
         <label>${t("q.fKind")}<select name="kind">
           <option value="manual" ${auto ? "" : "selected"}>${t("q.manualLong")}</option>
           <option value="auto" ${auto ? "selected" : ""}>${t("q.autoLong")}</option></select></label>

@@ -1,5 +1,5 @@
 import { api, esc, can, t, initPage, toast, levelBadge, avatarHTML, nameHTML } from "./common.js";
-import { stickerHTML, itemName, HATS } from "./cosmetics.js";
+import { itemName, itemPreview } from "./cosmetics.js";
 import { levelInfo } from "./levels.js";
 
 const user = await initPage();
@@ -12,8 +12,7 @@ const SECTIONS = [
   { type: "color", key: "st.colors", id: "colors" },
   { type: "sticker", key: "st.stickers", id: "stickers" },
 ];
-let data = null;
-let me = null; // local copy of the user for live previews
+let data = null, me = null;
 
 async function load() {
   try { data = await api("/api/store"); }
@@ -23,38 +22,56 @@ async function load() {
   if (location.hash) document.querySelector(location.hash)?.scrollIntoView();
 }
 
-function preview(item) {
-  const base = me || { username: t("st.you"), avatar: null };
-  if (item.type === "frame") return avatarHTML({ ...base, eq_frame: item.id, eq_hat: null }, 56);
-  if (item.type === "hat") return avatarHTML({ ...base, eq_frame: null, eq_hat: item.id }, 56);
-  if (item.type === "color") return `<span class="color-preview">${nameHTML({ ...base, eq_color: item.id })}</span>`;
-  return stickerHTML(item.id);
-}
-
 function card(item) {
   const u = data.user;
   const owned = u?.owned.includes(item.id);
   const slot = item.type !== "sticker" ? item.type : null;
   const equipped = slot && u?.equipped[slot] === item.id;
-  const locked = u ? u.level < item.level : item.level > 0;
+  const sale = item.price !== null && item.price > 0;
+  const reward = item.reward_level !== null;
+  const lockedBuy = sale && u && u.level < item.level;
+
   let action = "";
   if (!user) action = "";
   else if (equipped) action = `<button data-unequip="${slot}">${t("st.unequip")}</button>`;
   else if (owned && slot) action = `<button class="primary" data-equip="${item.id}" data-slot="${slot}">${t("st.equip")}</button>`;
   else if (owned) action = `<span class="small muted">✓ ${t("st.owned")}</span>`;
-  else if (locked) action = `<span class="small muted">🔒 ${t("st.needLevel", { n: item.level })}</span>`;
-  else if (!can(user, "member")) action = `<span class="small muted">${t("st.membersOnly")}</span>`;
-  else action = `<button class="primary" data-buy="${item.id}" ${u.coins < item.price ? "disabled" : ""}>${t("st.buy")}</button>`;
+  else if (sale && lockedBuy) action = `<span class="small muted">🔒 ${t("st.needLevel", { n: item.level })}</span>`;
+  else if (sale && !can(user, "member")) action = `<span class="small muted">${t("st.membersOnly")}</span>`;
+  else if (sale) action = `<button class="primary" data-buy="${item.id}" ${u.coins < item.price ? "disabled" : ""}>${t("st.buy")}</button>`;
+  else if (reward) action = `<span class="small muted">🔒 ${t("st.unlockAt", { n: item.reward_level })}</span>`;
+
+  const tags = [
+    sale ? `<span class="price">🪙 ${item.price.toLocaleString()}</span>` : "",
+    sale && item.level ? `<span class="lvl" style="--rank:var(--muted)">${t("lvl.short")} ${item.level}+</span>` : "",
+    reward ? `<span class="reward-tag">🎁 ${item.reward_level === 0 ? t("st.free") : t("st.rewardLevel", { n: item.reward_level })}</span>` : "",
+    !item.active ? `<span class="draft">${t("q.inactive")}</span>` : "",
+  ].join("");
 
   return `
-    <div class="card store-item ${equipped ? "equipped" : ""} ${locked && !owned ? "locked" : ""}">
-      <div class="si-preview">${preview(item)}</div>
-      <div class="si-name">${esc(itemName(item.id))}</div>
-      <div class="si-meta">
-        <span class="price">${item.price ? `🪙 ${item.price.toLocaleString()}` : t("st.free")}</span>
-        ${item.level ? `<span class="lvl" style="--rank:var(--muted)">${t("lvl.short")} ${item.level}+</span>` : ""}
-      </div>
+    <div class="card store-item ${equipped ? "equipped" : ""} ${!owned && (lockedBuy || (!sale && reward)) ? "locked" : ""}">
+      <div class="si-preview">${itemPreview(item, me)}</div>
+      <div class="si-name">${esc(itemName(item))}</div>
+      <div class="si-meta">${tags}</div>
       <div class="si-action">${action}</div>
+    </div>`;
+}
+
+function rewardTrack() {
+  const s = data.settings;
+  const levels = [...new Set(data.items.filter((i) => i.reward_level > 0 && i.active).map((i) => i.reward_level))].sort((a, b) => a - b);
+  const cur = data.user?.level ?? -1;
+  return `
+    <div class="card reward-track">
+      <p class="hint" style="margin-top:0">${t("st.levelCoins", { base: s.coins_base, per: s.coins_per_level, l1: s.coins_base + s.coins_per_level, l10: s.coins_base + s.coins_per_level * 10 })}</p>
+      ${levels.map((lv) => {
+        const items = data.items.filter((i) => i.reward_level === lv && i.active);
+        return `<div class="rt-row ${cur >= lv ? "got" : ""}">
+          <span class="rt-lvl">${t("lvl.short")} ${lv}</span>
+          <span class="rt-items">${items.map((i) => `<span class="rt-item" title="${esc(itemName(i))}">${itemPreview(i, me, 30)}<span class="small">${esc(itemName(i))}</span></span>`).join("")}</span>
+          <span class="rt-coins">+🪙 ${(s.coins_base + s.coins_per_level * lv).toLocaleString()}</span>
+        </div>`;
+      }).join("")}
     </div>`;
 }
 
@@ -70,30 +87,39 @@ function render() {
           <div class="sh-main">
             <div>${nameHTML(me)} ${levelBadge(u.xp)}</div>
             <div class="coins">🪙 ${u.coins.toLocaleString()} <span class="small muted">${t("st.coins")}</span></div>
-            <div class="hint">${t("st.howCoins")}</div>
+            <div class="hint">${t("st.howCoins", { n: u.next_level_coins, level: u.level + 1 })}</div>
           </div>
         </div>`
         : `<div class="notice">${t("st.loginNotice", { href: "/auth/login?next=/store" })}</div>`}
-      <nav class="store-nav">${SECTIONS.map((s) => `<a href="#${s.id}">${t(s.key)}</a>`).join("")}</nav>
+      <nav class="store-nav">
+        <a href="#rewards">🎁 ${t("st.rewards")}</a>
+        ${SECTIONS.map((s) => `<a href="#${s.id}">${t(s.key)}</a>`).join("")}
+      </nav>
     </section>
-    ${SECTIONS.map((s) => `
+    <section id="rewards">
+      <div class="section-head"><h2>${t("st.rewards")}</h2></div>
+      ${rewardTrack()}
+    </section>
+    ${SECTIONS.map((s) => {
+      const items = data.items.filter((i) => i.type === s.type);
+      return `
       <section id="${s.id}">
         <div class="section-head"><h2>${t(s.key)}</h2></div>
         ${s.type === "sticker" ? `<p class="hint">${t("st.stickerHint")}</p>` : ""}
-        <div class="store-grid">${data.items.filter((i) => i.type === s.type).map(card).join("")}</div>
-      </section>`).join("")}`;
+        <div class="store-grid">${items.map(card).join("") || `<p class="muted">—</p>`}</div>
+      </section>`;
+    }).join("")}`;
   wire();
 }
 
 function wire() {
   main.querySelectorAll("[data-buy]").forEach((b) => b.onclick = async () => {
     const item = data.items.find((i) => i.id === b.dataset.buy);
-    if (!confirm(t("st.confirmBuy", { name: itemName(item.id), price: item.price }))) return;
+    if (!confirm(t("st.confirmBuy", { name: itemName(item), price: item.price }))) return;
     b.disabled = true;
     try {
       await api("/api/store/buy", { method: "POST", body: { item: item.id } });
-      toast(t("st.bought", { name: itemName(item.id) }));
-      // Equip cosmetics right away; stickers just become available.
+      toast(t("st.bought", { name: itemName(item) }));
       if (item.type !== "sticker") await api("/api/store/equip", { method: "POST", body: { slot: item.type, item: item.id } });
       location.reload();
     } catch (e) { toast(e.message, true); b.disabled = false; }

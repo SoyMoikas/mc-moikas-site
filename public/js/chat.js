@@ -1,6 +1,6 @@
 // Chat box. Polls for new messages every few seconds while the tab is visible.
 import { api, esc, rich, can, t, ago, toast, roleLabel, loginHint, levelBadge, avatarHTML, nameHTML } from "./common.js";
-import { STICKER_RE, STICKERS, stickerHTML, stickerCode } from "./cosmetics.js";
+import { STICKER_RE, catalogItem, stickerHTML, stickerCode } from "./cosmetics.js";
 
 const POLL_MS = 4000;
 
@@ -38,7 +38,7 @@ export function mountChat(el, channel, user) {
             <span class="when" data-ts="${m.created_at}" title="${esc(new Date(m.created_at).toLocaleString())}">${esc(ago(m.created_at))}</span>
             ${m.can_delete ? `<button class="link chat-del" data-del="${m.id}" title="${esc(t("delete"))}">✕</button>` : ""}
           </div>
-          ${(() => { const st = m.body.match(STICKER_RE); return st && STICKERS[st[1]] ? `<div class="body">${stickerHTML(st[1])}</div>` : `<div class="body">${rich(m.body)}</div>`; })()}
+          ${(() => { const st = m.body.match(STICKER_RE); return st && catalogItem(st[1]) ? `<div class="body">${stickerHTML(st[1])}</div>` : `<div class="body">${rich(m.body)}</div>`; })()}
         </div>
       </div>`;
   }
@@ -87,7 +87,7 @@ export function mountChat(el, channel, user) {
     picker.innerHTML = `<p class="muted small">${t("loading")}</p>`;
     try {
       const { user: me } = await api("/api/store");
-      const mine = (me?.owned || []).filter((id) => STICKERS[id]);
+      const mine = (me?.owned || []).filter((id) => catalogItem(id)?.type === "sticker");
       picker.innerHTML = mine.map((id) => `<button type="button" class="sticker-pick" data-st="${id}">${stickerHTML(id, { small: true })}</button>`).join("")
         + `<a class="small" href="/store#stickers">${t("chat.moreStickers")}</a>`;
     } catch (e) { picker.innerHTML = `<p class="muted small">${esc(e.message)}</p>`; }

@@ -1,4 +1,5 @@
 import { api, esc, can, t, initPage, onSubmit, toast, ago, fmtDate, statusBadge, roleLabel } from "./common.js";
+import { itemPreview, itemName } from "./cosmetics.js";
 
 const user = await initPage();
 const main = document.getElementById("main");
@@ -13,11 +14,12 @@ main.innerHTML = `
     <button data-tab="servers" class="active">${t("ad.tabServers")}</button>
     <button data-tab="ptero">${t("ad.tabPtero")}</button>
     <button data-tab="users">${t("ad.tabUsers")}</button>
+    <button data-tab="store">${t("ad.tabStore")}</button>
   </div>
   <section id="tab"></section>`;
 
 const tabEl = main.querySelector("#tab");
-const tabs = { servers: serversTab, ptero: pteroTab, users: usersTab };
+const tabs = { servers: serversTab, ptero: pteroTab, users: usersTab, store: storeTab };
 main.querySelectorAll("[data-tab]").forEach((b) => b.onclick = () => {
   main.querySelectorAll("[data-tab]").forEach((x) => x.classList.toggle("active", x === b));
   tabs[b.dataset.tab]().catch((e) => (tabEl.innerHTML = `<p class="muted">${esc(e.message)}</p>`));
@@ -211,5 +213,149 @@ async function usersTab() {
     };
   });
 }
+
+/* ---------------- Store ---------------- */
+
+const TYPES = ["frame", "hat", "color", "sticker"];
+const FRAME_STYLES = ["solid", "glow", "pulse", "rainbow", "shimmer"];
+
+async function storeTab() {
+  tabEl.innerHTML = `<p class="muted">${t("loading")}</p>`;
+  const [{ items }, settings] = await Promise.all([api("/api/store"), api("/api/settings")]);
+  tabEl.innerHTML = `
+    <div class="section-head"><h2>${t("ad.tabStore")}</h2><button id="add-item">${t("ad.addItem")}</button></div>
+    <form class="card stack" id="coin-settings">
+      <h3 style="margin:0">${t("ad.coinRules")}</h3>
+      <div class="row">
+        <label>${t("ad.coinsBase")}<input name="coins_base" type="number" min="0" value="${settings.coins_base}"></label>
+        <label>${t("ad.coinsPerLevel")}<input name="coins_per_level" type="number" min="0" value="${settings.coins_per_level}"></label>
+      </div>
+      <p class="hint" id="coin-example"></p>
+      <div class="actions"><span style="flex:1"></span><button class="primary">${t("save")}</button></div>
+    </form>
+    <div id="item-editor"></div>
+    ${TYPES.map((type) => `
+      <h3>${t(`st.${type === "frame" ? "frames" : type === "hat" ? "hats" : type === "color" ? "colors" : "stickers"}`)}</h3>
+      <div class="card table-wrap"><table>
+        <thead><tr><th></th><th>${t("ad.colName")}</th><th>${t("ad.itemPrice")}</th><th>${t("ad.itemLevel")}</th><th>${t("ad.itemReward")}</th><th></th></tr></thead>
+        <tbody>${items.filter((i) => i.type === type).map((i) => `
+          <tr class="${i.active ? "" : "inactive-row"}">
+            <td class="primary-cell"><span class="admin-item-prev">${itemPreview(i, user, 34)}</span> ${esc(itemName(i))}
+              <div class="hint">${esc(i.id)}${i.active ? "" : ` · ${t("q.inactive")}`}</div></td>
+            <td data-label="${esc(t("ad.itemPrice"))}">${i.price ? `🪙 ${i.price}` : `<span class="muted">${t("ad.notSold")}</span>`}</td>
+            <td data-label="${esc(t("ad.itemLevel"))}">${i.price ? i.level : "—"}</td>
+            <td data-label="${esc(t("ad.itemReward"))}">${i.reward_level !== null ? `🎁 ${t("lvl.short")} ${i.reward_level}` : "—"}</td>
+            <td class="actions"><button data-edit-item="${esc(i.id)}">${t("edit")}</button></td>
+          </tr>`).join("") || `<tr><td colspan="6" class="muted">—</td></tr>`}
+        </tbody></table></div>`).join("")}`;
+
+  const cs = tabEl.querySelector("#coin-settings");
+  const example = () => {
+    const b = Number(cs.coins_base.value) || 0, p = Number(cs.coins_per_level.value) || 0;
+    const total = (n) => b * n + p * n * (n + 1) / 2;
+    tabEl.querySelector("#coin-example").textContent = t("ad.coinExample", { l1: b + p, l10: b + p * 10, t10: total(10), t20: total(20) });
+  };
+  cs.addEventListener("input", example); example();
+  onSubmit(cs, async (d) => { await api("/api/settings", { method: "PATCH", body: d }); toast(t("saved")); });
+
+  tabEl.querySelector("#add-item").onclick = () => editItem(null, items);
+  tabEl.querySelectorAll("[data-edit-item]").forEach((b) => b.onclick = () => editItem(items.find((i) => i.id === b.dataset.editItem), items));
+}
+
+function editItem(item, items) {
+  const editor = tabEl.querySelector("#item-editor");
+  const isNew = !item;
+  const it = item || { type: "sticker", visual: { emoji: "😎" }, active: 1, level: 0, sort_order: 0, price: 50, reward_level: null };
+  const v = it.visual || {};
+  editor.innerHTML = `
+    <form class="stack card item-form">
+      <h3 style="margin:0">${isNew ? t("ad.newItem") : esc(t("ad.editTitle", { name: itemName(it) }))}</h3>
+      <div class="item-form-grid">
+        <div class="item-live"><div class="si-preview" id="live"></div><span class="hint">${t("ad.preview")}</span></div>
+        <div class="stack">
+          <div class="row">
+            ${isNew ? `<label>${t("ad.itemType")}<select name="type">${TYPES.map((x) => `<option value="${x}" ${it.type === x ? "selected" : ""}>${t(`ad.type.${x}`)}</option>`).join("")}</select></label>
+                       <label>${t("ad.itemId")}<input name="id" required pattern="[a-z0-9_]{2,40}" placeholder="st_creeper_face"></label>`
+                    : `<label>${t("ad.itemType")}<input value="${esc(t(`ad.type.${it.type}`))}" disabled></label><label>ID<input value="${esc(it.id)}" disabled></label>`}
+          </div>
+          <div class="row">
+            <label>${t("ad.nameEn")}<input name="name" required maxlength="60" value="${esc(it.name)}"></label>
+            <label>${t("ad.nameEs")}<input name="name_es" maxlength="60" value="${esc(it.name_es)}"></label>
+          </div>
+          <div class="row look-row">
+            <label class="f-emoji">${t("ad.emoji")}<input name="emoji" maxlength="16" value="${esc(v.emoji)}" placeholder="😎"></label>
+            <label class="f-text">${t("ad.text")}<input name="text" maxlength="8" value="${esc(v.text)}" placeholder="GG"></label>
+            <label class="f-image">${t("ad.image")}<input name="image" value="${esc(v.image)}" placeholder="https://…/sticker.png"></label>
+            <label class="f-color">${t("ad.color")}<input name="color" type="color" value="${esc(v.color || "#6fcf5a")}"></label>
+            <label class="f-style">${t("ad.style")}<select name="style"></select></label>
+            <label class="check f-halo"><input type="checkbox" name="halo" ${v.halo ? "checked" : ""}> ${t("ad.halo")}</label>
+          </div>
+          <p class="hint look-hint"></p>
+          <div class="row">
+            <label>${t("ad.itemPrice")}<input name="price" type="number" min="1" value="${esc(it.price ?? "")}" placeholder="${esc(t("ad.notSold"))}"></label>
+            <label>${t("ad.itemLevel")}<input name="level" type="number" min="0" value="${esc(it.level ?? 0)}"></label>
+            <label>${t("ad.itemReward")}<input name="reward_level" type="number" min="0" value="${esc(it.reward_level ?? "")}" placeholder="—"></label>
+            <label>${t("ad.sortOrder")}<input name="sort_order" type="number" value="${esc(it.sort_order ?? 0)}"></label>
+          </div>
+          <p class="hint">${t("ad.itemHelp")}</p>
+          <label class="check"><input type="checkbox" name="active" ${it.active ? "checked" : ""}> ${t("ad.itemActive")}</label>
+        </div>
+      </div>
+      <div class="actions">
+        ${isNew ? "" : `<button type="button" class="danger" data-delete-item>${t("delete")}</button>`}
+        <span style="flex:1"></span>
+        <button type="button" data-cancel>${t("cancel")}</button>
+        <button class="primary">${isNew ? t("ad.create") : t("save")}</button>
+      </div>
+    </form>`;
+  editor.scrollIntoView({ behavior: "smooth", block: "start" });
+
+  const form = editor.querySelector("form");
+  const typeOf = () => (isNew ? form.type.value : it.type);
+  const show = (cls, on) => form.querySelector(cls).classList.toggle("hidden", !on);
+
+  function styleOptions() {
+    const type = typeOf();
+    const opts = type === "frame" ? FRAME_STYLES : ["solid", "glow", "rainbow"];
+    const cur = form.style.value || v.style || "solid";
+    form.style.innerHTML = opts.map((o) => `<option value="${o}" ${o === cur ? "selected" : ""}>${t(`ad.style.${o}`)}</option>`).join("");
+  }
+  function visual() {
+    const type = typeOf();
+    if (type === "frame" || type === "color") return { color: form.color.value, style: form.style.value };
+    if (type === "hat") return form.halo.checked ? { halo: true } : form.image.value.trim() ? { image: form.image.value.trim() } : { emoji: form.emoji.value.trim() };
+    return form.image.value.trim() ? { image: form.image.value.trim() } : form.text.value.trim() ? { text: form.text.value.trim().toUpperCase() } : { emoji: form.emoji.value.trim() };
+  }
+  function refresh() {
+    const type = typeOf();
+    const look = type === "frame" || type === "color";
+    show(".f-color", look && form.style.value !== "rainbow"); show(".f-style", look);
+    show(".f-emoji", !look && !(type === "hat" && form.halo.checked)); show(".f-image", !look && !(type === "hat" && form.halo.checked));
+    show(".f-text", type === "sticker"); show(".f-halo", type === "hat");
+    form.querySelector(".look-hint").textContent = t(`ad.lookHint.${type}`);
+    const preview = { type, name: form.name.value || "?", name_es: form.name_es.value, visual: visual() };
+    editor.querySelector("#live").innerHTML = itemPreview(preview, user, 64);
+  }
+  if (isNew) form.type.onchange = () => { styleOptions(); refresh(); };
+  styleOptions(); refresh();
+  form.addEventListener("input", refresh);
+  form.addEventListener("change", refresh);
+
+  form.querySelector("[data-cancel]").onclick = () => (editor.innerHTML = "");
+  form.querySelector("[data-delete-item]")?.addEventListener("click", async () => {
+    if (!confirm(t("ad.confirmDeleteItem", { name: itemName(it) }))) return;
+    try { await api(`/api/store/items/${encodeURIComponent(it.id)}`, { method: "DELETE" }); toast(t("ad.deleted")); storeTab(); }
+    catch (e) { toast(e.message, true); }
+  });
+  onSubmit(form, async (d) => {
+    const body = { name: d.name, name_es: d.name_es, price: d.price || null, level: d.level, reward_level: d.reward_level === "" ? null : d.reward_level,
+      sort_order: d.sort_order, active: d.active, visual: visual() };
+    if (isNew) await api("/api/store/items", { method: "POST", body: { ...body, id: d.id, type: d.type } });
+    else await api(`/api/store/items/${encodeURIComponent(it.id)}`, { method: "PATCH", body });
+    toast(t("saved")); location.hash = "store"; location.reload();
+  });
+}
+
+if (location.hash === "#store") setTimeout(() => main.querySelector('[data-tab="store"]').click(), 0);
 
 serversTab().catch((e) => (tabEl.innerHTML = `<p class="muted">${esc(e.message)}</p>`));

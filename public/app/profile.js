@@ -1,4 +1,4 @@
-import { api, esc, t, initPage, onSubmit, toast, fmtDate, roleLabel, localized, avatarHTML, nameHTML } from "./common.js";
+import { api, esc, t, initPage, onSubmit, toast, fmtDate, roleLabel, localized, avatarHTML, nameHTML, bgStyle, bgAnimated } from "./common.js";
 import { levelInfo, fmtHours } from "./levels.js";
 import { itemName } from "./cosmetics.js";
 import { mountFeed } from "./feed.js";
@@ -23,6 +23,7 @@ async function load() {
   main.innerHTML = `
     <section>
       <div class="card profile-card" style="--rank:${l.color}">
+        <div class="pc-banner ${p.user.eq_banner ? "has-art" : ""} ${bgAnimated(p.user.eq_banner) ? "art-anim" : ""}" style="${bgStyle(p.user.eq_banner)}"></div>
         <div class="pc-head">
           ${avatarHTML(p.user, 64)}
           <div>

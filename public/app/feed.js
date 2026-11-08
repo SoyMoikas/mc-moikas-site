@@ -1,5 +1,5 @@
 // Private "For you" feed: composer, posts, likes, replies. Approved members only.
-import { api, esc, rich, can, t, ago, toast, roleLabel, loginHint, levelBadge, avatarHTML, nameHTML, SITE, gameLabel } from "./common.js";
+import { api, esc, rich, can, t, ago, toast, roleLabel, loginHint, levelBadge, avatarHTML, nameHTML, SITE, gameLabel, bgStyle, bgAnimated } from "./common.js";
 
 // opts: { game: id (filter + preselect), userId: profile filter, composer: bool, modes: bool }
 export function mountFeed(el, user, opts = {}) {
@@ -65,7 +65,7 @@ export function mountFeed(el, user, opts = {}) {
     const tag = p.game_id ? `<a class="feed-game" href="/game?id=${encodeURIComponent(p.game_id)}">${esc(p.game_icon || "🎮")} ${esc(lang2(p.game_name, p.game_name_es))}</a>` : "";
     const staffBadge = p.role === "staff" || p.role === "admin" || p.role === "subadmin" ? `<span class="role ${esc(p.role)}">${esc(roleLabel(p.role))}</span>` : "";
     return `
-      <article class="card fpost" data-id="${p.id}">
+      <article class="card fpost ${p.eq_banner ? "has-banner" : ""} ${bgAnimated(p.eq_banner) ? "art-anim" : ""}" data-id="${p.id}" style="${bgStyle(p.eq_banner)}">
         <div class="fpost-head">
           <a href="/profile?id=${p.author_id}">${avatarHTML(p, 40)}</a>
           <div class="fpost-who">

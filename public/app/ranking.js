@@ -1,4 +1,4 @@
-import { api, esc, t, initPage, avatarHTML, nameHTML } from "./common.js";
+import { api, esc, t, initPage, avatarHTML, nameHTML, bgStyle } from "./common.js";
 import { levelInfo, levelBadge, fmtHours, RANKS, xpForLevel } from "./levels.js";
 
 const user = await initPage();
@@ -29,7 +29,7 @@ main.innerHTML = `
       <thead><tr><th>${t("rk.player")}</th><th>${t("rk.level")}</th><th>XP</th><th>${t("rk.hours")}</th><th>${t("rk.quests")}</th></tr></thead>
       <tbody>${players.map((p, i) => {
         const l = levelInfo(p.xp);
-        return `<tr class="${user && p.id === user.id ? "me-row" : ""} ${i < 3 ? "top" : ""}">
+        return `<tr class="${user && p.id === user.id ? "me-row" : ""} ${i < 3 ? "top" : ""} ${p.eq_banner ? "has-banner" : ""}" style="${bgStyle(p.eq_banner)}">
           <td class="primary-cell"><span class="pos">${medal(i)}</span>
             <a class="who-cell" href="/profile?id=${p.id}">${avatarHTML(p, 34)}<span>${nameHTML(p)}
               ${p.mc_name ? `<span class="hint">${esc(p.mc_name)}</span>` : ""}</span></a></td>

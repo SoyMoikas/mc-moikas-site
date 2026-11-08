@@ -325,7 +325,7 @@ async function usersTab() {
 
 /* ---------------- Store ---------------- */
 
-const TYPES = ["frame", "hat", "color", "sticker"];
+const TYPES = ["frame", "hat", "color", "sticker", "banner", "wallpaper"];
 const FRAME_STYLES = ["solid", "glow", "pulse", "rainbow", "shimmer"];
 
 async function storeTab() {
@@ -344,7 +344,7 @@ async function storeTab() {
     </form>
     <div id="item-editor"></div>
     ${TYPES.map((type) => `
-      <h3>${t(`st.${type === "frame" ? "frames" : type === "hat" ? "hats" : type === "color" ? "colors" : "stickers"}`)}</h3>
+      <h3>${t(`st.${{ frame: "frames", hat: "hats", color: "colors", sticker: "stickers", banner: "banners", wallpaper: "wallpapers" }[type]}`)}</h3>
       <div class="card table-wrap"><table>
         <thead><tr><th></th><th>${t("ad.colName")}</th><th>${t("ad.itemPrice")}</th><th>${t("ad.itemLevel")}</th><th>${t("ad.itemReward")}</th><th></th></tr></thead>
         <tbody>${items.filter((i) => i.type === type).map((i) => `
@@ -398,6 +398,9 @@ function editItem(item, items) {
             <label class="f-color">${t("ad.color")}<input name="color" type="color" value="${esc(v.color || "#6fcf5a")}"></label>
             <label class="f-style">${t("ad.style")}<select name="style"></select></label>
             <label class="check f-halo"><input type="checkbox" name="halo" ${v.halo ? "checked" : ""}> ${t("ad.halo")}</label>
+            <label class="f-color2">${t("ad.color2")}<input name="color2" type="color" value="${esc(v.color2 || "#3a4a6b")}"></label>
+            <label class="f-pattern">${t("ad.pattern")}<select name="pattern">${["none", "dots", "grid", "stripes", "blocks"].map((x) => `<option value="${x}" ${(v.pattern || "none") === x ? "selected" : ""}>${t(`ad.pattern.${x}`)}</option>`).join("")}</select></label>
+            <label class="check f-animate"><input type="checkbox" name="animate" ${v.animate ? "checked" : ""}> ${t("ad.animate")}</label>
           </div>
           <p class="hint look-hint"></p>
           <div class="row">
@@ -432,6 +435,8 @@ function editItem(item, items) {
   function visual() {
     const type = typeOf();
     if (type === "frame" || type === "color") return { color: form.color.value, style: form.style.value };
+    if (type === "banner" || type === "wallpaper") return { color: form.color.value, color2: form.color2.value, pattern: form.pattern.value,
+      image: form.image.value.trim() || undefined, animate: form.animate.checked || undefined };
     if (type === "hat") return form.halo.checked ? { halo: true } : form.image.value.trim() ? { image: form.image.value.trim() } : { emoji: form.emoji.value.trim() };
     return form.image.value.trim() ? { image: form.image.value.trim() } : form.text.value.trim() ? { text: form.text.value.trim().toUpperCase() } : { emoji: form.emoji.value.trim() };
   }
@@ -441,6 +446,9 @@ function editItem(item, items) {
     show(".f-color", look && form.style.value !== "rainbow"); show(".f-style", look);
     show(".f-emoji", !look && !(type === "hat" && form.halo.checked)); show(".f-image", !look && !(type === "hat" && form.halo.checked));
     show(".f-text", type === "sticker"); show(".f-halo", type === "hat");
+    const bg = type === "banner" || type === "wallpaper";
+    show(".f-color2", bg); show(".f-pattern", bg); show(".f-animate", bg);
+    if (bg) { show(".f-color", true); show(".f-image", true); show(".f-emoji", false); show(".f-style", false); }
     form.querySelector(".look-hint").textContent = t(`ad.lookHint.${type}`);
     const preview = { type, name: form.name.value || "?", name_es: form.name_es.value, visual: visual() };
     editor.querySelector("#live").innerHTML = itemPreview(preview, user, 64);

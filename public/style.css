@@ -713,3 +713,43 @@ main.page footer { padding: 24px 0; }
   body.mtab-chat .side-chat { display: flex !important; flex-direction: column; }
   body.mtab-chat .side-chat .chat-log { height: calc(100dvh - var(--topbar) - 200px); max-height: none; flex: none; }
 }
+
+/* ---------- banners & wallpapers ---------- */
+.has-art { background: var(--bg-art); }
+.art-anim { background-size: 300% 300%; animation: art-drift 12s ease-in-out infinite alternate; }
+@keyframes art-drift { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
+
+body.has-wallpaper::before { content: ""; position: fixed; inset: 0; z-index: -2; background: var(--wallpaper); }
+body.has-wallpaper::after { content: ""; position: fixed; inset: 0; z-index: -1; background: linear-gradient(rgba(12,14,22,.62), rgba(12,14,22,.78)); }
+body.wallpaper-anim::before { background-size: 300% 300%; animation: art-drift 20s ease-in-out infinite alternate; }
+body.has-wallpaper .rail { background: rgba(16,19,28,.55); backdrop-filter: blur(6px); }
+
+.profile-card { padding-top: 0; overflow: hidden; }
+.pc-banner { height: 110px; margin: 0 -16px 0; }
+.pc-banner:not(.has-art) { background: linear-gradient(120deg, color-mix(in srgb, var(--rank) 25%, var(--panel-2)), var(--panel-2)); }
+.pc-banner + .pc-head { margin-top: -30px; }
+.pc-head img, .pc-head .av { position: relative; }
+
+.rail-me.has-art { position: relative; overflow: hidden; }
+.rail-me.has-art::before { content: ""; position: absolute; inset: 0; background: linear-gradient(rgba(24,28,40,.35), rgba(24,28,40,.92) 70%); }
+.rail-me.has-art > * { position: relative; }
+
+.fpost.has-banner { position: relative; overflow: hidden; }
+.fpost.has-banner::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 64px; background: var(--bg-art); opacity: .35;
+  -webkit-mask-image: linear-gradient(#000, transparent); mask-image: linear-gradient(#000, transparent); pointer-events: none; }
+.fpost.has-banner.art-anim::before { background-size: 300% 300%; animation: art-drift 12s ease-in-out infinite alternate; }
+.fpost.has-banner > * { position: relative; }
+.fpost.has-banner { animation: none; background-size: auto; }
+
+tr.has-banner td { background: linear-gradient(90deg, color-mix(in srgb, var(--panel) 30%, transparent), var(--panel) 65%), var(--bg-art); background-clip: padding-box; }
+tr.has-banner td + td { background: none; }
+
+.banner-preview { display: flex; align-items: center; gap: 8px; width: 150px; height: 56px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--border); }
+.banner-preview b { text-shadow: 0 1px 3px rgba(0,0,0,.8); font-size: .85rem; }
+.wp-preview { display: grid; grid-template-columns: 1fr 3fr 2fr; gap: 6px; width: 150px; height: 84px; padding: 8px; border-radius: 6px; border: 1px solid var(--border); }
+.wp-preview i { background: rgba(24,28,40,.85); border-radius: 3px; }
+.admin-item-prev .banner-preview, .admin-item-prev .wp-preview { width: 70px; height: 34px; padding: 3px; }
+.admin-item-prev .banner-preview b, .admin-item-prev .banner-preview .av { display: none; }
+.rt-item .banner-preview, .rt-item .wp-preview { width: 60px; height: 30px; padding: 2px; }
+.rt-item .banner-preview b, .rt-item .banner-preview .av { display: none; }
+@media (prefers-reduced-motion: reduce) { .art-anim, body.wallpaper-anim::before, .fpost.has-banner::before { animation: none !important; } }

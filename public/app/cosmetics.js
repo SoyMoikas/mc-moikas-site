@@ -71,8 +71,33 @@ export function itemPreview(item, user, size = 56) {
   if (item.type === "frame") return avatarHTML(base, size, { frame: item, hat: null });
   if (item.type === "hat") return avatarHTML(base, size, { frame: null, hat: item });
   if (item.type === "color") return `<span class="color-preview">${nameHTML(base, "", item)}</span>`;
+  if (item.type === "banner") return `<span class="banner-preview has-art ${item.visual?.animate ? "art-anim" : ""}" style="${bgStyle(item)}">${avatarHTML({ ...base, eq_frame: null, eq_hat: null }, 30, { frame: null, hat: null })}<b>${esc(base.username || "")}</b></span>`;
+  if (item.type === "wallpaper") return `<span class="wp-preview has-art ${item.visual?.animate ? "art-anim" : ""}" style="${bgStyle(item)}"><i></i><i></i><i></i></span>`;
   return stickerHTML(item);
 }
+
+// Banner / wallpaper look → CSS background value. visual: {color, color2, pattern, image, animate}
+export function bgCSS(v = {}) {
+  const c = safeColor(v.color || "#181c28"), c2 = safeColor(v.color2 || v.color || "#212637");
+  if (v.image && safeUrl(v.image)) return `url('${v.image}') center/cover no-repeat, ${c}`;
+  switch (v.pattern) {
+    case "dots": return `radial-gradient(${c2} 1.2px, transparent 1.8px) 0 0/18px 18px, ${c}`;
+    case "grid": return `linear-gradient(${c2} 1px, transparent 1px) 0 0/24px 24px, linear-gradient(90deg, ${c2} 1px, transparent 1px) 0 0/24px 24px, ${c}`;
+    case "stripes": return `repeating-linear-gradient(45deg, ${c} 0 14px, ${c2} 14px 28px)`;
+    case "blocks": return `conic-gradient(${c2} 25%, ${c} 0 50%, ${c2} 0 75%, ${c} 0) 0 0/32px 32px`;
+    default: return `linear-gradient(120deg, ${c}, ${c2}, ${c})`;
+  }
+}
+// Inline style for an element showing a banner/wallpaper (item object or id).
+export function bgStyle(itemOrId) {
+  const item = typeof itemOrId === "string" ? catalogItem(itemOrId) : itemOrId;
+  if (!item) return "";
+  return `--bg-art:${bgCSS(item.visual)};`;
+}
+export const bgAnimated = (itemOrId) => {
+  const item = typeof itemOrId === "string" ? catalogItem(itemOrId) : itemOrId;
+  return !!item?.visual?.animate;
+};
 
 // Author fields on posts come prefixed (author_avatar, author_frame…).
 export const fromAuthor = (p) => ({

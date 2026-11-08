@@ -1,8 +1,8 @@
 // Shared helpers for every page.
 import { t, tErr, lang, locale, setLang, applyStatic } from "./i18n.js";
 import { levelBadge, levelInfo } from "./levels.js";
-import { avatarHTML, nameHTML, fromAuthor, loadCatalog } from "./cosmetics.js";
-export { t, lang, levelBadge, avatarHTML, nameHTML };
+import { avatarHTML, nameHTML, fromAuthor, loadCatalog, catalogItem, bgCSS, bgStyle, bgAnimated } from "./cosmetics.js";
+export { t, lang, levelBadge, avatarHTML, nameHTML, bgStyle, bgAnimated };
 
 const RANK = { pending: 0, member: 1, staff: 2, subadmin: 3, admin: 4 };
 export const can = (user, role) => !!user && RANK[user.role] >= RANK[role];
@@ -120,6 +120,14 @@ export async function initPage() {
   document.body.prepend(bar);
   bar.querySelector("[data-lang]").onclick = (e) => setLang(e.currentTarget.dataset.lang);
 
+  // Your wallpaper (only you see it).
+  const wp = user && catalogItem(user.eq_wallpaper);
+  if (wp) {
+    document.body.style.setProperty("--wallpaper", bgCSS(wp.visual));
+    document.body.classList.add("has-wallpaper");
+    if (wp.visual?.animate) document.body.classList.add("wallpaper-anim");
+  }
+
   // Game pages take on that game's color as the accent.
   const g = SITE.games.find((x) => x.id === curGame);
   if (g && /^#[0-9a-f]{6}$/i.test(g.color || "")) document.documentElement.style.setProperty("--accent", g.color);
@@ -153,7 +161,7 @@ export async function initPage() {
           }).join("")}
         </nav>` : ""}
       ${user ? `
-        <a class="rail-me" href="/profile" style="--rank:${l.color}">
+        <a class="rail-me ${user.eq_banner ? "has-art" : ""} ${bgAnimated(user.eq_banner) ? "art-anim" : ""}" href="/profile" style="--rank:${l.color};${bgStyle(user.eq_banner)}">
           <div class="rm-top">${avatarHTML(user, 36)}
             <div class="rm-who"><b>${esc(user.username)}</b><span class="rm-rank">${t("lvl.short")} ${l.level} · ${esc(l.rank)}</span></div></div>
           <div class="rm-bar"><span style="width:${l.pct}%"></span></div>

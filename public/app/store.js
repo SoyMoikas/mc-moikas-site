@@ -10,6 +10,8 @@ const SECTIONS = [
   { type: "frame", key: "st.frames", id: "frames" },
   { type: "hat", key: "st.hats", id: "hats" },
   { type: "color", key: "st.colors", id: "colors" },
+  { type: "banner", key: "st.banners", id: "banners" },
+  { type: "wallpaper", key: "st.wallpapers", id: "wallpapers" },
   { type: "sticker", key: "st.stickers", id: "stickers" },
 ];
 let data = null, me = null;
@@ -17,7 +19,8 @@ let data = null, me = null;
 async function load() {
   try { data = await api("/api/store"); }
   catch (e) { main.innerHTML = `<p style="padding:40px 0">${esc(e.message)}</p>`; return; }
-  if (data.user && user) me = { ...user, eq_frame: data.user.equipped.frame, eq_hat: data.user.equipped.hat, eq_color: data.user.equipped.color };
+  if (data.user && user) me = { ...user, eq_frame: data.user.equipped.frame, eq_hat: data.user.equipped.hat, eq_color: data.user.equipped.color,
+    eq_banner: data.user.equipped.banner, eq_wallpaper: data.user.equipped.wallpaper };
   render();
   if (location.hash) document.querySelector(location.hash)?.scrollIntoView();
 }
@@ -106,6 +109,8 @@ function render() {
       <section id="${s.id}">
         <div class="section-head"><h2>${t(s.key)}</h2></div>
         ${s.type === "sticker" ? `<p class="hint">${t("st.stickerHint")}</p>` : ""}
+        ${s.type === "banner" ? `<p class="hint">${t("st.bannerHint")}</p>` : ""}
+        ${s.type === "wallpaper" ? `<p class="hint">${t("st.wallpaperHint")}</p>` : ""}
         <div class="store-grid">${items.map(card).join("") || `<p class="muted">—</p>`}</div>
       </section>`;
     }).join("")}`;

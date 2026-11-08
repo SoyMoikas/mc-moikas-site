@@ -330,9 +330,12 @@ button.lang { padding: 2px 8px; font-size: .8rem; font-weight: 700; letter-spaci
 @keyframes gleam { from { background-position: 0% 0%; } to { background-position: 100% 100%; } }
 @keyframes pulse-ring { from { box-shadow: 0 0 0 2px var(--fc), 0 0 5px 1px color-mix(in srgb, var(--fc) 50%, transparent); }
   to { box-shadow: 0 0 0 2px var(--fc), 0 0 14px 4px color-mix(in srgb, var(--fc) 80%, transparent); } }
-.av-hat img { width: calc(var(--av, 32px) * 0.62); height: auto; display: block; }
-.av-hat { position: absolute; z-index: 2; top: calc(var(--av, 32px) * -0.42); right: calc(var(--av, 32px) * -0.28);
-  font-size: calc(var(--av, 32px) * 0.6); line-height: 1; transform: rotate(14deg); pointer-events: none; filter: drop-shadow(0 1px 1px rgba(0,0,0,.6)); }
+/* Hats: --hs = size as a fraction of the avatar width (store item "Size"); position corner (default) / top / face */
+.av-hat { --hs: .62; position: absolute; z-index: 2; top: calc(var(--av, 32px) * var(--hs) * -0.68); right: calc(var(--av, 32px) * var(--hs) * -0.45);
+  font-size: calc(var(--av, 32px) * var(--hs) * 0.97); line-height: 1; transform: rotate(14deg); pointer-events: none; filter: drop-shadow(0 1px 1px rgba(0,0,0,.6)); }
+.av-hat img { width: calc(var(--av, 32px) * var(--hs)); height: auto; display: block; }
+.av-hat.hp-top { top: auto; right: auto; left: 50%; bottom: calc(var(--av, 32px) * 0.78); transform: translateX(-50%); }
+.av-hat.hp-face { top: 50%; right: auto; left: 50%; transform: translate(-50%, -50%); }
 .av-halo { position: absolute; z-index: 2; left: 18%; right: 18%; top: calc(var(--av, 32px) * -0.22); height: calc(var(--av, 32px) * 0.18);
   border: 2px solid #ffe680; border-radius: 50%; box-shadow: 0 0 6px #ffe680; pointer-events: none; }
 @media (prefers-reduced-motion: reduce) { .av::before, .av > img, .uname-c { animation: none !important; } }
@@ -907,8 +910,8 @@ tr.has-banner td + td { background: none; }
 
 /* Composer: per-post style & background picker */
 .composer-look { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; padding: 10px; border: 1px solid var(--border); border-radius: 8px; }
-.look-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.look-row > b { width: 80px; flex: none; color: var(--muted); }
+.composer-look .look-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.composer-look .look-row > b { width: 80px; flex: none; color: var(--muted); }
 .look-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 6px; border-radius: 999px; border: 1px solid var(--border); background: transparent; cursor: pointer; }
 .look-chip.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, transparent); }
 .look-chip .body { font-size: 1rem; line-height: 1; padding: 0; min-width: 24px; text-align: center; }
@@ -922,3 +925,18 @@ tr.has-banner td + td { background: none; }
 .av > .av-frame { position: absolute; z-index: 1; left: -25%; top: -25%; width: 150%; height: 150%; max-width: none;
   border-radius: 0; object-fit: contain; pointer-events: none; }
 .av.framed-img > img:first-child { box-shadow: none; }
+
+/* Uploaded fonts (admin) */
+.font-pick { display: flex; gap: 6px; align-items: center; }
+.font-pick select { flex: 1; min-width: 0; }
+.font-pick button { white-space: nowrap; }
+.fonts-admin { margin: 14px 0; }
+.fonts-admin summary { cursor: pointer; }
+.font-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid var(--border); }
+.font-sample { flex: 1; font-size: 1.15rem; }
+.item-form label.f-font { grid-column: span 2; }
+@media (max-width: 640px) { .item-form label.f-font { grid-column: auto; } }
+.frame-warn { display: block; margin-top: 4px; color: #ffb347; font-weight: 600; }
+.frame-warn.ok { color: var(--accent); font-weight: 400; }
+.item-live .si-preview { padding: 24px 20px 14px; } /* room for image frames, which reach 25% past the avatar */
+.item-form .f-hsize input[type=range] { width: 100%; accent-color: var(--accent); }

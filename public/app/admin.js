@@ -1,5 +1,5 @@
 import { api, esc, can, perm, t, initPage, SITE, gameLabel, localized, toISO, toLocalInput, onSubmit, toast, ago, fmtDate, statusBadge, roleLabel } from "./common.js";
-import { itemPreview, itemName, FONTS, EFFECTS } from "./cosmetics.js";
+import { itemPreview, itemName, FONTS, EFFECTS, registerFont } from "./cosmetics.js";
 
 const user = await initPage();
 const main = document.getElementById("main");
@@ -381,6 +381,51 @@ async function usersTab() {
   });
 }
 
+// Image frames must be square with the avatar in the middle (384×384 template). Trimmed exports end up off-centre,
+// so warn as soon as the image loads.
+let frameCheckSeq = 0;
+function checkFrameImage(url, hintEl) {
+  const seq = ++frameCheckSeq;
+  hintEl.querySelector(".frame-warn")?.remove();
+  if (!url) return;
+  const im = new Image();
+  im.onload = () => {
+    if (seq !== frameCheckSeq) return;
+    const w = im.naturalWidth, h = im.naturalHeight;
+    const msg = w !== h ? t("ad.frameNotSquare", { w, h }) : w % 192 ? t("ad.frameOddSize", { w }) : ""; // 384 (or 768…) keeps the avatar in the middle third
+    hintEl.insertAdjacentHTML("beforeend", msg ? `<span class="frame-warn">⚠ ${esc(msg)}</span>` : `<span class="frame-warn ok">✓ ${esc(t("ad.frameOk", { w, h }))}</span>`);
+  };
+  im.onerror = () => { if (seq === frameCheckSeq) hintEl.insertAdjacentHTML("beforeend", `<span class="frame-warn">⚠ ${esc(t("ad.frameNoLoad"))}</span>`); };
+  im.src = url;
+}
+
+// Font dropdown: built-in fonts, then uploaded ones (⬆).
+function fontOptions(cur = "default") {
+  const opt = ([k, n]) => `<option value="${k}" ${(cur || "default") === k ? "selected" : ""}>${esc(k === "default" ? t("ad.font.default") : n)}</option>`;
+  const all = Object.entries(FONTS);
+  const up = all.filter(([k]) => k.startsWith("u_"));
+  return all.filter(([k]) => !k.startsWith("u_")).map(opt).join("")
+    + (up.length ? `<optgroup label="${esc(t("ad.uploadedFonts"))}">${up.map(opt).join("")}</optgroup>` : "");
+}
+
+async function loadFontList() {
+  const box = tabEl.querySelector("#font-list");
+  if (!box) return;
+  const { fonts } = await api("/api/fonts").catch(() => ({ fonts: [] }));
+  fonts.forEach(registerFont);
+  tabEl.querySelector("#font-count").textContent = `(${fonts.length})`;
+  box.innerHTML = fonts.length ? fonts.map((f) => `
+    <div class="font-row"><span class="tf-${esc(f.id)} font-sample">${esc(f.name)} · GG! ¿Qué onda? 123</span>
+      <span class="hint">${esc(f.format)} · ${Math.round(f.size / 1024)} KB</span>
+      <button class="link small" data-del-font="${esc(f.id)}">${t("delete")}</button></div>`).join("")
+    : `<p class="hint">${t("ad.noUploadedFonts")}</p>`;
+  box.querySelectorAll("[data-del-font]").forEach((b) => b.onclick = async () => {
+    if (!confirm(t("ad.confirmDeleteFont"))) return;
+    try { const r = await api(`/api/fonts/${b.dataset.delFont}`, { method: "DELETE" }); toast(r.items_affected ? t("ad.fontDeletedUsed", { n: r.items_affected }) : t("ad.deleted")); loadFontList(); }
+    catch (e) { toast(e.message, true); }
+  });
+}
+
 /* ---------------- Wallet & items (admin testing tool) ---------------- */
 
 async function walletPanel(uid) {
@@ -481,6 +526,7 @@ async function storeTab() {
         <button data-edit-col="${esc(c.id)}">${t("edit")}</button>
       </div>`).join("") || `<p class="muted small">${t("ad.noCollections")}</p>`}</div>
     <div id="item-editor"></div>
+    <details class="card fonts-admin"><summary><b>${t("ad.uploadedFonts")}</b> <span class="muted small" id="font-count"></span></summary><div id="font-list"></div></details>
     ${TYPES.map((type) => `
       <h3>${t(`st.${{ frame: "frames", hat: "hats", color: "colors", font: "fonts", textstyle: "textstyles", sticker: "stickers", banner: "banners", wallpaper: "wallpapers" }[type]}`)}</h3>
       <div class="card table-wrap"><table>
@@ -508,6 +554,7 @@ async function storeTab() {
   tabEl.querySelector("#add-col").onclick = () => editCollection(null);
   tabEl.querySelectorAll("[data-edit-col]").forEach((b) => b.onclick = () => editCollection(collections.find((c) => c.id === b.dataset.editCol)));
   tabEl.querySelectorAll("[data-edit-item]").forEach((b) => b.onclick = () => editItem(items.find((i) => i.id === b.dataset.editItem), items));
+  loadFontList();
 }
 
 function editItem(item, items) {
@@ -536,10 +583,14 @@ function editItem(item, items) {
             <label class="f-image">${t("ad.image")}<input name="image" value="${esc(v.image)}" placeholder="https://…/sticker.png"></label>
             <label class="f-color">${t("ad.color")}<input name="color" type="color" value="${esc(v.color || "#6fcf5a")}"></label>
             <label class="f-style">${t("ad.style")}<select name="style"></select></label>
+            <label class="f-hsize">${t("ad.hatSize")} <b class="hsize-val">${esc(v.size || 62)}%</b><input type="range" name="hsize" min="30" max="200" step="5" value="${esc(v.size || 62)}"></label>
+            <label class="f-hpos">${t("ad.hatPos")}<select name="hpos">${["corner", "top", "face"].map((x) => `<option value="${x}" ${(v.pos || "corner") === x ? "selected" : ""}>${t(`ad.hatPos.${x}`)}</option>`).join("")}</select></label>
             <label class="check f-halo"><input type="checkbox" name="halo" ${v.halo ? "checked" : ""}> ${t("ad.halo")}</label>
             <label class="f-color2">${t("ad.color2")}<input name="color2" type="color" value="${esc(v.color2 || "#3a4a6b")}"></label>
             <label class="f-pattern">${t("ad.pattern")}<select name="pattern">${["none", "dots", "grid", "stripes", "blocks", "bricks"].map((x) => `<option value="${x}" ${(v.pattern || "none") === x ? "selected" : ""}>${t(`ad.pattern.${x}`)}</option>`).join("")}</select></label>
-            <label class="f-font">${t("ad.font")}<select name="font">${Object.entries(FONTS).map(([k, n]) => `<option value="${k}" ${(v.font || "default") === k ? "selected" : ""}>${esc(k === "default" ? t("ad.font.default") : n)}</option>`).join("")}</select></label>
+            <label class="f-font">${t("ad.font")}<span class="font-pick"><select name="font">${fontOptions(v.font)}</select>
+              <button type="button" data-upload-font title="${esc(t("ad.uploadFontHelp"))}">⬆ ${t("ad.uploadFont")}</button>
+              <input type="file" name="fontfile" accept=".woff2,.woff,.ttf,.otf" hidden></span></label>
             <label class="f-effect">${t("ad.effect")}<select name="effect">${EFFECTS.map((x) => `<option value="${x}" ${(v.effect || "none") === x ? "selected" : ""}>${t(`ad.effect.${x}`)}</option>`).join("")}</select></label>
             <label class="check f-animate"><input type="checkbox" name="animate" ${v.animate ? "checked" : ""}> ${t("ad.animate")}</label>
           </div>
@@ -582,7 +633,11 @@ function editItem(item, items) {
       image: form.image.value.trim() || undefined, animate: form.animate.checked || undefined };
     if (type === "font" || type === "textstyle") return { font: form.font.value, effect: form.effect.value, color: form.color.value,
       color2: form.color2.value, animate: form.animate.checked || undefined };
-    if (type === "hat") return form.halo.checked ? { halo: true } : form.image.value.trim() ? { image: form.image.value.trim() } : { emoji: form.emoji.value.trim() };
+    if (type === "hat") {
+      if (form.halo.checked) return { halo: true };
+      const extra = { size: Number(form.hsize.value), pos: form.hpos.value === "corner" ? undefined : form.hpos.value };
+      return form.image.value.trim() ? { image: form.image.value.trim(), ...extra } : { emoji: form.emoji.value.trim(), ...extra };
+    }
     return form.image.value.trim() ? { image: form.image.value.trim() } : form.text.value.trim() ? { text: form.text.value.trim().toUpperCase() } : { emoji: form.emoji.value.trim() };
   }
   function refresh() {
@@ -591,11 +646,14 @@ function editItem(item, items) {
     show(".f-color", look && form.style.value !== "rainbow"); show(".f-style", look);
     show(".f-emoji", !look && !(type === "hat" && form.halo.checked)); show(".f-image", !look && !(type === "hat" && form.halo.checked));
     show(".f-text", type === "sticker"); show(".f-halo", type === "hat");
+    show(".f-hsize", type === "hat" && !form.halo.checked); show(".f-hpos", type === "hat" && !form.halo.checked);
+    form.querySelector(".hsize-val").textContent = `${form.hsize.value}%`;
     const bg = type === "banner" || type === "wallpaper";
     show(".f-color2", bg); show(".f-pattern", bg); show(".f-animate", bg);
     if (bg) { show(".f-color", true); show(".f-image", true); show(".f-emoji", false); show(".f-style", false); }
     if (type === "frame") { // color + style, or a PNG image instead
       const img = !!form.image.value.trim();
+      checkFrameImage(form.image.value.trim(), form.querySelector(".look-hint"));
       show(".f-image", true); show(".f-style", !img); show(".f-color", !img && form.style.value !== "rainbow");
       form.image.placeholder = "/frames/my-frame.png";
     }
@@ -611,6 +669,24 @@ function editItem(item, items) {
     const preview = { type, name: form.name.value || "?", name_es: form.name_es.value, visual: visual() };
     editor.querySelector("#live").innerHTML = itemPreview(preview, user, 64);
   }
+  // Upload a font right from the editor: it's saved, added to the list, selected, and the preview uses it.
+  const fileIn = form.querySelector("[name=fontfile]");
+  form.querySelector("[data-upload-font]").onclick = () => fileIn.click();
+  fileIn.onchange = async () => {
+    const file = fileIn.files[0]; fileIn.value = "";
+    if (!file) return;
+    if (file.size > 1024 * 1024) { toast(t("ad.fontTooBig"), true); return; }
+    const name = prompt(t("ad.fontName"), file.name.replace(/\.(woff2?|ttf|otf)$/i, "").replace(/[-_]+/g, " ").replace(/\b(regular|normal|400)\b/gi, "").trim());
+    if (!name) return;
+    const data = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1]); r.onerror = rej; r.readAsDataURL(file); });
+    try {
+      const { font } = await api("/api/fonts", { method: "POST", body: { name, data } });
+      registerFont(font);
+      form.font.innerHTML = fontOptions(font.id);
+      toast(t("ad.fontUploaded", { name: font.name }));
+      refresh();
+    } catch (e) { toast(e.message, true); }
+  };
   if (isNew) form.type.onchange = () => { styleOptions(); refresh(); };
   styleOptions(); refresh();
   form.addEventListener("input", refresh);

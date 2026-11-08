@@ -9,5 +9,7 @@ export async function onRequestGet({ env }) {
     try { visual = JSON.parse(r.visual); } catch { /* ignore */ }
     items[r.id] = { type: r.type, name: r.name, name_es: r.name_es, visual };
   }
-  return json({ items }, 200, { "cache-control": "public, max-age=60" });
+  // uploaded fonts (Admin → Store → item editor → ⬆ Upload font)
+  const fonts = (await env.DB.prepare("SELECT id, name, format FROM fonts").all().catch(() => ({ results: [] }))).results;
+  return json({ items, fonts }, 200, { "cache-control": "public, max-age=60" });
 }

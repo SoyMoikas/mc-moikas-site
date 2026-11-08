@@ -18,5 +18,5 @@ All are free to use on websites.
 | pacifico.woff2 | Pacifico | SIL OFL 1.1 |
 | monoton.woff2 | Monoton | SIL OFL 1.1 |
 
-To add another font: `npm pack @fontsource/<name>`, copy `files/<name>-latin-400-normal.woff2` here,
-then add it to FONTS in `lib/catalog.js` and `public/app/cosmetics.js` and an `@font-face` + `.tf-<id>` rule in `style.css`.
+To add another font, use **Admin → Store → (edit a name or text style) → ⬆ Upload font**. No code changes needed.
+Only upload fonts whose license allows use on websites (everything on fonts.google.com does).

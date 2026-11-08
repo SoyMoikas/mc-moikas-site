@@ -12,7 +12,7 @@ let CATALOG = {};
 export async function loadCatalog() {
   try {
     const r = await fetch("/api/store/catalog");
-    if (r.ok) CATALOG = (await r.json()).items || {};
+    if (r.ok) { const d = await r.json(); CATALOG = d.items || {}; (d.fonts || []).forEach(registerFont); }
   } catch { /* render without cosmetics */ }
 }
 export const catalogItem = (id) => (id ? CATALOG[id] : null);
@@ -26,6 +26,18 @@ export const FONTS = {
   arcade: "Press Start 2P", creepy: "Creepster", script: "Pacifico", neon: "Monoton", glitch: "Rubik Glitch",
 };
 export const EFFECTS = ["none", "solid", "gradient", "rainbow", "glow", "graffiti", "3d"];
+
+// Uploaded fonts (ids start with u_): add an @font-face + .tf-<id> rule. The browser only downloads a font once
+// something on the page actually uses it.
+export function registerFont(f) {
+  if (!/^u_[a-z0-9_]{1,30}$/.test(f?.id || "") || FONTS[f.id]) return;
+  FONTS[f.id] = f.name;
+  let el = document.getElementById("uploaded-fonts");
+  if (!el) { el = document.createElement("style"); el.id = "uploaded-fonts"; document.head.appendChild(el); }
+  const fmt = { woff2: "woff2", woff: "woff", truetype: "truetype", opentype: "opentype" }[f.format] || "woff2";
+  el.textContent += `@font-face{font-family:"uf-${f.id}";src:url("/api/fonts/${f.id}") format("${fmt}");font-display:swap}`
+    + `.tf-${f.id}{font-family:"uf-${f.id}",sans-serif;font-weight:400}`;
+}
 
 // Classes + CSS variables for a font/textstyle item.
 export function textFx(itemOrId) {
@@ -59,8 +71,12 @@ function hatHTML(item) {
   if (!item) return "";
   const v = item.visual || {};
   if (v.halo) return `<span class="av-halo"></span>`;
-  if (v.image && safeUrl(v.image)) return `<span class="av-hat"><img src="${esc(v.image)}" alt=""></span>`;
-  if (v.emoji) return `<span class="av-hat">${esc(v.emoji)}</span>`;
+  // size: % of the avatar width (default 62) · pos: corner (default) | top | face
+  const size = Number(v.size) >= 30 && Number(v.size) <= 200 ? Number(v.size) : 62;
+  const cls = `av-hat${["top", "face"].includes(v.pos) ? ` hp-${v.pos}` : ""}`;
+  const style = size !== 62 ? ` style="--hs:${size / 100}"` : "";
+  if (v.image && safeUrl(v.image)) return `<span class="${cls}"${style}><img src="${esc(v.image)}" alt=""></span>`;
+  if (v.emoji) return `<span class="${cls}"${style}>${esc(v.emoji)}</span>`;
   return "";
 }
 

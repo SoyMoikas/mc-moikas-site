@@ -5,7 +5,7 @@ export async function onRequestGet({ request, env, params }) {
   const viewer = await need(env, request, "member");
   if (viewer instanceof Response) return viewer;
   const { results } = await env.DB.prepare(
-    `SELECT c.id, c.body, c.created_at, c.user_id, u.username, u.avatar, u.role, u.xp, u.eq_frame, u.eq_hat, u.eq_color
+    `SELECT c.id, c.body, c.created_at, c.user_id, u.username, u.avatar, u.role, u.xp, u.eq_frame, u.eq_hat, u.hat_fit, u.avatar_build, u.eq_color
        FROM social_comments c LEFT JOIN users u ON u.id = c.user_id
       WHERE c.post_id = ? ORDER BY c.id ASC LIMIT 300`
   ).bind(params.id).all();

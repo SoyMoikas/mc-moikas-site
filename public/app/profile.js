@@ -2,6 +2,7 @@ import { api, esc, t, initPage, onSubmit, toast, fmtDate, roleLabel, localized, 
 import { levelInfo, fmtHours } from "./levels.js";
 import { itemName } from "./cosmetics.js";
 import { mountFeed } from "./feed.js";
+import { mountAvatarEditor } from "./avatar-editor.js";
 
 const user = await initPage();
 const main = document.getElementById("main");
@@ -46,6 +47,8 @@ async function load() {
       </div>
     </section>
 
+    ${own ? `<section id="avatar"><div class="section-head"><h2>${t("av.title")}</h2></div><div id="avatar-editor"></div></section>` : ""}
+
     ${own ? `<section><div class="section-head"><h2>${t("pf2.mcAccount")}</h2></div><div id="link" class="card"></div></section>` : ""}
 
     <section>
@@ -71,7 +74,12 @@ async function load() {
     ${own ? `<p style="margin-top:24px" class="actions"><a class="btn primary" href="/store">🪙 ${t("nav.store")}</a><a class="btn" href="/auth/logout">${t("auth.logout")}</a></p>` : ""}`;
 
   mountFeed(main.querySelector("#user-feed"), user, { userId: p.user.id, composer: own, modes: false });
-  if (own) renderLink();
+  if (own) {
+    renderLink();
+    mountAvatarEditor(main.querySelector("#avatar-editor"), { ...user, ...p.user }).then(() => {
+      if (location.hash === "#avatar") main.querySelector("#avatar").scrollIntoView({ behavior: "smooth" });
+    });
+  }
 }
 
 async function renderLink() {

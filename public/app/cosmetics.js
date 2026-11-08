@@ -3,6 +3,7 @@
 //         hat {emoji | image | halo} · sticker {emoji | text | image}
 //         font / textstyle {font, effect: none|solid|gradient|rainbow|glow|graffiti|3d, color, color2, animate}
 import { t, lang } from "./i18n.js";
+import { PART_SLOTS, ART, DEFAULT_COLORS } from "./avatar-parts.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const safeColor = (c) => (/^#[0-9a-f]{6}$/i.test(c || "") ? c : "#9aa0aa");
@@ -67,9 +68,12 @@ function frameAttrs(item) {
   return { cls: ` framed fs-${esc(v.style || "solid")}`, style: `--fc:${safeColor(v.color)};`, img: "" };
 }
 
-function hatHTML(item) {
+// fit = the wearer's own adjustment ({size, x, y, rotate}, JSON string or object) for their equipped hat.
+function parseFit(f) { if (!f) return null; if (typeof f === "object") return f; try { return JSON.parse(f); } catch { return null; } }
+function hatHTML(item, fit) {
   if (!item) return "";
-  const v = item.visual || {};
+  const f = parseFit(fit);
+  const v = f && !item.visual?.halo ? { ...item.visual, ...f } : item.visual || {};
   if (v.halo) return `<span class="av-halo"></span>`;
   const p = hatPlacement(v);
   const style = ` style="--hs:${p.size / 100};left:${50 + p.x}%;top:${50 + p.y}%;transform:translate(-50%,-50%) rotate(${p.rotate}deg)"`;
@@ -88,13 +92,30 @@ export function hatPlacement(v = {}) {
   return { size, x: Math.round((0.5 - 0.05 * hs) * 100), y: Math.round((-0.18 * hs - 0.5) * 100), rotate: 14 };
 }
 
+// ---- built avatars (Profile → Avatar). build = { use, body, bg, parts: { slot: itemId | item } }
+export function parseBuild(b) { if (!b) return null; if (typeof b === "object") return b; try { return JSON.parse(b); } catch { return null; } }
+export function buildSVG(build) {
+  const b = parseBuild(build) || {};
+  const layers = PART_SLOTS.map((slot) => {
+    const ref = b.parts?.[slot];
+    const item = typeof ref === "string" ? catalogItem(ref) : ref;
+    const v = item?.visual || {};
+    if (v.image && safeUrl(v.image)) return `<image href="${esc(v.image)}" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet"/>`;
+    return ART[v.art] || "";
+  }).join("");
+  return `<svg class="av-pic av-build" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="color:${safeColor(b.body || DEFAULT_COLORS.body)};background:${safeColor(b.bg || DEFAULT_COLORS.bg)}">${layers}</svg>`;
+}
+const usesBuild = (b) => b && b.use && b.parts?.shape;
+
 // Avatar with equipped frame and hat. Pass `over` = {frame, hat} item objects to preview unsaved items.
 export function avatarHTML(u, size = 32, over = {}) {
   const img = esc(u?.avatar || "https://cdn.discordapp.com/embed/avatars/0.png");
+  const build = "build" in over ? parseBuild(over.build) : parseBuild(u?.avatar_build);
   const frame = "frame" in over ? over.frame : catalogItem(u?.eq_frame);
   const hat = "hat" in over ? over.hat : catalogItem(u?.eq_hat);
+  const fit = "fit" in over ? over.fit : "hat" in over ? null : u?.hat_fit;
   const f = frameAttrs(frame);
-  return `<span class="av${f.cls}" style="--av:${size}px;${f.style}"><img src="${img}" alt="" loading="lazy">${f.img}${hatHTML(hat)}</span>`;
+  return `<span class="av${f.cls}" style="--av:${size}px;${f.style}">${usesBuild(build) ? buildSVG(build) : `<img class="av-pic" src="${img}" alt="" loading="lazy">`}${f.img}${hatHTML(hat, fit)}</span>`;
 }
 
 // Username with equipped name color + name style (font/effect). `over` / `fontOver` = items to preview.
@@ -128,6 +149,10 @@ export function itemPreview(item, user, size = 56) {
   if (item.type === "font") return `<span class="color-preview font-preview">${nameHTML(base, "", undefined, item)}</span>`;
   if (item.type === "textstyle") { const a = textAttrs(null, item); return `<span class="text-preview"><span class="body${a.cls}" style="${a.style}">${esc(t("st.textSample"))}</span></span>`; }
   if (item.type === "banner") return `<span class="banner-preview has-art ${item.visual?.animate ? "art-anim" : ""}" style="${bgStyle(item)}">${avatarHTML({ ...base, eq_frame: null, eq_hat: null }, 30, { frame: null, hat: null })}<b>${esc(base.username || "")}</b></span>`;
+  if (item.type === "part") { // a sample avatar wearing this part on top of the starter look
+    const parts = { shape: "part_shape_round", eyes: "part_eyes_dots", mouth: "part_mouth_smile", [item.visual?.slot || "shape"]: item };
+    return `<span class="av" style="--av:${size}px">${buildSVG({ parts })}</span>`;
+  }
   if (item.type === "wallpaper") return `<span class="wp-preview has-art ${item.visual?.animate ? "art-anim" : ""}" style="${bgStyle(item)}"><i></i><i></i><i></i></span>`;
   return stickerHTML(item);
 }
@@ -176,5 +201,5 @@ export const bgAnimated = (itemOrId) => {
 // Author fields on posts come prefixed (author_avatar, author_frame…).
 export const fromAuthor = (p) => ({
   username: p.author, avatar: p.author_avatar, xp: p.author_xp,
-  eq_frame: p.author_frame, eq_hat: p.author_hat, eq_color: p.author_color, eq_font: p.author_font,
+  eq_frame: p.author_frame, eq_hat: p.author_hat, hat_fit: p.author_hat_fit, avatar_build: p.author_avatar_build, eq_color: p.author_color, eq_font: p.author_font,
 });

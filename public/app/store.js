@@ -15,6 +15,7 @@ const SECTIONS = [
   { type: "banner", key: "st.banners", id: "banners" },
   { type: "wallpaper", key: "st.wallpapers", id: "wallpapers" },
   { type: "sticker", key: "st.stickers", id: "stickers" },
+  { type: "part", key: "st.parts", id: "avatar-parts" },
 ];
 const NEW_MS = 14 * 86400_000;
 let data = null, me = null;
@@ -25,7 +26,7 @@ async function load() {
   catch (e) { main.innerHTML = `<p style="padding:40px 0">${esc(e.message)}</p>`; return; }
   if (data.user && user) me = { ...user, eq_frame: data.user.equipped.frame, eq_hat: data.user.equipped.hat, eq_color: data.user.equipped.color,
     eq_banner: data.user.equipped.banner, eq_wallpaper: data.user.equipped.wallpaper,
-    eq_font: data.user.equipped.font, eq_text: data.user.equipped.textstyle };
+    eq_font: data.user.equipped.font, eq_text: data.user.equipped.textstyle, hat_fit: data.user.hat_fit };
   const hash = location.hash.slice(1);
   if (SECTIONS.some((s) => s.id === hash)) filters.type = SECTIONS.find((s) => s.id === hash).type;
   render();
@@ -68,7 +69,7 @@ function sorted(items) {
 function card(item) {
   const u = data.user;
   const own = owned(item);
-  const slot = item.type !== "sticker" ? item.type : null;
+  const slot = !["sticker", "part"].includes(item.type) ? item.type : null;
   const equipped = slot && u?.equipped[slot] === item.id;
   const sale = forSale(item);
   const reward = item.reward_level !== null;
@@ -76,8 +77,10 @@ function card(item) {
 
   let action = "";
   if (!user) action = "";
+  else if (equipped && item.type === "hat" && !item.visual?.halo) action = `<a class="btn primary" href="/profile#avatar">🎯 ${t("st.adjustFit")}</a> <button data-unequip="${slot}">${t("st.unequip")}</button>`;
   else if (equipped) action = `<button data-unequip="${slot}">${t("st.unequip")}</button>`;
   else if (own && slot) action = `<button class="primary" data-equip="${item.id}" data-slot="${slot}">${t("st.equip")}</button>`;
+  else if (own && item.type === "part") action = `<a class="btn" href="/profile#avatar">✓ ${t("st.useInAvatar")}</a>`;
   else if (own) action = `<span class="small muted">✓ ${t("st.owned")}</span>`;
   else if (sale && !can(user, "member")) action = `<span class="small muted">${t("st.membersOnly")}</span>`;
   else if (sale) action = `<button class="primary" data-buy="${item.id}" ${u.coins < item.price ? "disabled" : ""}>${t("st.buy")}</button>`;
@@ -194,6 +197,7 @@ function renderResults() {
         ${s.type === "wallpaper" ? `<p class="hint">${t("st.wallpaperHint")}</p>` : ""}
         ${s.type === "font" ? `<p class="hint">${t("st.fontHint")}</p>` : ""}
         ${s.type === "textstyle" ? `<p class="hint">${t("st.textHint")}</p>` : ""}
+        ${s.type === "part" ? `<p class="hint">${t("st.partsHint")}</p>` : ""}
         <div class="store-grid">${items.map(card).join("") || `<p class="muted">—</p>`}</div>
       </section>`;
   }).join("");
@@ -261,7 +265,7 @@ function wire() {
       try {
         await api("/api/store/buy", { method: "POST", body: { item: item.id } });
         toast(t("st.bought", { name: itemName(item) }));
-        if (item.type !== "sticker") await api("/api/store/equip", { method: "POST", body: { slot: item.type, item: item.id } });
+        if (!["sticker", "part"].includes(item.type)) await api("/api/store/equip", { method: "POST", body: { slot: item.type, item: item.id } });
         location.reload();
       } catch (err) { toast(err.message, true); buy.disabled = false; }
       return;

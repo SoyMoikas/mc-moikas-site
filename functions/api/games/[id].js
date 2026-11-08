@@ -18,7 +18,7 @@ export async function onRequestGet({ request, env, params }) {
 
   const { results: posts } = await env.DB.prepare(
     `SELECT p.id, p.server_id, p.game_id, p.title, p.body, p.tag, p.event_at, p.pinned, p.created_at, p.updated_at,
-            u.username AS author, u.avatar AS author_avatar, u.xp AS author_xp, u.eq_frame AS author_frame, u.eq_hat AS author_hat, u.eq_color AS author_color, u.eq_font AS author_font,
+            u.username AS author, u.avatar AS author_avatar, u.xp AS author_xp, u.eq_frame AS author_frame, u.eq_hat AS author_hat, u.hat_fit AS author_hat_fit, u.avatar_build AS author_avatar_build, u.eq_color AS author_color, u.eq_font AS author_font,
             COALESCE(s.name, s.id) AS server_name
        FROM posts p LEFT JOIN users u ON u.id = p.author_id LEFT JOIN servers s ON s.id = p.server_id
       WHERE (p.game_id = ?1 OR s.game_id = ?1) AND (p.server_id IS NULL OR s.hidden = 0 OR ?2 = 1)

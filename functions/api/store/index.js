@@ -33,7 +33,7 @@ export async function onRequestGet({ request, env }) {
       coins: coinsOf(user), xp: user.xp || 0, level,
       next_level_coins: rewardForLevel(level + 1, settings),
       owned: [...ownedIds],
-      equipped: { frame: user.eq_frame, hat: user.eq_hat, color: user.eq_color, banner: user.eq_banner, wallpaper: user.eq_wallpaper, font: user.eq_font, textstyle: user.eq_text },
+      equipped: { frame: user.eq_frame, hat: user.eq_hat, color: user.eq_color, banner: user.eq_banner, wallpaper: user.eq_wallpaper, font: user.eq_font, textstyle: user.eq_text }, hat_fit: user.hat_fit || null,
     };
   }
   return json(out);

@@ -15,6 +15,8 @@ export async function onRequestPost({ request, env }) {
     if (!item || item.type !== b.slot) return err(400, "Item doesn't fit that slot");
     if (!owns(item, await ownedSet(env, user.id), user.xp)) return err(403, "You don't own that");
   }
-  await env.DB.prepare(`UPDATE users SET ${col} = ? WHERE id = ?`).bind(b.item || null, user.id).run();
+  // A new hat starts from its default placement (your adjusted fit belonged to the old one).
+  const extra = b.slot === "hat" && (b.item || null) !== user.eq_hat ? ", hat_fit = NULL" : "";
+  await env.DB.prepare(`UPDATE users SET ${col} = ?${extra} WHERE id = ?`).bind(b.item || null, user.id).run();
   return json({ ok: true });
 }

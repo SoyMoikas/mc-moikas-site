@@ -1,5 +1,6 @@
 import { api, esc, can, perm, t, initPage, SITE, gameLabel, localized, toISO, toLocalInput, onSubmit, toast, ago, fmtDate, statusBadge, roleLabel } from "./common.js";
 import { itemPreview, itemName, FONTS, EFFECTS, registerFont, hatPlacement } from "./cosmetics.js";
+import { PART_SLOTS, ART_IDS } from "./avatar-parts.js";
 
 const user = await initPage();
 const main = document.getElementById("main");
@@ -498,7 +499,7 @@ async function walletPanel(uid) {
 
 /* ---------------- Store ---------------- */
 
-const TYPES = ["frame", "hat", "color", "font", "textstyle", "sticker", "banner", "wallpaper"];
+const TYPES = ["frame", "hat", "color", "font", "textstyle", "sticker", "banner", "wallpaper", "part"];
 const FRAME_STYLES = ["solid", "glow", "pulse", "rainbow", "shimmer"];
 
 async function storeTab() {
@@ -528,7 +529,7 @@ async function storeTab() {
     <div id="item-editor"></div>
     <details class="card fonts-admin"><summary><b>${t("ad.uploadedFonts")}</b> <span class="muted small" id="font-count"></span></summary><div id="font-list"></div></details>
     ${TYPES.map((type) => `
-      <h3>${t(`st.${{ frame: "frames", hat: "hats", color: "colors", font: "fonts", textstyle: "textstyles", sticker: "stickers", banner: "banners", wallpaper: "wallpapers" }[type]}`)}</h3>
+      <h3>${t(`st.${{ frame: "frames", hat: "hats", color: "colors", font: "fonts", textstyle: "textstyles", sticker: "stickers", banner: "banners", wallpaper: "wallpapers", part: "parts" }[type]}`)}</h3>
       <div class="card table-wrap"><table>
         <thead><tr><th></th><th>${t("ad.colName")}</th><th>${t("ad.itemPrice")}</th><th>${t("ad.itemReward")}</th><th></th></tr></thead>
         <tbody>${items.filter((i) => i.type === type).map((i) => `
@@ -589,6 +590,8 @@ function editItem(item, items) {
             <label class="check f-halo"><input type="checkbox" name="halo" ${v.halo ? "checked" : ""}> ${t("ad.halo")}</label>
             <label class="f-color2">${t("ad.color2")}<input name="color2" type="color" value="${esc(v.color2 || "#3a4a6b")}"></label>
             <label class="f-pattern">${t("ad.pattern")}<select name="pattern">${["none", "dots", "grid", "stripes", "blocks", "bricks"].map((x) => `<option value="${x}" ${(v.pattern || "none") === x ? "selected" : ""}>${t(`ad.pattern.${x}`)}</option>`).join("")}</select></label>
+            <label class="f-slot">${t("av.part")}<select name="slot">${PART_SLOTS.map((x) => `<option value="${x}" ${v.slot === x ? "selected" : ""}>${t(`av.slot.${x}`)}</option>`).join("")}</select></label>
+            <label class="f-art">${t("av.drawing")}<select name="art"><option value="">${t("av.useImage")}</option></select></label>
             <label class="f-font">${t("ad.font")}<span class="font-pick"><select name="font">${fontOptions(v.font)}</select>
               <button type="button" data-upload-font title="${esc(t("ad.uploadFontHelp"))}">⬆ ${t("ad.uploadFont")}</button>
               <input type="file" name="fontfile" accept=".woff2,.woff,.ttf,.otf" hidden></span></label>
@@ -632,6 +635,7 @@ function editItem(item, items) {
     if (type === "frame" || type === "color") return { color: form.color.value, style: form.style.value };
     if (type === "banner" || type === "wallpaper") return { color: form.color.value, color2: form.color2.value, pattern: form.pattern.value,
       image: form.image.value.trim() || undefined, animate: form.animate.checked || undefined };
+    if (type === "part") return form.image.value.trim() && !form.art.value ? { slot: form.slot.value, image: form.image.value.trim() } : { slot: form.slot.value, art: form.art.value };
     if (type === "font" || type === "textstyle") return { font: form.font.value, effect: form.effect.value, color: form.color.value,
       color2: form.color2.value, animate: form.animate.checked || undefined };
     if (type === "hat") {
@@ -657,6 +661,17 @@ function editItem(item, items) {
       checkFrameImage(form.image.value.trim(), form.querySelector(".look-hint"));
       show(".f-image", true); show(".f-style", !img); show(".f-color", !img && form.style.value !== "rainbow");
       form.image.placeholder = "/frames/my-frame.png";
+    }
+    const part = type === "part";
+    show(".f-slot", part); show(".f-art", part);
+    if (part) {
+      // built-in drawings for the chosen slot (art ids start with the slot name), or a PNG image
+      const cur = form.art.value || v.art || "";
+      const opts = ART_IDS.filter((a) => a.startsWith(form.slot.value + "_"));
+      form.art.innerHTML = `<option value="">${t("av.useImage")}</option>` + opts.map((a) => `<option value="${a}" ${a === cur ? "selected" : ""}>${a.replace(/^[a-z]+_/, "")}</option>`).join("");
+      if (!opts.includes(cur) && !form.image.value.trim() && opts.length) form.art.value = opts[0];
+      show(".f-emoji", false); show(".f-style", false); show(".f-color", false); show(".f-image", !form.art.value);
+      form.image.placeholder = "/parts/my-eyes.png";
     }
     const txt = type === "font" || type === "textstyle";
     show(".f-font", txt); show(".f-effect", txt);

@@ -6,7 +6,7 @@ import { t, lang } from "./i18n.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const safeColor = (c) => (/^#[0-9a-f]{6}$/i.test(c || "") ? c : "#9aa0aa");
-const safeUrl = (u) => (/^https:\/\/[^\s"'<>]+$/i.test(u || "") ? u : "");
+const safeUrl = (u) => (/^(https:\/\/[^\s"'<>]+|\/[\w\-./]+\.(png|webp|gif|jpe?g|svg))$/i.test(u || "") ? u : "");
 
 let CATALOG = {};
 export async function loadCatalog() {
@@ -48,9 +48,11 @@ export const STICKER_RE = /^\[\[sticker:([a-z0-9_]{1,40})\]\]$/;
 export const stickerCode = (id) => `[[sticker:${id}]]`;
 
 function frameAttrs(item) {
-  if (!item) return { cls: "", style: "" };
+  if (!item) return { cls: "", style: "", img: "" };
   const v = item.visual || {};
-  return { cls: ` framed fs-${esc(v.style || "solid")}`, style: `--fc:${safeColor(v.color)};` };
+  // Image frame: a PNG laid over the avatar at 1.5× its size (art can stick out 25% on every side).
+  if (v.image && safeUrl(v.image)) return { cls: " framed-img", style: "", img: `<img class="av-frame" src="${esc(v.image)}" alt="" loading="lazy">` };
+  return { cls: ` framed fs-${esc(v.style || "solid")}`, style: `--fc:${safeColor(v.color)};`, img: "" };
 }
 
 function hatHTML(item) {
@@ -68,7 +70,7 @@ export function avatarHTML(u, size = 32, over = {}) {
   const frame = "frame" in over ? over.frame : catalogItem(u?.eq_frame);
   const hat = "hat" in over ? over.hat : catalogItem(u?.eq_hat);
   const f = frameAttrs(frame);
-  return `<span class="av${f.cls}" style="--av:${size}px;${f.style}"><img src="${img}" alt="" loading="lazy">${hatHTML(hat)}</span>`;
+  return `<span class="av${f.cls}" style="--av:${size}px;${f.style}"><img src="${img}" alt="" loading="lazy">${f.img}${hatHTML(hat)}</span>`;
 }
 
 // Username with equipped name color + name style (font/effect). `over` / `fontOver` = items to preview.

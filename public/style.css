@@ -917,3 +917,8 @@ tr.has-banner td + td { background: none; }
 .composer-preview .fpost { margin: 0; min-height: 70px; }
 .look-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); margin-left: 4px; vertical-align: middle; }
 .look-dot.hidden { display: none; }
+
+/* Image frames (PNG overlay). Template: 384×384 canvas, avatar = centre 256×256 → overlay is 150% of the avatar. */
+.av > .av-frame { position: absolute; z-index: 1; left: -25%; top: -25%; width: 150%; height: 150%; max-width: none;
+  border-radius: 0; object-fit: contain; pointer-events: none; }
+.av.framed-img > img:first-child { box-shadow: none; }

@@ -576,6 +576,7 @@ function editItem(item, items) {
   }
   function visual() {
     const type = typeOf();
+    if (type === "frame" && form.image.value.trim()) return { image: form.image.value.trim() };
     if (type === "frame" || type === "color") return { color: form.color.value, style: form.style.value };
     if (type === "banner" || type === "wallpaper") return { color: form.color.value, color2: form.color2.value, pattern: form.pattern.value,
       image: form.image.value.trim() || undefined, animate: form.animate.checked || undefined };
@@ -593,6 +594,11 @@ function editItem(item, items) {
     const bg = type === "banner" || type === "wallpaper";
     show(".f-color2", bg); show(".f-pattern", bg); show(".f-animate", bg);
     if (bg) { show(".f-color", true); show(".f-image", true); show(".f-emoji", false); show(".f-style", false); }
+    if (type === "frame") { // color + style, or a PNG image instead
+      const img = !!form.image.value.trim();
+      show(".f-image", true); show(".f-style", !img); show(".f-color", !img && form.style.value !== "rainbow");
+      form.image.placeholder = "/frames/my-frame.png";
+    }
     const txt = type === "font" || type === "textstyle";
     show(".f-font", txt); show(".f-effect", txt);
     if (txt) {

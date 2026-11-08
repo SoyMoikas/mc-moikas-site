@@ -1085,3 +1085,9 @@ html.see-through :is(.card, .server-card, .task, .chat, .rank-chip, .game-card, 
 .map-frame { padding: 0; overflow: hidden; height: calc(100vh - var(--topbar, 60px) - 190px); min-height: 420px; }
 .map-frame iframe { display: block; width: 100%; height: 100%; border: 0; background: #000; }
 @media (max-width: 760px) { .map-frame { height: calc(100vh - 220px); } }
+
+/* Image uploads in the post composer */
+.composer-img { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+.composer-img img { max-height: 120px; max-width: 220px; border-radius: 8px; border: 1px solid var(--border); object-fit: cover; }
+.composer.drop { outline: 2px dashed var(--accent); outline-offset: 3px; }
+.up-status { color: var(--muted); }

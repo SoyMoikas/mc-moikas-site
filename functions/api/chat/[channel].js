@@ -1,3 +1,4 @@
+import { awardActivity } from "../../../lib/activity.js";
 import { json, err, body, now, str, HttpError } from "../../../lib/util.js";
 import { need, hasRole, hasPerm } from "../../../lib/auth.js";
 import { STICKER_RE, getItem, ownedSet, owns } from "../../../lib/catalog.js";
@@ -61,7 +62,7 @@ export async function onRequestGet({ request, env, params }) {
   return json({ messages, removed, pulse });
 }
 
-export async function onRequestPost({ request, env, params }) {
+export async function onRequestPost({ request, env, params, waitUntil }) {
   const user = await need(env, request, "member");
   if (user instanceof Response) return user;
   const channel = channelOf(params);
@@ -84,5 +85,6 @@ export async function onRequestPost({ request, env, params }) {
   const res = await env.DB.prepare(
     "INSERT INTO chat_messages (channel, user_id, body, created_at) VALUES (?, ?, ?, ?)"
   ).bind(channel, user.id, text, now()).run();
+  waitUntil(awardActivity(env, user, "chat"));
   return json({ id: res.meta.last_row_id }, 201);
 }

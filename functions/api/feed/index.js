@@ -1,6 +1,7 @@
 import { json, err, body, now } from "../../../lib/util.js";
 import { need, hasRole } from "../../../lib/auth.js";
 import { POST_COLS, POST_FROM, postInput, postLook, score, decorate } from "../../../lib/feed.js";
+import { awardActivity } from "../../../lib/activity.js";
 
 // Private feed for approved members.
 // GET ?mode=foryou|recent  &game=<id>  &user=<id>  &offset=N (foryou)  &before=<post id> (recent)
@@ -46,7 +47,7 @@ export async function onRequestGet({ request, env }) {
   return json({ posts: decorate(rows, viewer, liked, hasRole(viewer, "staff")), more, mode });
 }
 
-export async function onRequestPost({ request, env }) {
+export async function onRequestPost({ request, env, waitUntil }) {
   const viewer = await need(env, request, "member");
   if (viewer instanceof Response) return viewer;
   const b = await body(request);
@@ -60,5 +61,6 @@ export async function onRequestPost({ request, env }) {
   const look = await postLook(env, viewer, b);
   const res = await env.DB.prepare("INSERT INTO social_posts (user_id, body, image, game_id, style, bg, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
     .bind(viewer.id, f.body, f.image, f.game_id, look.style, look.bg, now()).run();
+  waitUntil(awardActivity(env, viewer, "post"));
   return json({ id: res.meta.last_row_id }, 201);
 }

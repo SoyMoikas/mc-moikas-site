@@ -1,4 +1,5 @@
 // Private "For you" feed: composer, posts, likes, replies. Approved members only.
+import { uploadImage } from "./common.js";
 import { api, esc, rich, can, t, ago, toast, roleLabel, loginHint, levelBadge, avatarHTML, nameHTML, SITE, gameLabel, bgStyle, bgAnimated, bgWall, textAttrs, onPulse } from "./common.js";
 import { catalogItem, itemName, textFx } from "./cosmetics.js";
 
@@ -56,11 +57,17 @@ export function mountFeed(el, user, opts = {}) {
         </div>
         <div class="composer-look hidden"></div>
         <div class="composer-preview hidden"></div>
-        <div class="composer-extra ${p?.image ? "" : "hidden"}">
+        <div class="composer-img ${p?.image ? "" : "hidden"}">
+          <img alt="" src="${esc(p?.image || "")}"><span class="up-status small"></span>
+          <button type="button" class="link small" data-img-remove>✕ ${t("feed.removeImage")}</button>
+        </div>
+        <div class="composer-extra hidden">
           <input name="image" placeholder="${esc(t("feed.imagePh"))}" value="${esc(p?.image || "")}">
         </div>
+        <input type="file" name="imgfile" accept="image/png,image/jpeg,image/gif,image/webp" hidden>
         <div class="actions">
-          <button type="button" class="link" data-add-image>🖼 ${t("feed.addImage")}</button>
+          <button type="button" class="link" data-add-image title="${esc(t("feed.imageHelp"))}">🖼 ${t("feed.addImage")}</button>
+          <button type="button" class="link small" data-img-link>🔗</button>
           <button type="button" class="link" data-look>🎨 ${t("feed.style")}<span class="look-dot hidden"></span></button>
           <select name="game_id" style="width:auto">
             <option value="">${t("feed.noGame")}</option>
@@ -74,10 +81,27 @@ export function mountFeed(el, user, opts = {}) {
   }
 
   function wireComposer(form, onDone, postId = null, start = null) {
-    form.querySelector("[data-add-image]").onclick = () => {
-      form.querySelector(".composer-extra").classList.toggle("hidden");
-      form.image.focus();
-    };
+    // Images: pick a file, paste a screenshot, drag one in, or (🔗) paste a link.
+    const imgBox = form.querySelector(".composer-img"), status = imgBox.querySelector(".up-status"), submitBtn = form.querySelector("button.primary");
+    const showImg = (url) => { form.image.value = url || ""; imgBox.classList.toggle("hidden", !url); imgBox.querySelector("img").src = url || ""; };
+    async function addFile(file) {
+      if (!file) return;
+      imgBox.classList.remove("hidden"); imgBox.querySelector("img").src = URL.createObjectURL(file);
+      status.textContent = t("up.uploading"); submitBtn.disabled = true;
+      try { showImg(await uploadImage(file)); status.textContent = ""; }
+      catch (e) { toast(e.message, true); showImg(""); status.textContent = ""; }
+      finally { submitBtn.disabled = false; }
+    }
+    const fileIn = form.imgfile;
+    form.querySelector("[data-add-image]").onclick = () => fileIn.click();
+    fileIn.onchange = () => { addFile(fileIn.files[0]); fileIn.value = ""; };
+    form.querySelector("[data-img-link]").onclick = () => { form.querySelector(".composer-extra").classList.toggle("hidden"); form.image.focus(); };
+    form.image.addEventListener("change", () => showImg(form.image.value.trim()));
+    form.querySelector("[data-img-remove]").onclick = () => showImg("");
+    form.body.addEventListener("paste", (e) => { const f = [...(e.clipboardData?.files || [])].find((x) => x.type.startsWith("image/")); if (f) { e.preventDefault(); addFile(f); } });
+    form.addEventListener("dragover", (e) => { if ([...e.dataTransfer.types].includes("Files")) { e.preventDefault(); form.classList.add("drop"); } });
+    form.addEventListener("dragleave", () => form.classList.remove("drop"));
+    form.addEventListener("drop", (e) => { const f = [...e.dataTransfer.files].find((x) => x.type.startsWith("image/")); if (f) { e.preventDefault(); form.classList.remove("drop"); addFile(f); } });
     // Per-post look: pick a text style and a background you own; preview updates as you type.
     const look = { style: start ? start.style : null, bg: start ? start.bg : null };
     const panel = form.querySelector(".composer-look"), preview = form.querySelector(".composer-preview");

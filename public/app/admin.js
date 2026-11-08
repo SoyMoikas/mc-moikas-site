@@ -1,3 +1,4 @@
+import { uploadImage } from "./common.js";
 import { api, esc, can, perm, t, initPage, SITE, gameLabel, localized, toISO, toLocalInput, onSubmit, toast, ago, fmtDate, statusBadge, roleLabel } from "./common.js";
 import { itemPreview, itemName, FONTS, EFFECTS, registerFont, hatPlacement } from "./cosmetics.js";
 import { PART_SLOTS, ART_IDS } from "./avatar-parts.js";
@@ -519,6 +520,19 @@ async function storeTab() {
       <p class="hint" id="coin-example"></p>
       <div class="actions"><span style="flex:1"></span><button class="primary">${t("save")}</button></div>
     </form>
+    <form class="card stack" id="activity-settings">
+      <h3 style="margin:0">${t("ad.activityXp")}</h3>
+      <p class="hint" style="margin:0">${t("ad.activityHelp")}</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th></th><th>${t("ad.actXp")}</th><th>${t("ad.actCap")}</th></tr></thead>
+        <tbody>${Object.entries(settings.activity || {}).map(([k, a]) => `
+          <tr><td class="primary-cell">${t(`act.${k}`)}</td>
+            <td data-label="${esc(t("ad.actXp"))}"><input type="number" min="0" name="${k}_xp" value="${a.xp}" style="width:90px"></td>
+            <td data-label="${esc(t("ad.actCap"))}"><input type="number" min="0" name="${k}_cap" value="${a.cap}" style="width:90px"></td></tr>`).join("")}
+        </tbody></table></div>
+      <p class="hint" id="act-total"></p>
+      <div class="actions"><span style="flex:1"></span><button class="primary">${t("save")}</button></div>
+    </form>
     <div class="section-head" style="margin-top:18px"><h3 style="margin:0">${t("st.collections")}</h3><button id="add-col">${t("ad.addCollection")}</button></div>
     <div id="col-editor"></div>
     <div class="col-admin-list">${collections.map((c) => `
@@ -553,6 +567,18 @@ async function storeTab() {
   cs.addEventListener("input", example); example();
   onSubmit(cs, async (d) => { await api("/api/settings", { method: "PATCH", body: d }); toast(t("saved")); });
 
+  const as = tabEl.querySelector("#activity-settings");
+  const actTotal = () => {
+    const caps = Object.keys(settings.activity || {}).reduce((sum, k) => sum + (Number(as[`${k}_cap`].value) || 0), 0);
+    tabEl.querySelector("#act-total").textContent = t("ad.actTotal", { n: caps });
+  };
+  as.addEventListener("input", actTotal); actTotal();
+  as.onsubmit = async (e) => {
+    e.preventDefault();
+    const activity = Object.fromEntries(Object.keys(settings.activity || {}).map((k) => [k, { xp: Number(as[`${k}_xp`].value) || 0, cap: Number(as[`${k}_cap`].value) || 0 }]));
+    try { await api("/api/settings", { method: "PATCH", body: { activity } }); toast(t("saved")); } catch (err) { toast(err.message, true); }
+  };
+
   tabEl.querySelector("#add-item").onclick = () => editItem(null, items);
   tabEl.querySelector("#add-col").onclick = () => editCollection(null);
   tabEl.querySelectorAll("[data-edit-col]").forEach((b) => b.onclick = () => editCollection(collections.find((c) => c.id === b.dataset.editCol)));
@@ -583,7 +609,9 @@ function editItem(item, items) {
           <div class="row look-row">
             <label class="f-emoji">${t("ad.emoji")}<input name="emoji" maxlength="16" value="${esc(v.emoji)}" placeholder="😎"></label>
             <label class="f-text">${t("ad.text")}<input name="text" maxlength="8" value="${esc(v.text)}" placeholder="GG"></label>
-            <label class="f-image">${t("ad.image")}<input name="image" value="${esc(v.image)}" placeholder="https://…/sticker.png"></label>
+            <label class="f-image">${t("ad.image")}<span class="font-pick"><input name="image" value="${esc(v.image)}" placeholder="https://…/sticker.png">
+              <button type="button" data-upload-img title="${esc(t("up.help"))}">⬆ ${t("up.upload")}</button>
+              <input type="file" name="imgfile" accept="image/png,image/jpeg,image/gif,image/webp" hidden></span></label>
             <label class="f-color">${t("ad.color")}<input name="color" type="color" value="${esc(v.color || "#6fcf5a")}"></label>
             <label class="f-style">${t("ad.style")}<select name="style"></select></label>
             ${(() => { const hp = hatPlacement(v); const sl = (n, label, min, max, val, unit) => `<label class="f-hat">${t(label)} <b data-val="${n}">${val}${unit}</b><input type="range" name="${n}" min="${min}" max="${max}" step="1" value="${val}"></label>`;
@@ -750,6 +778,19 @@ function editItem(item, items) {
     const up = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", up); };
     addEventListener("pointermove", move); addEventListener("pointerup", up);
   });
+
+  // Upload an image (frame, hat, sticker, banner, wallpaper, part, theme tile) instead of pushing it to the repo.
+  // Small files go up untouched so pixel art and exact frame sizes are kept.
+  const imgIn = form.querySelector("[name=imgfile]");
+  form.querySelector("[data-upload-img]").onclick = () => imgIn.click();
+  imgIn.onchange = async () => {
+    const file = imgIn.files[0]; imgIn.value = "";
+    if (!file) return;
+    const btn = form.querySelector("[data-upload-img]"); btn.disabled = true; btn.textContent = t("up.uploading");
+    try { form.image.value = await uploadImage(file, { keepOriginal: true, maxSide: 2560 }); toast(t("up.done")); refresh(); }
+    catch (e) { toast(e.message, true); }
+    finally { btn.disabled = false; btn.textContent = `⬆ ${t("up.upload")}`; }
+  };
 
   // Upload a font right from the editor: it's saved, added to the list, selected, and the preview uses it.
   const fileIn = form.querySelector("[name=fontfile]");

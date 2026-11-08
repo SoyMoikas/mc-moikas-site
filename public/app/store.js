@@ -10,6 +10,8 @@ const SECTIONS = [
   { type: "frame", key: "st.frames", id: "frames" },
   { type: "hat", key: "st.hats", id: "hats" },
   { type: "color", key: "st.colors", id: "colors" },
+  { type: "font", key: "st.fonts", id: "name-styles" },
+  { type: "textstyle", key: "st.textstyles", id: "text-styles" },
   { type: "banner", key: "st.banners", id: "banners" },
   { type: "wallpaper", key: "st.wallpapers", id: "wallpapers" },
   { type: "sticker", key: "st.stickers", id: "stickers" },
@@ -22,7 +24,8 @@ async function load() {
   try { data = await api("/api/store"); }
   catch (e) { main.innerHTML = `<p style="padding:40px 0">${esc(e.message)}</p>`; return; }
   if (data.user && user) me = { ...user, eq_frame: data.user.equipped.frame, eq_hat: data.user.equipped.hat, eq_color: data.user.equipped.color,
-    eq_banner: data.user.equipped.banner, eq_wallpaper: data.user.equipped.wallpaper };
+    eq_banner: data.user.equipped.banner, eq_wallpaper: data.user.equipped.wallpaper,
+    eq_font: data.user.equipped.font, eq_text: data.user.equipped.textstyle };
   const hash = location.hash.slice(1);
   if (SECTIONS.some((s) => s.id === hash)) filters.type = SECTIONS.find((s) => s.id === hash).type;
   render();
@@ -32,9 +35,12 @@ const isNew = (x) => x.created_at && Date.now() - x.created_at < NEW_MS;
 const colName = (c) => localized(c.name, c.name_es);
 const owned = (item) => !!data.user?.owned.includes(item.id);
 const forSale = (item) => item.price !== null && item.price > 0;
+// Level unlocks (reward level ≥ 1, not sold) live in their own "Level rewards" section, not on the shelves.
+const levelUnlock = (item) => item.reward_level > 0 && !forSale(item);
 
 function matches(item) {
   const u = data.user;
+  if (levelUnlock(item)) return false;
   if (filters.type && item.type !== filters.type) return false;
   if (filters.collection && item.collection_id !== filters.collection) return false;
   if (filters.q) {
@@ -43,8 +49,7 @@ function matches(item) {
   }
   switch (filters.status) {
     case "mine": return owned(item);
-    case "afford": return !owned(item) && forSale(item) && u && u.coins >= item.price && u.level >= item.level;
-    case "rewards": return item.reward_level !== null;
+    case "afford": return !owned(item) && forSale(item) && u && u.coins >= item.price;
     case "new": return isNew(item);
     default: return true;
   }
@@ -55,7 +60,6 @@ function sorted(items) {
     featured: (a, b) => (a.sort_order - b.sort_order) || ((a.price ?? 1e9) - (b.price ?? 1e9)),
     price_asc: (a, b) => (a.price ?? 1e9) - (b.price ?? 1e9),
     price_desc: (a, b) => (b.price ?? -1) - (a.price ?? -1),
-    level: (a, b) => (Math.max(a.level, a.reward_level ?? 0) - Math.max(b.level, b.reward_level ?? 0)),
     newest: (a, b) => (b.created_at || 0) - (a.created_at || 0),
   }[filters.sort];
   return [...items].sort(by);
@@ -68,7 +72,6 @@ function card(item) {
   const equipped = slot && u?.equipped[slot] === item.id;
   const sale = forSale(item);
   const reward = item.reward_level !== null;
-  const lockedBuy = sale && u && u.level < item.level;
   const col = item.collection_id && data.collections.find((c) => c.id === item.collection_id);
 
   let action = "";
@@ -76,7 +79,6 @@ function card(item) {
   else if (equipped) action = `<button data-unequip="${slot}">${t("st.unequip")}</button>`;
   else if (own && slot) action = `<button class="primary" data-equip="${item.id}" data-slot="${slot}">${t("st.equip")}</button>`;
   else if (own) action = `<span class="small muted">✓ ${t("st.owned")}</span>`;
-  else if (sale && lockedBuy) action = `<span class="small muted">🔒 ${t("st.needLevel", { n: item.level })}</span>`;
   else if (sale && !can(user, "member")) action = `<span class="small muted">${t("st.membersOnly")}</span>`;
   else if (sale) action = `<button class="primary" data-buy="${item.id}" ${u.coins < item.price ? "disabled" : ""}>${t("st.buy")}</button>`;
   else if (reward) action = `<span class="small muted">🔒 ${t("st.unlockAt", { n: item.reward_level })}</span>`;
@@ -84,13 +86,12 @@ function card(item) {
 
   const tags = [
     sale ? `<span class="price">🪙 ${item.price.toLocaleString()}</span>` : "",
-    sale && item.level ? `<span class="lvl" style="--rank:var(--muted)">${t("lvl.short")} ${item.level}+</span>` : "",
     reward ? `<span class="reward-tag">🎁 ${item.reward_level === 0 ? t("st.free") : t("st.rewardLevel", { n: item.reward_level })}</span>` : "",
     !item.active ? `<span class="draft">${t("q.inactive")}</span>` : "",
   ].join("");
 
   return `
-    <div class="card store-item ${equipped ? "equipped" : ""} ${!own && (lockedBuy || (!sale && reward)) ? "locked" : ""}">
+    <div class="card store-item ${equipped ? "equipped" : ""} ${!own && !sale && reward ? "locked" : ""}">
       ${isNew(item) ? `<span class="new-tag">${t("st.new")}</span>` : ""}
       ${col ? `<span class="col-tag" style="--cc:${esc(col.color || "#8a93a8")}" title="${esc(colName(col))}">${esc(col.icon || "📦")}</span>` : ""}
       <div class="si-preview">${itemPreview(item, me)}</div>
@@ -163,10 +164,11 @@ function render() {
       </section>` : ""}
     <form class="store-filters card" role="search">
       <input type="search" name="q" placeholder="${esc(t("st.search"))}" value="${esc(filters.q)}">
-      <div class="chips">${["all", "mine", "afford", "rewards", "new"].map((s) => `<button data-status="${s}" class="${filters.status === s ? "active" : ""}">${t(`st.f.${s}`)}</button>`).join("")}</div>
+      <div class="chips">${["all", "mine", "afford", "new"].map((s) => `<button data-status="${s}" class="${filters.status === s ? "active" : ""}">${t(`st.f.${s}`)}</button>`).join("")}
+        <a class="chip-link" href="#rewards">🎁 ${t("st.rewards")}</a></div>
       <select name="type"><option value="">${t("st.allTypes")}</option>${SECTIONS.map((s) => `<option value="${s.type}" ${filters.type === s.type ? "selected" : ""}>${t(s.key)}</option>`).join("")}</select>
       ${cols.length ? `<select name="collection"><option value="">${t("st.allCollections")}</option>${cols.map((c) => `<option value="${esc(c.id)}" ${filters.collection === c.id ? "selected" : ""}>${esc(c.icon || "📦")} ${esc(colName(c))}</option>`).join("")}</select>` : ""}
-      <select name="sort">${["featured", "price_asc", "price_desc", "level", "newest"].map((s) => `<option value="${s}" ${filters.sort === s ? "selected" : ""}>${t(`st.sort.${s}`)}</option>`).join("")}</select>
+      <select name="sort">${["featured", "price_asc", "price_desc", "newest"].map((s) => `<option value="${s}" ${filters.sort === s ? "selected" : ""}>${t(`st.sort.${s}`)}</option>`).join("")}</select>
     </form>
     <div id="results"></div>
     <section id="rewards">
@@ -190,28 +192,28 @@ function renderResults() {
         ${s.type === "sticker" ? `<p class="hint">${t("st.stickerHint")}</p>` : ""}
         ${s.type === "banner" ? `<p class="hint">${t("st.bannerHint")}</p>` : ""}
         ${s.type === "wallpaper" ? `<p class="hint">${t("st.wallpaperHint")}</p>` : ""}
+        ${s.type === "font" ? `<p class="hint">${t("st.fontHint")}</p>` : ""}
+        ${s.type === "textstyle" ? `<p class="hint">${t("st.textHint")}</p>` : ""}
         <div class="store-grid">${items.map(card).join("") || `<p class="muted">—</p>`}</div>
       </section>`;
   }).join("");
   box.innerHTML = sections || `<p class="muted" style="padding:20px 0">${t("st.noMatch")} <button class="link" data-clear>${t("st.clearFilters")}</button></p>`;
 }
 
+// Level rewards: unlocked automatically when you reach the level (owned → equip right here). Every level also pays coins.
 function rewardTrack() {
   const s = data.settings;
-  const levels = [...new Set(data.items.filter((i) => i.reward_level > 0 && i.active).map((i) => i.reward_level))].sort((a, b) => a - b);
+  const unlocks = data.items.filter((i) => levelUnlock(i) && i.active);
+  const levels = [...new Set(unlocks.map((i) => i.reward_level))].sort((a, b) => a - b);
   const cur = data.user?.level ?? -1;
   return `
-    <div class="card reward-track">
-      <p class="hint" style="margin-top:0">${t("st.levelCoins", { base: s.coins_base, per: s.coins_per_level, l1: s.coins_base + s.coins_per_level, l10: s.coins_base + s.coins_per_level * 10 })}</p>
-      ${levels.map((lv) => {
-        const items = data.items.filter((i) => i.reward_level === lv && i.active);
-        return `<div class="rt-row ${cur >= lv ? "got" : ""}">
-          <span class="rt-lvl">${t("lvl.short")} ${lv}</span>
-          <span class="rt-items">${items.map((i) => `<span class="rt-item" title="${esc(itemName(i))}">${itemPreview(i, me, 30)}<span class="small">${esc(itemName(i))}</span></span>`).join("")}</span>
-          <span class="rt-coins">+🪙 ${(s.coins_base + s.coins_per_level * lv).toLocaleString()}</span>
-        </div>`;
-      }).join("")}
-    </div>`;
+    <p class="hint">${t("st.rewardsHint")} ${t("st.levelCoins", { base: s.coins_base, per: s.coins_per_level, l1: s.coins_base + s.coins_per_level, l10: s.coins_base + s.coins_per_level * 10 })}</p>
+    <div class="reward-levels">${levels.map((lv) => `
+      <div class="reward-level ${cur >= lv ? "got" : ""}">
+        <div class="rl-head"><span class="rt-lvl">${cur >= lv ? "✓ " : "🔒 "}${t("lvl.short")} ${lv}</span>
+          <span class="rt-coins small muted">+🪙 ${(s.coins_base + s.coins_per_level * lv).toLocaleString()}</span></div>
+        <div class="store-grid">${sorted(unlocks.filter((i) => i.reward_level === lv)).map(card).join("")}</div>
+      </div>`).join("") || `<p class="muted">—</p>`}</div>`;
 }
 
 function wire() {

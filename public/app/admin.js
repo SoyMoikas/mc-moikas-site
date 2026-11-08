@@ -1,5 +1,5 @@
 import { api, esc, can, perm, t, initPage, SITE, gameLabel, localized, toISO, toLocalInput, onSubmit, toast, ago, fmtDate, statusBadge, roleLabel } from "./common.js";
-import { itemPreview, itemName } from "./cosmetics.js";
+import { itemPreview, itemName, FONTS, EFFECTS } from "./cosmetics.js";
 
 const user = await initPage();
 const main = document.getElementById("main");
@@ -380,7 +380,7 @@ async function usersTab() {
 
 /* ---------------- Store ---------------- */
 
-const TYPES = ["frame", "hat", "color", "sticker", "banner", "wallpaper"];
+const TYPES = ["frame", "hat", "color", "font", "textstyle", "sticker", "banner", "wallpaper"];
 const FRAME_STYLES = ["solid", "glow", "pulse", "rainbow", "shimmer"];
 
 async function storeTab() {
@@ -409,15 +409,14 @@ async function storeTab() {
       </div>`).join("") || `<p class="muted small">${t("ad.noCollections")}</p>`}</div>
     <div id="item-editor"></div>
     ${TYPES.map((type) => `
-      <h3>${t(`st.${{ frame: "frames", hat: "hats", color: "colors", sticker: "stickers", banner: "banners", wallpaper: "wallpapers" }[type]}`)}</h3>
+      <h3>${t(`st.${{ frame: "frames", hat: "hats", color: "colors", font: "fonts", textstyle: "textstyles", sticker: "stickers", banner: "banners", wallpaper: "wallpapers" }[type]}`)}</h3>
       <div class="card table-wrap"><table>
-        <thead><tr><th></th><th>${t("ad.colName")}</th><th>${t("ad.itemPrice")}</th><th>${t("ad.itemLevel")}</th><th>${t("ad.itemReward")}</th><th></th></tr></thead>
+        <thead><tr><th></th><th>${t("ad.colName")}</th><th>${t("ad.itemPrice")}</th><th>${t("ad.itemReward")}</th><th></th></tr></thead>
         <tbody>${items.filter((i) => i.type === type).map((i) => `
           <tr class="${i.active ? "" : "inactive-row"}">
             <td class="primary-cell"><span class="admin-item-prev">${itemPreview(i, user, 34)}</span> ${esc(itemName(i))}
               <div class="hint">${esc(i.id)}${i.active ? "" : ` · ${t("q.inactive")}`}${i.collection_id ? ` · 📦 ${esc(i.collection_id)}` : ""}</div></td>
             <td data-label="${esc(t("ad.itemPrice"))}">${i.price ? `🪙 ${i.price}` : `<span class="muted">${t("ad.notSold")}</span>`}</td>
-            <td data-label="${esc(t("ad.itemLevel"))}">${i.price ? i.level : "—"}</td>
             <td data-label="${esc(t("ad.itemReward"))}">${i.reward_level !== null ? `🎁 ${t("lvl.short")} ${i.reward_level}` : "—"}</td>
             <td class="actions"><button data-edit-item="${esc(i.id)}">${t("edit")}</button></td>
           </tr>`).join("") || `<tr><td colspan="6" class="muted">—</td></tr>`}
@@ -466,13 +465,14 @@ function editItem(item, items) {
             <label class="f-style">${t("ad.style")}<select name="style"></select></label>
             <label class="check f-halo"><input type="checkbox" name="halo" ${v.halo ? "checked" : ""}> ${t("ad.halo")}</label>
             <label class="f-color2">${t("ad.color2")}<input name="color2" type="color" value="${esc(v.color2 || "#3a4a6b")}"></label>
-            <label class="f-pattern">${t("ad.pattern")}<select name="pattern">${["none", "dots", "grid", "stripes", "blocks"].map((x) => `<option value="${x}" ${(v.pattern || "none") === x ? "selected" : ""}>${t(`ad.pattern.${x}`)}</option>`).join("")}</select></label>
+            <label class="f-pattern">${t("ad.pattern")}<select name="pattern">${["none", "dots", "grid", "stripes", "blocks", "bricks"].map((x) => `<option value="${x}" ${(v.pattern || "none") === x ? "selected" : ""}>${t(`ad.pattern.${x}`)}</option>`).join("")}</select></label>
+            <label class="f-font">${t("ad.font")}<select name="font">${Object.entries(FONTS).map(([k, n]) => `<option value="${k}" ${(v.font || "default") === k ? "selected" : ""}>${esc(k === "default" ? t("ad.font.default") : n)}</option>`).join("")}</select></label>
+            <label class="f-effect">${t("ad.effect")}<select name="effect">${EFFECTS.map((x) => `<option value="${x}" ${(v.effect || "none") === x ? "selected" : ""}>${t(`ad.effect.${x}`)}</option>`).join("")}</select></label>
             <label class="check f-animate"><input type="checkbox" name="animate" ${v.animate ? "checked" : ""}> ${t("ad.animate")}</label>
           </div>
           <p class="hint look-hint"></p>
           <div class="row">
             <label>${t("ad.itemPrice")}<input name="price" type="number" min="1" value="${esc(it.price ?? "")}" placeholder="${esc(t("ad.notSold"))}"></label>
-            <label>${t("ad.itemLevel")}<input name="level" type="number" min="0" value="${esc(it.level ?? 0)}"></label>
             <label>${t("ad.itemReward")}<input name="reward_level" type="number" min="0" value="${esc(it.reward_level ?? "")}" placeholder="—"></label>
             <label>${t("ad.sortOrder")}<input name="sort_order" type="number" value="${esc(it.sort_order ?? 0)}"></label>
           </div>
@@ -506,6 +506,8 @@ function editItem(item, items) {
     if (type === "frame" || type === "color") return { color: form.color.value, style: form.style.value };
     if (type === "banner" || type === "wallpaper") return { color: form.color.value, color2: form.color2.value, pattern: form.pattern.value,
       image: form.image.value.trim() || undefined, animate: form.animate.checked || undefined };
+    if (type === "font" || type === "textstyle") return { font: form.font.value, effect: form.effect.value, color: form.color.value,
+      color2: form.color2.value, animate: form.animate.checked || undefined };
     if (type === "hat") return form.halo.checked ? { halo: true } : form.image.value.trim() ? { image: form.image.value.trim() } : { emoji: form.emoji.value.trim() };
     return form.image.value.trim() ? { image: form.image.value.trim() } : form.text.value.trim() ? { text: form.text.value.trim().toUpperCase() } : { emoji: form.emoji.value.trim() };
   }
@@ -518,6 +520,14 @@ function editItem(item, items) {
     const bg = type === "banner" || type === "wallpaper";
     show(".f-color2", bg); show(".f-pattern", bg); show(".f-animate", bg);
     if (bg) { show(".f-color", true); show(".f-image", true); show(".f-emoji", false); show(".f-style", false); }
+    const txt = type === "font" || type === "textstyle";
+    show(".f-font", txt); show(".f-effect", txt);
+    if (txt) {
+      const fx = form.effect.value;
+      show(".f-emoji", false); show(".f-image", false); show(".f-style", false); show(".f-pattern", false);
+      show(".f-color", !["none", "rainbow"].includes(fx)); show(".f-color2", ["gradient", "graffiti", "3d"].includes(fx));
+      show(".f-animate", ["gradient", "rainbow", "graffiti"].includes(fx));
+    }
     form.querySelector(".look-hint").textContent = t(`ad.lookHint.${type}`);
     const preview = { type, name: form.name.value || "?", name_es: form.name_es.value, visual: visual() };
     editor.querySelector("#live").innerHTML = itemPreview(preview, user, 64);
@@ -534,7 +544,7 @@ function editItem(item, items) {
     catch (e) { toast(e.message, true); }
   });
   onSubmit(form, async (d) => {
-    const body = { name: d.name, name_es: d.name_es, price: d.price || null, level: d.level, reward_level: d.reward_level === "" ? null : d.reward_level,
+    const body = { name: d.name, name_es: d.name_es, price: d.price || null, reward_level: d.reward_level === "" ? null : d.reward_level,
       sort_order: d.sort_order, active: d.active, visual: visual(), collection_id: d.collection_id || null };
     if (isNew) await api("/api/store/items", { method: "POST", body: { ...body, id: d.id, type: d.type } });
     else await api(`/api/store/items/${encodeURIComponent(it.id)}`, { method: "PATCH", body });

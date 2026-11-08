@@ -1,8 +1,8 @@
 // Shared helpers for every page.
 import { t, tErr, lang, locale, setLang, applyStatic } from "./i18n.js";
 import { levelBadge, levelInfo } from "./levels.js";
-import { avatarHTML, nameHTML, fromAuthor, loadCatalog, catalogItem, bgCSS, bgStyle, bgAnimated } from "./cosmetics.js";
-export { t, lang, levelBadge, avatarHTML, nameHTML, bgStyle, bgAnimated };
+import { avatarHTML, nameHTML, fromAuthor, loadCatalog, catalogItem, bgCSS, bgStyle, bgAnimated, bgWall, textAttrs } from "./cosmetics.js";
+export { t, lang, levelBadge, avatarHTML, nameHTML, bgStyle, bgAnimated, bgWall, textAttrs };
 
 const RANK = { pending: 0, member: 1, staff: 2, subadmin: 3, admin: 4 };
 export const can = (user, role) => !!user && RANK[user.role] >= RANK[role];

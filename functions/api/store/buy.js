@@ -1,6 +1,6 @@
 import { json, err, body, now, str } from "../../../lib/util.js";
 import { need } from "../../../lib/auth.js";
-import { getItem, coinsOf, levelOf, ownedSet, owns, forSale, collectionOpen } from "../../../lib/catalog.js";
+import { getItem, coinsOf, ownedSet, owns, forSale, collectionOpen } from "../../../lib/catalog.js";
 
 // { item } — spend coins on an item. Approved members and up.
 export async function onRequestPost({ request, env }) {
@@ -16,7 +16,6 @@ export async function onRequestPost({ request, env }) {
     const c = await env.DB.prepare("SELECT * FROM collections WHERE id = ?").bind(item.collection_id).first();
     if (c && !collectionOpen(c)) return err(400, "This collection isn't available right now");
   }
-  if (levelOf(user.xp) < item.level) return err(403, "Level too low");
   if (coinsOf(user) < item.price) return err(402, "Not enough coins");
 
   // Charge only if the balance still covers it at write time (guards against double clicks).

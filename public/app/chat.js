@@ -1,6 +1,6 @@
 // Chat box. Polls for new messages every couple of seconds while you're active (slower when idle,
 // paused when the tab is hidden). Each poll also carries the page's "pulse" for feed/announcements.
-import { api, esc, rich, can, t, ago, toast, roleLabel, loginHint, levelBadge, avatarHTML, nameHTML, emitPulse } from "./common.js";
+import { api, esc, rich, can, t, ago, toast, roleLabel, loginHint, levelBadge, avatarHTML, nameHTML, emitPulse, textAttrs } from "./common.js";
 import { STICKER_RE, catalogItem, stickerHTML, stickerCode } from "./cosmetics.js";
 
 const POLL_MS = 2500;       // while you're using the page
@@ -53,7 +53,7 @@ export function mountChat(el, channel, user) {
             <span class="when" data-ts="${m.created_at}" title="${esc(new Date(m.created_at).toLocaleString())}">${esc(ago(m.created_at))}</span>
             ${m.can_delete ? `<button class="link chat-del" data-del="${m.id}" title="${esc(t("delete"))}">✕</button>` : ""}
           </div>
-          ${(() => { const st = m.body.match(STICKER_RE); return st && catalogItem(st[1]) ? `<div class="body">${stickerHTML(st[1])}</div>` : `<div class="body">${rich(m.body)}</div>`; })()}
+          ${(() => { const st = m.body.match(STICKER_RE); if (st && catalogItem(st[1])) return `<div class="body">${stickerHTML(st[1])}</div>`; const a = textAttrs(m); return `<div class="body${a.cls}" style="${a.style}">${rich(m.body)}</div>`; })()}
         </div>
       </div>`;
   }

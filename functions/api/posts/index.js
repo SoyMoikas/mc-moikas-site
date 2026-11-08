@@ -9,7 +9,7 @@ export async function onRequestGet({ env, request }) {
   const siteOnly = url.searchParams.get("scope") === "site"; // home page: only network-wide posts
   const { results } = await env.DB.prepare(
     `SELECT p.id, p.server_id, p.title, p.body, p.tag, p.event_at, p.pinned, p.created_at, p.updated_at,
-            u.username AS author, u.avatar AS author_avatar, u.xp AS author_xp, u.eq_frame AS author_frame, u.eq_hat AS author_hat, u.eq_color AS author_color,
+            u.username AS author, u.avatar AS author_avatar, u.xp AS author_xp, u.eq_frame AS author_frame, u.eq_hat AS author_hat, u.eq_color AS author_color, u.eq_font AS author_font,
             COALESCE(s.name, s.id) AS server_name, p.game_id, g.name AS game_name, g.name_es AS game_name_es, g.icon AS game_icon
        FROM posts p
        LEFT JOIN users u ON u.id = p.author_id

@@ -1,5 +1,5 @@
 // Private "For you" feed: composer, posts, likes, replies. Approved members only.
-import { api, esc, rich, can, t, ago, toast, roleLabel, loginHint, levelBadge, avatarHTML, nameHTML, SITE, gameLabel, bgStyle, bgAnimated, onPulse } from "./common.js";
+import { api, esc, rich, can, t, ago, toast, roleLabel, loginHint, levelBadge, avatarHTML, nameHTML, SITE, gameLabel, bgStyle, bgAnimated, bgWall, textAttrs, onPulse } from "./common.js";
 
 // opts: { game: id (filter + preselect), userId: profile filter, composer: bool, modes: bool }
 export function mountFeed(el, user, opts = {}) {
@@ -67,7 +67,7 @@ export function mountFeed(el, user, opts = {}) {
     const tag = p.game_id ? `<a class="feed-game" href="/game?id=${encodeURIComponent(p.game_id)}">${esc(p.game_icon || "🎮")} ${esc(lang2(p.game_name, p.game_name_es))}</a>` : "";
     const staffBadge = p.role === "staff" || p.role === "admin" || p.role === "subadmin" ? `<span class="role ${esc(p.role)}">${esc(roleLabel(p.role))}</span>` : "";
     return `
-      <article class="card fpost ${p.eq_banner ? "has-banner" : ""} ${bgAnimated(p.eq_banner) ? "art-anim" : ""}" data-id="${p.id}" style="${bgStyle(p.eq_banner)}">
+      <article class="card fpost ${p.eq_banner ? "has-banner" : ""} ${bgWall(p.eq_banner) ? "wall" : ""} ${bgAnimated(p.eq_banner) ? "art-anim" : ""}" data-id="${p.id}" style="${bgStyle(p.eq_banner)}">
         <div class="fpost-head">
           <a href="/profile?id=${p.author_id}">${avatarHTML(p, 40)}</a>
           <div class="fpost-who">
@@ -80,7 +80,7 @@ export function mountFeed(el, user, opts = {}) {
           </div></details>` : ""}
         </div>
         <div class="fpost-body">
-          ${p.body ? `<div class="body">${rich(p.body)}</div>` : ""}
+          ${p.body ? (() => { const a = textAttrs(p); return `<div class="body${a.cls}" style="${a.style}">${rich(p.body)}</div>`; })() : ""}
           ${p.image ? `<a href="${esc(p.image)}" target="_blank" rel="noopener"><img class="fpost-img" src="${esc(p.image)}" alt="" loading="lazy" referrerpolicy="no-referrer"></a>` : ""}
         </div>
         <div class="fpost-actions">

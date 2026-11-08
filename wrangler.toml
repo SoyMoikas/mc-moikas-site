@@ -9,7 +9,7 @@ ADMIN_DISCORD_ID = "260485507882942476"
 # Discord application "Client_id" (public, not secret).
 DISCORD_CLIENT_ID = "1568770697231077420"
 # Hostname shown for servers that don't set their own address (non-default ports become play.moikas.cc:PORT).
-PUBLIC_HOST = "play.moikas.cc"
+PUBLIC_HOST = "games.moikas.cc"
 
 # Secrets are NOT stored here. Add them in Cloudflare → your Pages project → Settings → Variables and Secrets:
 #   DISCORD_CLIENT_SECRET   (from the Discord app's OAuth2 page)

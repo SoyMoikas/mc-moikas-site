@@ -4,6 +4,7 @@
 //         font / textstyle {font, effect: none|solid|gradient|rainbow|glow|graffiti|3d, color, color2, animate}
 import { t, lang } from "./i18n.js";
 import { PART_SLOTS, ART, DEFAULT_COLORS } from "./avatar-parts.js";
+import { themePreviewHTML } from "./themes.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const safeColor = (c) => (/^#[0-9a-f]{6}$/i.test(c || "") ? c : "#9aa0aa");
@@ -154,6 +155,7 @@ export function itemPreview(item, user, size = 56) {
   if (item.type === "font") return `<span class="color-preview font-preview">${nameHTML(base, "", undefined, item)}</span>`;
   if (item.type === "textstyle") { const a = textAttrs(null, item); return `<span class="text-preview"><span class="body${a.cls}" style="${a.style}">${esc(t("st.textSample"))}</span></span>`; }
   if (item.type === "banner") return `<span class="banner-preview has-art ${item.visual?.animate ? "art-anim" : ""}" style="${bgStyle(item)}">${avatarHTML({ ...base, eq_frame: null, eq_hat: null }, 30, { frame: null, hat: null })}<b>${esc(base.username || "")}</b></span>`;
+  if (item.type === "theme") return themePreviewHTML(item);
   if (item.type === "part") { // a sample avatar wearing this part on top of the starter look
     const parts = { shape: "part_shape_round", eyes: "part_eyes_dots", mouth: "part_mouth_smile", [item.visual?.slot || "shape"]: item };
     return `<span class="av" style="--av:${size}px">${buildSVG({ parts })}</span>`;

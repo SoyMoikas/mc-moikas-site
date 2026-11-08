@@ -2,6 +2,8 @@
 import { t, tErr, lang, locale, setLang, applyStatic } from "./i18n.js";
 import { levelBadge, levelInfo } from "./levels.js";
 import { avatarHTML, nameHTML, fromAuthor, loadCatalog, catalogItem, bgCSS, bgStyle, bgAnimated, bgWall, textAttrs } from "./cosmetics.js";
+import { applyTheme, applyCachedTheme } from "./themes.js";
+applyCachedTheme();
 export { t, lang, levelBadge, avatarHTML, nameHTML, bgStyle, bgAnimated, bgWall, textAttrs };
 
 const RANK = { pending: 0, member: 1, staff: 2, subadmin: 3, admin: 4 };
@@ -131,6 +133,9 @@ export async function initPage() {
   // Game pages take on that game's color as the accent.
   const g = SITE.games.find((x) => x.id === curGame);
   if (g && /^#[0-9a-f]{6}$/i.test(g.color || "")) document.documentElement.style.setProperty("--accent", g.color);
+
+  // Your site theme (only you see it). Applied early from the last visit too, so pages don't flash.
+  applyTheme(user ? catalogItem(user.eq_theme) : null);
 
   // App shell: left rail (nav, games, your level) + the page's <main>. On narrow screens the rail hides
   // and the top bar's nav takes over.

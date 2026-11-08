@@ -1,6 +1,7 @@
 import { api, esc, can, perm, t, initPage, SITE, gameLabel, localized, toISO, toLocalInput, onSubmit, toast, ago, fmtDate, statusBadge, roleLabel } from "./common.js";
 import { itemPreview, itemName, FONTS, EFFECTS, registerFont, hatPlacement } from "./cosmetics.js";
 import { PART_SLOTS, ART_IDS } from "./avatar-parts.js";
+import { TEXTURES, EDGES } from "./themes.js";
 
 const user = await initPage();
 const main = document.getElementById("main");
@@ -499,7 +500,7 @@ async function walletPanel(uid) {
 
 /* ---------------- Store ---------------- */
 
-const TYPES = ["frame", "hat", "color", "font", "textstyle", "sticker", "banner", "wallpaper", "part"];
+const TYPES = ["frame", "hat", "color", "font", "textstyle", "sticker", "banner", "wallpaper", "part", "theme"];
 const FRAME_STYLES = ["solid", "glow", "pulse", "rainbow", "shimmer"];
 
 async function storeTab() {
@@ -529,7 +530,7 @@ async function storeTab() {
     <div id="item-editor"></div>
     <details class="card fonts-admin"><summary><b>${t("ad.uploadedFonts")}</b> <span class="muted small" id="font-count"></span></summary><div id="font-list"></div></details>
     ${TYPES.map((type) => `
-      <h3>${t(`st.${{ frame: "frames", hat: "hats", color: "colors", font: "fonts", textstyle: "textstyles", sticker: "stickers", banner: "banners", wallpaper: "wallpapers", part: "parts" }[type]}`)}</h3>
+      <h3>${t(`st.${{ frame: "frames", hat: "hats", color: "colors", font: "fonts", textstyle: "textstyles", sticker: "stickers", banner: "banners", wallpaper: "wallpapers", part: "parts", theme: "themes" }[type]}`)}</h3>
       <div class="card table-wrap"><table>
         <thead><tr><th></th><th>${t("ad.colName")}</th><th>${t("ad.itemPrice")}</th><th>${t("ad.itemReward")}</th><th></th></tr></thead>
         <tbody>${items.filter((i) => i.type === type).map((i) => `
@@ -589,6 +590,16 @@ function editItem(item, items) {
                 + `<button type="button" class="f-hat link small" data-hat-reset>${t("ad.hatReset")}</button>`; })()}
             <label class="check f-halo"><input type="checkbox" name="halo" ${v.halo ? "checked" : ""}> ${t("ad.halo")}</label>
             <label class="f-color2">${t("ad.color2")}<input name="color2" type="color" value="${esc(v.color2 || "#3a4a6b")}"></label>
+            <div class="f-theme theme-fields">
+              ${[["bg", "#14161a"], ["panel", "#1d2026"], ["border", "#323742"], ["text", "#e8e6e1"], ["muted", "#9aa0aa"], ["accent", ""]].map(([k, d]) =>
+                `<label>${t(`th.${k}`)}<span class="row-inline"><input type="color" name="th_${k}" value="${esc(v[k] || d || "#6fcf5a")}">${k === "accent" ? `<span class="check small"><input type="checkbox" name="th_accent_on" ${v.accent ? "checked" : ""}> ${t("th.useAccent")}</span>` : ""}</span></label>`).join("")}
+              <label>${t("th.texture")}<select name="th_texture">${TEXTURES.map((x) => `<option value="${x}" ${(v.texture || "none") === x ? "selected" : ""}>${t(`th.tex.${x}`)}</option>`).join("")}</select></label>
+              <label>${t("th.strength")} <b data-th="strength">${esc(v.strength ?? 50)}%</b><input type="range" name="th_strength" min="0" max="100" value="${esc(v.strength ?? 50)}"></label>
+              <label>${t("th.edge")}<select name="th_edge">${EDGES.map((x) => `<option value="${x}" ${(v.edge || "solid") === x ? "selected" : ""}>${t(`th.edge.${x}`)}</option>`).join("")}</select></label>
+              <label>${t("th.radius")} <b data-th="radius">${esc(v.radius ?? 8)}px</b><input type="range" name="th_radius" min="0" max="24" value="${esc(v.radius ?? 8)}"></label>
+              <label>${t("th.font")}<select name="th_font">${fontOptions(v.font)}</select></label>
+              <label>${t("th.heading")}<select name="th_heading">${fontOptions(v.heading)}</select></label>
+            </div>
             <label class="f-pattern">${t("ad.pattern")}<select name="pattern">${["none", "dots", "grid", "stripes", "blocks", "bricks"].map((x) => `<option value="${x}" ${(v.pattern || "none") === x ? "selected" : ""}>${t(`ad.pattern.${x}`)}</option>`).join("")}</select></label>
             <label class="f-slot">${t("av.part")}<select name="slot">${PART_SLOTS.map((x) => `<option value="${x}" ${v.slot === x ? "selected" : ""}>${t(`av.slot.${x}`)}</option>`).join("")}</select></label>
             <label class="f-art">${t("av.drawing")}<select name="art"><option value="">${t("av.useImage")}</option></select></label>
@@ -635,6 +646,12 @@ function editItem(item, items) {
     if (type === "frame" || type === "color") return { color: form.color.value, style: form.style.value };
     if (type === "banner" || type === "wallpaper") return { color: form.color.value, color2: form.color2.value, pattern: form.pattern.value,
       image: form.image.value.trim() || undefined, animate: form.animate.checked || undefined };
+    if (type === "theme") {
+      const g = (k) => form[`th_${k}`].value;
+      return { bg: g("bg"), panel: g("panel"), border: g("border"), text: g("text"), muted: g("muted"), accent: form.th_accent_on.checked ? g("accent") : undefined,
+        texture: g("texture"), strength: Number(g("strength")), edge: g("edge"), radius: Number(g("radius")), font: g("font"), heading: g("heading"),
+        image: g("texture") === "image" ? form.image.value.trim() : undefined };
+    }
     if (type === "part") return form.image.value.trim() && !form.art.value ? { slot: form.slot.value, image: form.image.value.trim() } : { slot: form.slot.value, art: form.art.value };
     if (type === "font" || type === "textstyle") return { font: form.font.value, effect: form.effect.value, color: form.color.value,
       color2: form.color2.value, animate: form.animate.checked || undefined };
@@ -661,6 +678,15 @@ function editItem(item, items) {
       checkFrameImage(form.image.value.trim(), form.querySelector(".look-hint"));
       show(".f-image", true); show(".f-style", !img); show(".f-color", !img && form.style.value !== "rainbow");
       form.image.placeholder = "/frames/my-frame.png";
+    }
+    const theme = type === "theme";
+    show(".f-theme", theme);
+    if (theme) {
+      ["emoji", "style", "color", "color2", "pattern", "animate", "slot", "art", "font", "effect"].forEach((f) => show(`.f-${f}`, false));
+      show(".f-image", form.th_texture.value === "image");
+      form.image.placeholder = "/textures/my-tile.png";
+      form.querySelector('[data-th="strength"]').textContent = form.th_strength.value + "%";
+      form.querySelector('[data-th="radius"]').textContent = form.th_radius.value + "px";
     }
     const part = type === "part";
     show(".f-slot", part); show(".f-art", part);

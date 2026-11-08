@@ -4,11 +4,12 @@
 import { api, esc, t, toast } from "./common.js";
 import { catalogItem, itemName, itemPreview, buildSVG, parseBuild, hatPlacement, avatarHTML, nameHTML, textAttrs, bgStyle, bgAnimated } from "./cosmetics.js";
 import { PART_SLOTS, REQUIRED_SLOTS, DEFAULT_COLORS } from "./avatar-parts.js";
+import { applyTheme } from "./themes.js";
 
 const parseJSON = (s) => { if (!s) return null; if (typeof s === "object") return s; try { return JSON.parse(s); } catch { return null; } };
 // equip slots (store item type → equipped key from /api/store)
-const EQUIP = ["frame", "hat", "color", "font", "textstyle", "banner", "wallpaper"];
-const TABS = ["avatar", "frame", "hat", "name", "textstyle", "banner", "wallpaper"];
+const EQUIP = ["frame", "hat", "color", "font", "textstyle", "banner", "wallpaper", "theme"];
+const TABS = ["avatar", "frame", "hat", "name", "textstyle", "banner", "wallpaper", "theme"];
 let tab = "avatar";
 
 export async function mountAvatarEditor(el, me) {
@@ -130,7 +131,7 @@ export async function mountAvatarEditor(el, me) {
     } else if (tab === "textstyle") {
       panel.innerHTML = equipRow("textstyle") + `<p class="hint">${t("cz.textHint")}</p>`;
     } else {
-      panel.innerHTML = equipRow(tab) + (tab === "wallpaper" ? `<p class="hint">${t("st.wallpaperHint")}</p>` : "");
+      panel.innerHTML = equipRow(tab) + (tab === "wallpaper" ? `<p class="hint">${t("st.wallpaperHint")}</p>` : tab === "theme" ? `<p class="hint">${t("cz.themeHint")}</p>` : "");
     }
   }
   const draw = () => { drawPanel(); drawPreview(); };
@@ -141,6 +142,7 @@ export async function mountAvatarEditor(el, me) {
     const q = (s) => e.target.closest(s);
     if (q("[data-eq]")) {
       const b = q("[data-eq]"); eq[b.dataset.eq] = b.dataset.id || null;
+      if (b.dataset.eq === "theme") applyTheme(catalogItem(eq.theme), false); // try it on the whole page (Undo/leaving puts yours back)
       if (b.dataset.eq === "hat") resetFit(b.dataset.id === savedEq.hat);
       return draw();
     }
@@ -169,7 +171,7 @@ export async function mountAvatarEditor(el, me) {
     const up = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", up); };
     addEventListener("pointermove", move); addEventListener("pointerup", up);
   });
-  $("[data-undo]").onclick = () => mountAvatarEditor(el, me);
+  $("[data-undo]").onclick = () => { applyTheme(catalogItem(savedEq.theme), false); mountAvatarEditor(el, me); };
   $("[data-save]").onclick = async (e) => {
     const btn = e.currentTarget; btn.disabled = true;
     try {

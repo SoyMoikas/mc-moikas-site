@@ -1035,3 +1035,34 @@ tr.has-banner td + td { background: none; }
 .cz-banner.has-art { background: var(--bg-art); }
 .cz-banner.has-art.art-anim { background-size: 300% 300%; animation: art-drift 12s ease-in-out infinite alternate; }
 .ae-mode button.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--text, inherit); }
+
+/* ---- Site themes (store items, Profile → Customize → Theme). Variables come from public/app/themes.js ---- */
+html.tf-body body { font-family: var(--theme-font); }
+html.tf-head :is(h1, h2, h3, .brand) { font-family: var(--theme-heading); font-weight: 400; letter-spacing: .02em; }
+html.themed :is(.card, .server-card, .task, .chat, .rank-chip, .game-card, .rail-me, .game-tile, .store-item):not(.has-art),
+.theme-preview .tp-card { background-image: var(--tex); background-size: var(--tex-size); }
+html.themed :is(.card, .server-card, .task, .chat, .rank-chip, .game-card, .rail-me, .game-tile, .store-item) { border-radius: var(--radius); }
+html.themed :is(button, .btn, input, select, textarea) { border-radius: calc(var(--radius) * .6); }
+html.te-dashed :is(.card, .server-card, .task, .chat, .rank-chip, .game-card, .rail-me, .game-tile, .store-item), .theme-preview.te-dashed .tp-card { border-style: dashed; }
+html.te-double :is(.card, .server-card, .task, .chat, .rank-chip, .game-card, .rail-me, .game-tile, .store-item), .theme-preview.te-double .tp-card { border-style: double; border-width: 4px; }
+html.te-none :is(.card, .server-card, .task, .chat, .rank-chip, .game-card, .rail-me, .game-tile, .store-item), .theme-preview.te-none .tp-card { border-color: transparent; }
+html.te-glow :is(.card, .server-card, .task, .chat, .rank-chip, .game-card, .rail-me, .game-tile, .store-item), .theme-preview.te-glow .tp-card {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 22%, transparent); }
+/* pixel: square blocks with stepped (missing) corners, like a game UI */
+html.te-pixel :is(.card, .server-card, .task, .chat, .rank-chip, .game-card, .rail-me, .game-tile, .store-item), .theme-preview.te-pixel .tp-card {
+  border-color: transparent; border-radius: 0 !important;
+  box-shadow: 0 -4px 0 0 var(--border), 0 4px 0 0 var(--border), -4px 0 0 0 var(--border), 4px 0 0 0 var(--border); }
+/* small preview used on store cards and in Customize */
+.theme-preview { display: inline-flex; width: 132px; height: 86px; padding: 9px; box-sizing: border-box; background: var(--bg); border-radius: 6px; color: var(--text); }
+.tp-card { flex: 1; display: flex; flex-direction: column; gap: 5px; padding: 7px 8px; background-color: var(--panel); border: 2px solid var(--border); border-radius: var(--radius); }
+.tp-h { font-family: var(--theme-heading, inherit); color: var(--accent); line-height: 1; font-size: 1rem; font-weight: 400; }
+.tp-line { height: 4px; width: 90%; background: var(--muted); opacity: .7; border-radius: 2px; }
+.tp-line.short { width: 60%; }
+.tp-btn { margin-top: auto; width: 34px; height: 9px; background: var(--accent); border-radius: calc(var(--radius) * .5); }
+.item-form .f-theme { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px 14px; }
+.f-theme .row-inline { display: flex; align-items: center; gap: 8px; }
+.f-theme input[type=color] { width: 54px; height: 32px; padding: 2px; }
+.f-theme input[type=range] { width: 100%; accent-color: var(--accent); }
+.cz-chip .theme-preview { transform: scale(.62); margin: -16px -25px; }
+/* walls are dark whatever the theme, so their text stays light */
+.fpost.wall { --text: #f3eee8; --muted: #d9d0c6; color: var(--text); }

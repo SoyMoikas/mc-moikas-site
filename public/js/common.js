@@ -1,4 +1,6 @@
 // Shared helpers for every page.
+import { t, tErr, lang, locale, setLang, applyStatic } from "./i18n.js";
+export { t, lang };
 
 const RANK = { pending: 0, member: 1, staff: 2, admin: 3 };
 export const can = (user, role) => !!user && RANK[user.role] >= RANK[role];
@@ -17,30 +19,36 @@ export async function api(path, { method = "GET", body } = {}) {
   if (body !== undefined) { opts.headers["content-type"] = "application/json"; opts.body = JSON.stringify(body); }
   const r = await fetch(path, opts);
   const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(data.error || `Request failed (${r.status})`);
+  if (!r.ok) throw new Error(tErr(data.error || `Request failed (${r.status})`));
   return data;
 }
 
 export function fmtDate(ms) {
-  return new Date(ms).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  return new Date(ms).toLocaleDateString(locale, { year: "numeric", month: "short", day: "numeric" });
 }
 export function fmtDateTime(v) {
   const d = new Date(v);
-  return isNaN(d) ? String(v) : d.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  return isNaN(d) ? String(v) : d.toLocaleString(locale, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 export function ago(ms) {
   const s = Math.round((Date.now() - ms) / 1000);
-  if (s < 60) return "just now";
-  const m = Math.round(s / 60); if (m < 60) return `${m}m ago`;
-  const h = Math.round(m / 60); if (h < 24) return `${h}h ago`;
-  const d = Math.round(h / 24); if (d < 30) return `${d}d ago`;
+  if (s < 60) return t("ago.now");
+  const m = Math.round(s / 60); if (m < 60) return t("ago.m", { n: m });
+  const h = Math.round(m / 60); if (h < 24) return t("ago.h", { n: h });
+  const d = Math.round(h / 24); if (d < 30) return t("ago.d", { n: d });
   return fmtDate(ms);
 }
 
-const STATUS_LABEL = { running: "Online", offline: "Offline", starting: "Starting", stopping: "Stopping", unknown: "Status unknown" };
+export const roleLabel = (r) => t(`role.${r}`);
+export const tagLabel = (tag) => t(`tag.${tag || "Announcement"}`);
+export const taskLabel = (s) => t(`task.${s}`);
+
+// Pick the Spanish version of a field when the viewer reads Spanish and it exists.
+export const localized = (en, es) => (lang === "es" && es && (!Array.isArray(es) || es.length) ? es : en);
+
 export function statusBadge(s) {
   if (!s.status) return "";
-  let label = STATUS_LABEL[s.status] || s.status;
+  let label = t(`status.${s.status}`);
   if (s.status === "running" && s.players_online !== null && s.players_online !== undefined) {
     label += ` · ${s.players_online}/${s.players_max ?? "?"}`;
   }
@@ -57,8 +65,9 @@ export function toast(msg, error = false) {
   toast._t = setTimeout(() => (el.hidden = true), 3000);
 }
 
-// Builds the top bar and returns the logged-in user (or null).
+// Builds the top bar, translates static text, and returns the logged-in user (or null).
 export async function initPage() {
+  applyStatic();
   let user = null;
   try { ({ user } = await api("/api/me")); } catch { /* offline: treat as logged out */ }
 
@@ -69,33 +78,35 @@ export async function initPage() {
     <div class="wrap">
       <a class="brand" href="/">Moikas MC</a>
       <nav>
-        <a href="/">Servers</a>
-        ${can(user, "admin") ? `<a href="/admin">Admin</a>` : ""}
+        <a href="/">${t("nav.servers")}</a>
+        ${can(user, "admin") ? `<a href="/admin">${t("nav.admin")}</a>` : ""}
       </nav>
       <div class="userbox">
+        <button class="lang" title="${esc(t("lang.switchTitle"))}" data-lang="${lang === "es" ? "en" : "es"}">${t("lang.switch")}</button>
         ${user
           ? `<img src="${esc(user.avatar)}" alt=""><span class="uname">${esc(user.username)}</span>
-             <span class="role ${esc(user.role)}">${esc(user.role)}</span>
-             <a class="small muted" href="/auth/logout">Log out</a>`
-          : `<a class="btn discord" href="/auth/login?next=${encodeURIComponent(here)}">Log in with Discord</a>`}
+             <span class="role ${esc(user.role)}">${esc(roleLabel(user.role))}</span>
+             <a class="small muted" href="/auth/logout">${t("auth.logout")}</a>`
+          : `<a class="btn discord" href="/auth/login?next=${encodeURIComponent(here)}">${t("auth.login")}</a>`}
       </div>
     </div>`;
   document.body.prepend(bar);
+  bar.querySelector("[data-lang]").onclick = (e) => setLang(e.currentTarget.dataset.lang);
 
   document.addEventListener("click", async (e) => {
     const b = e.target.closest("button[data-copy]");
     if (!b) return;
     e.preventDefault();
-    try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = "Copied!"; }
-    catch { b.textContent = "Select & copy"; }
-    setTimeout(() => (b.textContent = "Copy"), 1500);
+    try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = t("copied"); }
+    catch { b.textContent = t("copyFail"); }
+    setTimeout(() => (b.textContent = t("copy")), 1500);
   });
   return user;
 }
 
 export const loginHint = (user) => !user
-  ? `<a href="/auth/login?next=${encodeURIComponent(location.pathname + location.search)}">Log in with Discord</a> to join the discussion.`
-  : user.role === "pending" ? "Your account is waiting for an admin to approve it before you can comment." : "";
+  ? t("sp.loginToJoin", { href: `/auth/login?next=${encodeURIComponent(location.pathname + location.search)}` })
+  : user.role === "pending" ? t("sp.pendingNotice") : "";
 
 // Reads a form into a plain object (checkboxes → booleans).
 export function formData(form) {
@@ -135,22 +146,22 @@ export function postForm(values = {}, { servers = null } = {}) {
   const ev = toLocalInput(values.event_at);
   return `
     <form class="stack card">
-      ${servers ? `<label>Where
+      ${servers ? `<label>${t("pf.where")}
         <select name="server_id">
-          <option value="">All servers (network-wide)</option>
+          <option value="">${t("pf.everywhere")}</option>
           ${servers.map((s) => `<option value="${esc(s.id)}" ${values.server_id === s.id ? "selected" : ""}>${esc(s.name)}</option>`).join("")}
         </select></label>` : ""}
       <div class="row">
-        <label>Title <input name="title" maxlength="140" required value="${esc(values.title)}"></label>
-        <label>Type <select name="tag">${POST_TAGS.map((t) => `<option ${values.tag === t ? "selected" : ""}>${t}</option>`).join("")}</select></label>
-        <label>Event time (optional) <input type="datetime-local" name="event_at" value="${esc(ev)}"></label>
+        <label>${t("pf.title")} <input name="title" maxlength="140" required value="${esc(values.title)}"></label>
+        <label>${t("pf.type")} <select name="tag">${POST_TAGS.map((tg) => `<option value="${tg}" ${values.tag === tg ? "selected" : ""}>${tagLabel(tg)}</option>`).join("")}</select></label>
+        <label>${t("pf.eventTime")} <input type="datetime-local" name="event_at" value="${esc(ev)}"></label>
       </div>
-      <label>Message <textarea name="body" maxlength="8000" required>${esc(values.body)}</textarea></label>
+      <label>${t("pf.message")} <textarea name="body" maxlength="8000" required>${esc(values.body)}</textarea></label>
       <div class="actions">
-        <label class="check"><input type="checkbox" name="pinned" ${values.pinned ? "checked" : ""}> Pin to top</label>
+        <label class="check"><input type="checkbox" name="pinned" ${values.pinned ? "checked" : ""}> ${t("pf.pin")}</label>
         <span style="flex:1"></span>
-        <button type="button" data-cancel>Cancel</button>
-        <button class="primary">${values.id ? "Save" : "Post"}</button>
+        <button type="button" data-cancel>${t("cancel")}</button>
+        <button class="primary">${values.id ? t("save") : t("post")}</button>
       </div>
     </form>`;
 }
@@ -159,31 +170,31 @@ export function renderPost(p, { user, showServer = false } = {}) {
   return `
     <article class="card post" data-post="${p.id}">
       <div class="meta">
-        ${p.pinned ? `<span class="pin">📌 Pinned</span>` : ""}
-        <span class="tag ${esc(p.tag)}">${esc(p.tag || "Announcement")}</span>
+        ${p.pinned ? `<span class="pin">${t("pf.pinned")}</span>` : ""}
+        <span class="tag ${esc(p.tag)}">${esc(tagLabel(p.tag))}</span>
         <span>${fmtDate(p.created_at)}</span>
-        ${p.author ? `<span>by ${esc(p.author)}</span>` : ""}
+        ${p.author ? `<span>${esc(t("by", { name: p.author }))}</span>` : ""}
         ${showServer ? (p.server_id
           ? `<a class="server-link" href="/server?id=${encodeURIComponent(p.server_id)}">${esc(p.server_name)}</a>`
-          : `<span class="server-link muted">All servers</span>`) : ""}
+          : `<span class="server-link muted">${t("allServers")}</span>`) : ""}
       </div>
       <h3>${esc(p.title)}</h3>
       <div class="body">${rich(p.body)}</div>
       ${p.event_at ? `<div class="event">🗓 ${esc(fmtDateTime(p.event_at))}</div>` : ""}
       ${can(user, "staff") ? `<div class="actions" style="margin-top:10px">
-        <button class="link" data-edit-post="${p.id}">Edit</button>
-        <button class="link" data-delete-post="${p.id}">Delete</button></div>` : ""}
+        <button class="link" data-edit-post="${p.id}">${t("edit")}</button>
+        <button class="link" data-delete-post="${p.id}">${t("delete")}</button></div>` : ""}
     </article>`;
 }
 
 // Wires up edit/delete buttons on rendered posts. `reload` re-renders the page section.
-export function bindPostActions(root, posts, { user, reload, servers = null }) {
+export function bindPostActions(root, posts, { user, reload }) {
   root.addEventListener("click", async (e) => {
     const del = e.target.closest("[data-delete-post]");
     const edit = e.target.closest("[data-edit-post]");
     if (del) {
-      if (!confirm("Delete this post?")) return;
-      try { await api(`/api/posts/${del.dataset.deletePost}`, { method: "DELETE" }); toast("Post deleted"); reload(); }
+      if (!confirm(t("pf.confirmDelete"))) return;
+      try { await api(`/api/posts/${del.dataset.deletePost}`, { method: "DELETE" }); toast(t("pf.deleted")); reload(); }
       catch (err) { toast(err.message, true); }
     } else if (edit) {
       const p = posts().find((x) => String(x.id) === edit.dataset.editPost);
@@ -195,7 +206,7 @@ export function bindPostActions(root, posts, { user, reload, servers = null }) {
       form.querySelector("[data-cancel]").onclick = reload;
       onSubmit(form, async (d) => {
         await api(`/api/posts/${p.id}`, { method: "PATCH", body: { ...d, event_at: toISO(d.event_at) } });
-        toast("Saved"); reload();
+        toast(t("saved")); reload();
       });
     }
   });

@@ -1,4 +1,4 @@
-import { api, esc, can, initPage, statusBadge, renderPost, postForm, bindPostActions, onSubmit, toast, toISO } from "./common.js";
+import { api, esc, can, t, initPage, statusBadge, renderPost, postForm, bindPostActions, onSubmit, toast, toISO } from "./common.js";
 
 const user = await initPage();
 let servers = [];
@@ -9,18 +9,18 @@ async function loadServers() {
   try {
     ({ servers } = await api("/api/servers"));
   } catch (e) {
-    el.innerHTML = `<p class="muted">Couldn't load servers: ${esc(e.message)}</p>`;
+    el.innerHTML = `<p class="muted">${esc(t("couldntLoad", { msg: e.message }))}</p>`;
     return;
   }
-  el.innerHTML = servers.length ? servers.map(card).join("") : `<p class="muted">No servers yet.</p>`;
+  el.innerHTML = servers.length ? servers.map(card).join("") : `<p class="muted">${t("home.noServers")}</p>`;
 }
 
 function card(s) {
   const sub = [s.modpack || s.game, s.mc_version, s.loader].filter(Boolean).join(" · ");
-  const tasks = s.tasks_total ? `${s.tasks_done}/${s.tasks_total} tasks done` : "";
+  const tasks = s.tasks_total ? t("home.tasksDone", { done: s.tasks_done, total: s.tasks_total }) : "";
   return `
     <a class="server-card" href="/server?id=${encodeURIComponent(s.id)}">
-      <h3>${esc(s.name)}${s.hidden ? `<span class="draft">DRAFT</span>` : ""}</h3>
+      <h3>${esc(s.name)}${s.hidden ? `<span class="draft">${t("draft")}</span>` : ""}</h3>
       <div class="sub">${esc(sub)}</div>
       <code class="connect">${esc(s.connect || "—")}</code>
       <div class="foot"><span>${statusBadge(s)}</span><span>${esc(tasks)}</span></div>
@@ -32,12 +32,12 @@ async function loadPosts() {
   try {
     ({ posts } = await api("/api/posts?limit=15"));
   } catch (e) {
-    el.innerHTML = `<p class="muted">Couldn't load announcements: ${esc(e.message)}</p>`;
+    el.innerHTML = `<p class="muted">${esc(t("couldntLoad", { msg: e.message }))}</p>`;
     return;
   }
   el.innerHTML = posts.length
     ? posts.map((p) => renderPost(p, { user, showServer: true })).join("")
-    : `<p class="muted">No announcements yet.</p>`;
+    : `<p class="muted">${t("home.noAnnouncements")}</p>`;
 }
 
 bindPostActions(document.getElementById("posts"), () => posts, { user, reload: loadPosts });
@@ -53,7 +53,7 @@ if (can(user, "staff")) {
     onSubmit(form, async (d) => {
       await api("/api/posts", { method: "POST", body: { ...d, server_id: d.server_id || null, event_at: toISO(d.event_at) } });
       holder.innerHTML = "";
-      toast("Posted");
+      toast(t("pf.posted"));
       loadPosts();
     });
   };

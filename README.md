@@ -76,6 +76,13 @@ in your eggs never leave the NAS.
 
 ---
 
+## Languages (English / Spanish)
+The site picks Spanish for anyone whose browser is in Spanish; everyone can switch with the EN/ES button.
+UI text lives in `public/js/i18n.js`. Each server has optional Spanish description and join steps (Admin → Edit).
+Announcements, tasks and comments are shown as written.
+
+If your database was created before the Spanish update, run `migrations-001-spanish.sql` once in the D1 console.
+
 ## Adding another server later
 1. Create it in Pterodactyl, giving it its own port (e.g. 25566).
 2. Within 2 minutes it shows up under **Admin → Pterodactyl sync** → **Create page**.

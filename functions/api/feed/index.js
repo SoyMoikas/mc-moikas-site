@@ -1,6 +1,6 @@
 import { json, err, body, now } from "../../../lib/util.js";
 import { need, hasRole } from "../../../lib/auth.js";
-import { POST_COLS, POST_FROM, postInput, score, decorate } from "../../../lib/feed.js";
+import { POST_COLS, POST_FROM, postInput, postLook, score, decorate } from "../../../lib/feed.js";
 
 // Private feed for approved members.
 // GET ?mode=foryou|recent  &game=<id>  &user=<id>  &offset=N (foryou)  &before=<post id> (recent)
@@ -57,7 +57,8 @@ export async function onRequestPost({ request, env }) {
   const recent = await env.DB.prepare("SELECT COUNT(*) AS n FROM social_posts WHERE user_id = ? AND created_at > ?").bind(viewer.id, now() - 10 * 60_000).first();
   if (recent.n >= 8) return err(429, "Slow down a little");
 
-  const res = await env.DB.prepare("INSERT INTO social_posts (user_id, body, image, game_id, created_at) VALUES (?, ?, ?, ?, ?)")
-    .bind(viewer.id, f.body, f.image, f.game_id, now()).run();
+  const look = await postLook(env, viewer, b);
+  const res = await env.DB.prepare("INSERT INTO social_posts (user_id, body, image, game_id, style, bg, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
+    .bind(viewer.id, f.body, f.image, f.game_id, look.style, look.bg, now()).run();
   return json({ id: res.meta.last_row_id }, 201);
 }

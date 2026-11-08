@@ -1,6 +1,6 @@
 import { json, err, body, now } from "../../../lib/util.js";
 import { need, hasRole } from "../../../lib/auth.js";
-import { postInput } from "../../../lib/feed.js";
+import { postInput, postLook } from "../../../lib/feed.js";
 
 // Edit your own post.
 export async function onRequestPatch({ request, env, params }) {
@@ -13,8 +13,9 @@ export async function onRequestPatch({ request, env, params }) {
   if (b instanceof Response) return b;
   const f = postInput(b);
   if (f.game_id && !(await env.DB.prepare("SELECT 1 FROM games WHERE id = ?").bind(f.game_id).first())) return err(404, "Game not found");
-  await env.DB.prepare("UPDATE social_posts SET body = ?, image = ?, game_id = ?, edited_at = ? WHERE id = ?")
-    .bind(f.body, f.image, f.game_id, now(), params.id).run();
+  const look = await postLook(env, viewer, b);
+  await env.DB.prepare("UPDATE social_posts SET body = ?, image = ?, game_id = ?, style = ?, bg = ?, edited_at = ? WHERE id = ?")
+    .bind(f.body, f.image, f.game_id, look.style, look.bg, now(), params.id).run();
   return json({ ok: true });
 }
 

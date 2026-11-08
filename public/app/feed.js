@@ -1,5 +1,30 @@
 // Private "For you" feed: composer, posts, likes, replies. Approved members only.
 import { api, esc, rich, can, t, ago, toast, roleLabel, loginHint, levelBadge, avatarHTML, nameHTML, SITE, gameLabel, bgStyle, bgAnimated, bgWall, textAttrs, onPulse } from "./common.js";
+import { catalogItem, itemName, textFx } from "./cosmetics.js";
+
+// Text styles + backgrounds you own, for the composer's 🎨 picker (fetched once per page).
+let ownedLooks = null;
+function loadLooks() {
+  ownedLooks ??= api("/api/store").then(({ items, user }) => {
+    const mine = new Set(user?.owned || []);
+    const pick = (type) => items.filter((i) => i.type === type && mine.has(i.id)).map((i) => i.id);
+    return { styles: pick("textstyle"), bgs: pick("banner") };
+  }).catch(() => ({ styles: [], bgs: [] }));
+  return ownedLooks;
+}
+const LOOK_KEY = "moikas.postLook";
+const lastLook = () => { try { return JSON.parse(localStorage.getItem(LOOK_KEY) || "{}"); } catch { return {}; } };
+const saveLook = (l) => { try { localStorage.setItem(LOOK_KEY, JSON.stringify(l)); } catch { /* storage off */ } };
+
+// Classes/styles for a post's own look (style + bg saved on the post).
+function lookAttrs(style, bg) {
+  const a = textAttrs(null, style || null);
+  return {
+    art: `${bg ? "has-banner" : ""} ${bgWall(bg) ? "wall" : ""} ${bgAnimated(bg) ? "art-anim" : ""}`,
+    artStyle: bg ? bgStyle(bg) : "",
+    cls: a.cls, style: a.style,
+  };
+}
 
 // opts: { game: id (filter + preselect), userId: profile filter, composer: bool, modes: bool }
 export function mountFeed(el, user, opts = {}) {
@@ -29,11 +54,14 @@ export function mountFeed(el, user, opts = {}) {
           ${p ? "" : avatarHTML(user, 40)}
           <textarea name="body" maxlength="2000" rows="${p ? 3 : 2}" placeholder="${esc(t("feed.placeholder"))}">${esc(p?.body || "")}</textarea>
         </div>
+        <div class="composer-look hidden"></div>
+        <div class="composer-preview hidden"></div>
         <div class="composer-extra ${p?.image ? "" : "hidden"}">
           <input name="image" placeholder="${esc(t("feed.imagePh"))}" value="${esc(p?.image || "")}">
         </div>
         <div class="actions">
           <button type="button" class="link" data-add-image>🖼 ${t("feed.addImage")}</button>
+          <button type="button" class="link" data-look>🎨 ${t("feed.style")}<span class="look-dot hidden"></span></button>
           <select name="game_id" style="width:auto">
             <option value="">${t("feed.noGame")}</option>
             ${SITE.games.map((g) => `<option value="${esc(g.id)}" ${(p ? p.game_id : opts.game) === g.id ? "selected" : ""}>${esc(g.icon || "🎮")} ${esc(gameLabel(g))}</option>`).join("")}
@@ -45,14 +73,60 @@ export function mountFeed(el, user, opts = {}) {
       </form>`;
   }
 
-  function wireComposer(form, onDone, postId = null) {
+  function wireComposer(form, onDone, postId = null, start = null) {
     form.querySelector("[data-add-image]").onclick = () => {
       form.querySelector(".composer-extra").classList.toggle("hidden");
       form.image.focus();
     };
+    // Per-post look: pick a text style and a background you own; preview updates as you type.
+    const look = { style: start ? start.style : null, bg: start ? start.bg : null };
+    const panel = form.querySelector(".composer-look"), preview = form.querySelector(".composer-preview");
+    let looks = { styles: [], bgs: [] };
+    const showPreview = () => {
+      const on = !!(look.style || look.bg);
+      form.querySelector(".look-dot").classList.toggle("hidden", !on);
+      preview.classList.toggle("hidden", !on);
+      if (!on) return;
+      const a = lookAttrs(look.style, look.bg);
+      preview.innerHTML = `<div class="card fpost ${a.art}" style="${a.artStyle}"><div class="fpost-body">
+        <div class="body${a.cls}" style="${a.style}">${form.body.value.trim() ? rich(form.body.value) : esc(t("feed.previewEmpty"))}</div></div></div>`;
+    };
+    const chips = () => {
+      const styleChip = (id) => { const f = textFx(id); return `<button type="button" class="look-chip ${look.style === id ? "on" : ""}" data-pick-style="${esc(id)}">
+        <span class="body${f.cls}" style="${f.style}">Aa</span><span class="small">${esc(itemName(catalogItem(id)))}</span></button>`; };
+      const bgChip = (id) => `<button type="button" class="look-chip ${look.bg === id ? "on" : ""}" data-pick-bg="${esc(id)}">
+        <span class="look-swatch has-art ${bgAnimated(id) ? "art-anim" : ""}" style="${bgStyle(id)}"></span><span class="small">${esc(itemName(catalogItem(id)))}</span></button>`;
+      panel.innerHTML = `
+        <div class="look-row"><b class="small">${t("feed.textStyle")}</b>
+          <button type="button" class="look-chip ${look.style ? "" : "on"}" data-pick-style=""><span>Aa</span><span class="small">${t("feed.plain")}</span></button>
+          ${looks.styles.map(styleChip).join("")}</div>
+        <div class="look-row"><b class="small">${t("feed.background")}</b>
+          <button type="button" class="look-chip ${look.bg ? "" : "on"}" data-pick-bg=""><span class="look-swatch"></span><span class="small">${t("feed.plain")}</span></button>
+          ${looks.bgs.map(bgChip).join("")}</div>
+        ${!looks.styles.length && !looks.bgs.length ? `<p class="hint">${t("feed.noLooks")} <a href="/store#text-styles">${t("nav.store")}</a></p>` : ""}`;
+    };
+    loadLooks().then((l) => {
+      looks = l;
+      if (!start) { // new post: start with your last choice, if you still own it
+        const last = lastLook();
+        if (l.styles.includes(last.style)) look.style = last.style;
+        if (l.bgs.includes(last.bg)) look.bg = last.bg;
+      }
+      chips(); showPreview();
+    });
+    form.querySelector("[data-look]").onclick = () => panel.classList.toggle("hidden");
+    panel.addEventListener("click", (e) => {
+      const s = e.target.closest("[data-pick-style]"), b = e.target.closest("[data-pick-bg]");
+      if (s) look.style = s.dataset.pickStyle || null;
+      else if (b) look.bg = b.dataset.pickBg || null;
+      else return;
+      if (!start) saveLook(look);
+      chips(); showPreview();
+    });
+    form.body.addEventListener("input", showPreview);
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const d = { body: form.body.value, image: form.image.value.trim() || null, game_id: form.game_id.value || null };
+      const d = { body: form.body.value, image: form.image.value.trim() || null, game_id: form.game_id.value || null, style: look.style, bg: look.bg };
       const btn = form.querySelector("button.primary"); btn.disabled = true;
       try {
         if (postId) await api(`/api/feed/${postId}`, { method: "PATCH", body: d });
@@ -64,10 +138,11 @@ export function mountFeed(el, user, opts = {}) {
   }
 
   function postHTML(p) {
+    const look = lookAttrs(p.post_style, p.post_bg); // each post keeps the style/background it was posted with
     const tag = p.game_id ? `<a class="feed-game" href="/game?id=${encodeURIComponent(p.game_id)}">${esc(p.game_icon || "🎮")} ${esc(lang2(p.game_name, p.game_name_es))}</a>` : "";
     const staffBadge = p.role === "staff" || p.role === "admin" || p.role === "subadmin" ? `<span class="role ${esc(p.role)}">${esc(roleLabel(p.role))}</span>` : "";
     return `
-      <article class="card fpost ${p.eq_banner ? "has-banner" : ""} ${bgWall(p.eq_banner) ? "wall" : ""} ${bgAnimated(p.eq_banner) ? "art-anim" : ""}" data-id="${p.id}" style="${bgStyle(p.eq_banner)}">
+      <article class="card fpost ${look.art}" data-id="${p.id}" style="${look.artStyle}">
         <div class="fpost-head">
           <a href="/profile?id=${p.author_id}">${avatarHTML(p, 40)}</a>
           <div class="fpost-who">
@@ -80,7 +155,7 @@ export function mountFeed(el, user, opts = {}) {
           </div></details>` : ""}
         </div>
         <div class="fpost-body">
-          ${p.body ? (() => { const a = textAttrs(p); return `<div class="body${a.cls}" style="${a.style}">${rich(p.body)}</div>`; })() : ""}
+          ${p.body ? `<div class="body${look.cls}" style="${look.style}">${rich(p.body)}</div>` : ""}
           ${p.image ? `<a href="${esc(p.image)}" target="_blank" rel="noopener"><img class="fpost-img" src="${esc(p.image)}" alt="" loading="lazy" referrerpolicy="no-referrer"></a>` : ""}
         </div>
         <div class="fpost-actions">
@@ -178,7 +253,7 @@ export function mountFeed(el, user, opts = {}) {
       art.replaceWith(holder);
       const form = holder.querySelector("form");
       form.querySelector("[data-cancel]").onclick = () => load(true);
-      wireComposer(form, () => { toast(t("saved")); load(true); }, id);
+      wireComposer(form, () => { toast(t("saved")); load(true); }, id, { style: p.post_style || null, bg: p.post_bg || null });
     }
   });
 

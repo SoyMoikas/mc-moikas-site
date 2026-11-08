@@ -14,40 +14,38 @@ async function load() {
   catch (e) { main.innerHTML = `<p style="padding:40px 0">${esc(e.message)}. <a href="/">${t("nav.home")}</a></p>`; return; }
   const { game: g, servers, posts } = data;
   document.title = `${gameLabel(g)} · Moikas`;
-  const card = (s) => {
-    const sub = [s.modpack || s.game, s.mc_version, s.loader].filter(Boolean).join(" · ");
-    return `<a class="server-card" href="/server?id=${encodeURIComponent(s.id)}">
-      <h3>${esc(s.name)}${s.hidden ? `<span class="draft">${t("draft")}</span>` : ""}</h3>
-      <div class="sub">${esc(sub)}</div>
-      <code class="connect">${esc(s.connect || "—")}</code>
-      <div class="foot"><span>${statusBadge(s)}</span></div></a>`;
-  };
+  const row = (s) => `
+    <div class="srv-row">
+      <a class="srv-name" href="/server?id=${encodeURIComponent(s.id)}">
+        <b>${esc(s.name)}${s.hidden ? ` <span class="draft">${t("draft")}</span>` : ""}</b>
+        <span class="small muted">${esc([s.modpack || s.game, s.mc_version, s.loader].filter(Boolean).join(" · "))}</span>
+      </a>
+      <span class="srv-status">${statusBadge(s)}</span>
+      <span class="srv-connect"><code>${esc(s.connect || "—")}</code>${s.connect ? `<button class="small-btn" data-copy="${esc(s.connect)}">${t("copy")}</button>` : ""}</span>
+    </div>`;
 
   main.innerHTML = `
-    <section class="game-hero" style="--gc:${esc(g.color || "#6fcf5a")}">
-      ${g.image ? `<div class="gh-img" style="background-image:url('${esc(g.image)}')"></div>` : ""}
-      <div class="gh-body">
-        <h1>${esc(g.icon || "🎮")} ${esc(gameLabel(g))}</h1>
-        ${localized(g.description, g.description_es) ? `<p class="muted">${rich(localized(g.description, g.description_es))}</p>` : ""}
-      </div>
-    </section>
-    <section>
-      <div class="section-head"><h2>${t("home.servers")}</h2></div>
-      <div class="grid">${servers.map(card).join("") || `<p class="muted">${t("home.noServers")}</p>`}</div>
-    </section>
     <div class="home-cols">
       <section class="col-main">
+        <header class="game-head"${g.image ? ` style="--banner:url('${esc(g.image)}')"` : ""}>
+          <span class="gh-icon">${esc(g.icon || "🎮")}</span>
+          <div class="gh-text">
+            <h1>${esc(gameLabel(g))}</h1>
+            ${localized(g.description, g.description_es) ? `<p>${rich(localized(g.description, g.description_es))}</p>` : ""}
+          </div>
+        </header>
+        <div class="srv-list">${servers.map(row).join("") || `<p class="muted">${t("home.noServers")}</p>`}</div>
         <div class="section-head"><h2>${t("feed.gamePosts", { game: gameLabel(g) })}</h2></div>
         <div id="feed"></div>
       </section>
       <aside class="col-side">
-        <section>
+        <section class="side-block">
           <div class="section-head"><h2>${t("home.announcements")}</h2>
-            ${can(user, "staff") ? `<button id="new-post">${t("home.newAnnouncement")}</button>` : ""}</div>
+            ${can(user, "staff") ? `<button id="new-post" class="small-btn">${t("home.newAnnouncementShort")}</button>` : ""}</div>
           <div id="post-form"></div>
-          <div id="posts">${posts.length ? posts.map((p) => renderPost(p, { user, showServer: true })).join("") : `<p class="muted">${t("home.noAnnouncements")}</p>`}</div>
+          <div id="posts">${posts.length ? posts.map((p) => renderPost(p, { user, showServer: true })).join("") : `<p class="muted small">${t("home.noAnnouncements")}</p>`}</div>
         </section>
-        <section>
+        <section class="side-block side-chat">
           <div class="section-head"><h2>${t("chat.gameChat", { game: gameLabel(g) })}</h2></div>
           <div id="chat"></div>
         </section>

@@ -518,3 +518,139 @@ input[type=color] { height: 42px; padding: 4px; }
   .composer .composer-row .av { display: none; }
   .gc-img { height: 80px; }
 }
+
+/* =====================================================================
+   Redesign v2 — full-width app shell (left rail · content · right rail)
+   Night slate base, torch-amber accent; each game page swaps --accent
+   for the game's own color. Pixel font only for brand, h1, levels.
+   ===================================================================== */
+:root {
+  --bg: #10131c;
+  --panel: #181c28;
+  --panel-2: #212637;
+  --border: #2b3145;
+  --text: #e9e6df;
+  --muted: #949bb0;
+  --accent: #f0b44c;
+  --accent-dim: #8a6a2c;
+  --online: #5fd068;
+  --topbar: 52px;
+}
+body { font-family: Rubik, system-ui, sans-serif; font-size: 15px; }
+h2, h3 { font-family: Rubik, system-ui, sans-serif; font-weight: 600; letter-spacing: 0; }
+h1, .brand, .pc-level .big, .rt-lvl { font-family: Silkscreen, monospace; }
+a { color: var(--accent); }
+button.primary, .btn.primary { background: var(--accent); border-color: var(--accent); color: #10131c; }
+.status.running .dot { background: var(--online); }
+.card { border-width: 1px; padding: 14px 16px; }
+.small-btn { padding: 3px 10px; font-size: .82rem; }
+
+/* top bar */
+.topbar { position: sticky; top: 0; z-index: 30; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); }
+.topbar .wrap { max-width: 1560px; height: var(--topbar); padding: 0 18px; }
+.brand { color: var(--accent); font-size: 1.2rem; }
+@media (min-width: 1100px) { .topbar nav { visibility: hidden; } }
+
+/* shell */
+.shell { display: grid; grid-template-columns: 228px minmax(0, 1fr); max-width: 1560px; margin: 0 auto; }
+.rail { position: sticky; top: var(--topbar); height: calc(100vh - var(--topbar)); overflow-y: auto; padding: 16px 12px 20px;
+  border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px; }
+.rail-nav, .rail-games { display: grid; gap: 2px; }
+.rail-nav a, .rail-games a { display: flex; align-items: center; gap: 10px; padding: 8px 10px; color: var(--text); text-decoration: none; border-radius: 6px; font-weight: 500; }
+.rail-nav a:hover, .rail-games a:hover { background: var(--panel); }
+.rail-nav a.active { background: var(--panel-2); color: var(--accent); }
+.ri { width: 22px; text-align: center; }
+.rail-title { color: var(--muted); font-size: .8rem; font-weight: 600; padding: 16px 10px 6px; }
+.rail-games .gt { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 6px; flex: none;
+  background: color-mix(in srgb, var(--gc) 22%, var(--panel-2)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gc) 45%, transparent); }
+.rail-games a.active { background: color-mix(in srgb, var(--gc) 14%, var(--panel)); color: var(--gc); }
+.rail-me { margin-top: auto; display: block; padding: 12px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; color: var(--text); text-decoration: none; }
+.rail-me:hover { border-color: var(--rank); }
+.rm-top { display: flex; gap: 10px; align-items: center; }
+.rm-who { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
+.rm-who b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rm-rank { font-size: .8rem; color: var(--rank); }
+.rm-bar { height: 6px; background: var(--bg); border-radius: 3px; margin: 10px 0 6px; overflow: hidden; }
+.rm-bar > span { display: block; height: 100%; background: var(--rank); }
+.rm-foot { display: flex; justify-content: space-between; gap: 8px; font-size: .74rem; color: var(--muted); }
+.rm-coins { color: var(--warn); font-weight: 600; white-space: nowrap; }
+
+main.page { max-width: none; margin: 0; padding: 18px 24px 0; min-width: 0; }
+main.page > section, .col-main > section, .col-side > section { padding: 0 0 18px; }
+main.page footer { padding: 24px 0; }
+.section-head { margin-bottom: 10px; }
+.section-head h2 { font-size: 1.05rem; }
+
+/* home / game columns */
+.home-cols { grid-template-columns: minmax(0, 1fr) 360px; gap: 24px; }
+.col-side { position: sticky; top: calc(var(--topbar) + 18px); height: calc(100vh - var(--topbar) - 36px);
+  display: flex; flex-direction: column; gap: 14px; }
+.col-side section:first-child { padding-top: 0; }
+.col-side > .side-block { padding: 0; min-height: 0; }
+.col-side > .side-block:first-child { flex: 0 1 auto; max-height: 42%; overflow-y: auto; }
+.col-side > .side-chat { flex: 1 1 auto; display: flex; flex-direction: column; }
+.side-chat > .chat, .side-chat > #chat { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.side-chat .chat-log { flex: 1; height: auto; min-height: 180px; }
+.col-side .post { padding: 10px 12px; margin-bottom: 8px; }
+.col-side .post h3 { font-size: .95rem; margin: 2px 0 4px; }
+.col-side .post .body { font-size: .9rem; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
+.col-side .post.open .body { display: block; }
+.col-side .post .meta { font-size: .76rem; gap: 6px; }
+
+/* home: game strip */
+.game-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin-bottom: 20px; }
+.game-strip:empty { display: none; }
+.game-tile { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: var(--panel); border: 1px solid var(--border);
+  border-left: 3px solid var(--gc); border-radius: 8px; color: var(--text); text-decoration: none; }
+.game-tile:hover { border-color: var(--gc); background: color-mix(in srgb, var(--gc) 8%, var(--panel)); }
+.gt-icon { width: 44px; height: 44px; flex: none; display: grid; place-items: center; font-size: 1.5rem; border-radius: 8px;
+  background: color-mix(in srgb, var(--gc) 24%, var(--panel-2)) center/cover no-repeat; }
+.gt-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+.gt-desc { font-size: .8rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gt-count { font-size: .78rem; color: var(--gc); font-weight: 600; white-space: nowrap; }
+
+/* game page */
+.game-head { display: flex; align-items: center; gap: 16px; padding: 18px 20px; margin-bottom: 12px; border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+  background: linear-gradient(100deg, color-mix(in srgb, var(--accent) 24%, var(--panel)) 0%, var(--panel) 70%), var(--banner, none) center/cover; }
+.gh-icon { font-size: 2.6rem; line-height: 1; }
+.game-head h1 { margin: 0; font-size: clamp(1.4rem, 3vw, 2rem); color: var(--accent); }
+.game-head p { margin: 4px 0 0; color: var(--muted); }
+.srv-list { display: grid; gap: 8px; margin-bottom: 22px; }
+.srv-row { display: grid; grid-template-columns: minmax(0, 1.3fr) auto minmax(0, 1fr); align-items: center; gap: 14px;
+  padding: 10px 14px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; }
+.srv-name { display: flex; flex-direction: column; color: var(--text); text-decoration: none; min-width: 0; line-height: 1.35; }
+.srv-name:hover b { color: var(--accent); }
+.srv-connect { display: flex; gap: 8px; align-items: center; justify-content: flex-end; min-width: 0; }
+.srv-connect code { color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* feed density */
+.composer { padding: 12px 14px; }
+.fpost { padding: 12px 16px; margin-bottom: 10px; }
+.fpost-body .body { max-width: 72ch; }
+.fpost-img { max-height: 420px; border-width: 1px; border-radius: 6px; }
+
+/* other pages fill the width sensibly */
+.grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.profile-card, .store-head, .my-progress { max-width: none; }
+
+@media (max-width: 1099px) {
+  .shell { grid-template-columns: 1fr; }
+  .rail { display: none; }
+  main.page { padding: 14px 16px 0; }
+  .home-cols { grid-template-columns: minmax(0, 1fr) 320px; gap: 18px; }
+}
+@media (max-width: 860px) {
+  .home-cols { grid-template-columns: 1fr; }
+  .col-side { position: static; height: auto; }
+  .col-side > .side-block:first-child { max-height: none; }
+  .side-chat .chat-log { height: 55vh; flex: none; }
+  .srv-row { grid-template-columns: 1fr auto; }
+  .srv-connect { grid-column: 1 / -1; justify-content: space-between; }
+}
+@media (max-width: 640px) {
+  main.page { padding: 12px 12px 0; }
+  .game-head { padding: 14px; }
+  .gh-icon { font-size: 2rem; }
+}
+@media (min-width: 1100px) { .userbox .me { display: none; } }

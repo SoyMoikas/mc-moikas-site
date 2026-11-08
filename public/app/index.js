@@ -9,15 +9,15 @@ async function loadGames() {
   const el = document.getElementById("games");
   try { ({ games } = await api("/api/games")); }
   catch (e) { el.innerHTML = `<p class="muted">${esc(t("couldntLoad", { msg: e.message }))}</p>`; return; }
-  el.innerHTML = games.length ? games.map((g) => `
-    <a class="game-card" href="/game?id=${encodeURIComponent(g.id)}" style="--gc:${esc(g.color || "#6fcf5a")}">
-      ${g.image ? `<div class="gc-img" style="background-image:url('${esc(g.image)}')"></div>` : `<div class="gc-img gc-icon">${esc(g.icon || "🎮")}</div>`}
-      <div class="gc-body">
-        <h3>${esc(g.icon || "🎮")} ${esc(gameLabel(g))}${g.active ? "" : ` <span class="draft">${t("q.inactive")}</span>`}</h3>
-        <div class="small muted">${esc(localized(g.description, g.description_es) || "")}</div>
-        <div class="small gc-count">${t("home.serverCount", { n: g.servers })}</div>
-      </div>
-    </a>`).join("") : `<p class="muted">${t("home.noGames")}</p>`;
+  el.innerHTML = games.map((g) => `
+    <a class="game-tile" href="/game?id=${encodeURIComponent(g.id)}" style="--gc:${esc(g.color || "#8a93a8")}">
+      <span class="gt-icon"${g.image ? ` style="background-image:url('${esc(g.image)}')"` : ""}>${g.image ? "" : esc(g.icon || "🎮")}</span>
+      <span class="gt-text">
+        <b>${esc(gameLabel(g))}${g.active ? "" : ` <span class="draft">${t("q.inactive")}</span>`}</b>
+        <span class="gt-desc">${esc(localized(g.description, g.description_es) || "")}</span>
+      </span>
+      <span class="gt-count">${t("home.serverCount", { n: g.servers })}</span>
+    </a>`).join("");
 }
 
 async function loadPosts() {

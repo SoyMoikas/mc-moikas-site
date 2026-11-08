@@ -119,10 +119,60 @@ export async function initPage() {
   document.body.prepend(bar);
   bar.querySelector("[data-lang]").onclick = (e) => setLang(e.currentTarget.dataset.lang);
 
+  // Game pages take on that game's color as the accent.
+  const g = SITE.games.find((x) => x.id === curGame);
+  if (g && /^#[0-9a-f]{6}$/i.test(g.color || "")) document.documentElement.style.setProperty("--accent", g.color);
+
+  // App shell: left rail (nav, games, your level) + the page's <main>. On narrow screens the rail hides
+  // and the top bar's nav takes over.
+  const main = document.querySelector("main");
+  if (main) {
+    const isAdmin = ["users", "servers", "store"].some((p) => perm(user, p));
+    const railLink = (href, icon, key) => `<a href="${href}" class="${here === href || (href !== "/" && here.startsWith(href)) ? "active" : ""}"><span class="ri">${icon}</span>${t(key)}</a>`;
+    const rail = document.createElement("aside");
+    rail.className = "rail";
+    const l = user ? levelInfo(user.xp) : null;
+    rail.innerHTML = `
+      <nav class="rail-nav">
+        ${railLink("/", "🏠", "nav.home")}
+        ${railLink("/quests", "🎯", "nav.quests")}
+        ${railLink("/ranking", "🏆", "nav.ranking")}
+        ${railLink("/store", "🪙", "nav.store")}
+        ${isAdmin ? railLink("/admin", "⚙️", "nav.admin") : ""}
+      </nav>
+      ${SITE.games.length ? `
+        <div class="rail-title">${t("nav.games")}</div>
+        <nav class="rail-games">
+          ${SITE.games.map((x) => `<a href="/game?id=${encodeURIComponent(x.id)}" class="${x.id === curGame ? "active" : ""}" style="--gc:${esc(/^#[0-9a-f]{6}$/i.test(x.color || "") ? x.color : "#8a93a8")}">
+            <span class="gt">${esc(x.icon || "🎮")}</span><span class="gn">${esc(gameLabel(x))}</span></a>`).join("")}
+        </nav>` : ""}
+      ${user ? `
+        <a class="rail-me" href="/profile" style="--rank:${l.color}">
+          <div class="rm-top">${avatarHTML(user, 36)}
+            <div class="rm-who"><b>${esc(user.username)}</b><span class="rm-rank">${t("lvl.short")} ${l.level} · ${esc(l.rank)}</span></div></div>
+          <div class="rm-bar"><span style="width:${l.pct}%"></span></div>
+          <div class="rm-foot"><span>${esc(t("xp.toNext", { n: (l.needed - l.into).toLocaleString(), level: l.level + 1 }))}</span><span class="rm-coins">🪙 ${(user.coins || 0).toLocaleString()}</span></div>
+        </a>` : ""}
+    `;
+    const shell = document.createElement("div");
+    shell.className = "shell";
+    main.replaceWith(shell);
+    shell.append(rail, main);
+    const footer = document.querySelector("body > footer");
+    if (footer) main.append(footer);
+    main.classList.add("page");
+  }
+
   // Close the games menu when clicking elsewhere.
   document.addEventListener("click", (e) => {
     const d = bar.querySelector(".nav-games");
     if (d?.open && !d.contains(e.target)) d.open = false;
+  });
+
+  // Side-rail announcements are clamped to 3 lines; click to expand.
+  document.addEventListener("click", (e) => {
+    const body = e.target.closest(".col-side .post .body");
+    if (body && !e.target.closest("a")) body.closest(".post").classList.toggle("open");
   });
 
   document.addEventListener("click", async (e) => {

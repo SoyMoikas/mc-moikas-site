@@ -1,0 +1,2 @@
+ALTER TABLE quests ADD COLUMN game_id TEXT;
+CREATE TABLE IF NOT EXISTS mc_catalog ( ptero_uuid TEXT NOT NULL, kind TEXT NOT NULL, key TEXT NOT NULL, players INTEGER NOT NULL DEFAULT 0, max_value INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL, PRIMARY KEY (ptero_uuid, kind, key) );

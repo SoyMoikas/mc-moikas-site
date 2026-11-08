@@ -2,6 +2,8 @@
 import { t, tErr, lang, locale, setLang, applyStatic } from "./i18n.js";
 import { levelBadge, levelInfo } from "./levels.js";
 import { avatarHTML, nameHTML, fromAuthor, loadCatalog, catalogItem, bgCSS, bgStyle, bgAnimated, bgWall, textAttrs } from "./cosmetics.js";
+import { applyTheme, applyCachedTheme } from "./themes.js";
+applyCachedTheme();
 export { t, lang, levelBadge, avatarHTML, nameHTML, bgStyle, bgAnimated, bgWall, textAttrs };
 
 const RANK = { pending: 0, member: 1, staff: 2, subadmin: 3, admin: 4 };
@@ -25,6 +27,33 @@ export async function api(path, { method = "GET", body } = {}) {
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(tErr(data.error || `Request failed (${r.status})`));
   return data;
+}
+
+// Upload an image file → "/api/uploads/<id>.<ext>". Photos are shrunk (max `maxSide` px) and re-encoded as WebP
+// so they stay small; GIFs go up untouched so they keep animating. keepOriginal: send the file as-is when it's small
+// enough (store art, pixel textures, frames that must stay exactly 384×384).
+export async function uploadImage(file, { maxSide = 1600, keepOriginal = false } = {}) {
+  const MAX = 1.4 * 1024 * 1024;
+  if (!/^image\/(png|jpe?g|gif|webp)$/.test(file.type)) throw new Error(t("up.badType"));
+  let blob = file;
+  const small = file.size <= MAX;
+  if (file.type !== "image/gif" && !(keepOriginal && small)) {
+    const bmp = await createImageBitmap(file);
+    const k = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    for (const q of [0.82, 0.7, 0.55]) {
+      blob = await new Promise((res) => c.toBlob(res, "image/webp", q));
+      if (blob && blob.size <= MAX) break;
+    }
+    if (small && blob.size > file.size) blob = file; // re-encoding made it bigger: keep the original
+  }
+  if (blob.size > MAX) throw new Error(t("up.tooBig"));
+  const r = await fetch("/api/uploads", { method: "POST", headers: { "content-type": blob.type || file.type }, body: blob, credentials: "same-origin" });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(tErr(data.error || `Upload failed (${r.status})`));
+  return data.url;
 }
 
 export function fmtDate(ms) {
@@ -126,11 +155,15 @@ export async function initPage() {
     document.body.style.setProperty("--wallpaper", bgCSS(wp.visual));
     document.body.classList.add("has-wallpaper");
     if (wp.visual?.animate) document.body.classList.add("wallpaper-anim");
+    if (wp.visual?.pixel) document.body.classList.add("wallpaper-pixel");
   }
 
   // Game pages take on that game's color as the accent.
   const g = SITE.games.find((x) => x.id === curGame);
   if (g && /^#[0-9a-f]{6}$/i.test(g.color || "")) document.documentElement.style.setProperty("--accent", g.color);
+
+  // Your site theme (only you see it). Applied early from the last visit too, so pages don't flash.
+  applyTheme(user ? catalogItem(user.eq_theme) : null);
 
   // App shell: left rail (nav, games, your level) + the page's <main>. On narrow screens the rail hides
   // and the top bar's nav takes over.

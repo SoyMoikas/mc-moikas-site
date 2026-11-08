@@ -10,6 +10,7 @@ const main = document.getElementById("main");
 let data = null;
 const openTasks = new Set(); // keep expanded tasks open across reloads
 let chatEl = null;
+let mapEl = null; // the embedded live map is created once, so re-rendering the page doesn't reload it
 
 const STATUSES = ["open", "in_progress", "done"];
 
@@ -53,10 +54,21 @@ function render() {
           ${spec(t("sp.ram"), s.ram)}
         </div>
         ${s.modpack_url ? `<a class="btn" href="${esc(s.modpack_url)}" target="_blank" rel="noopener">${t("sp.getModpack")}</a>` : ""}
+        ${s.map_url ? `<a class="btn" href="#live-map">🗺️ ${t("map.open")}</a>` : ""}
         ${steps.length ? `<ol class="steps">${steps.map((x) => `<li>${rich(x)}</li>`).join("")}</ol>` : ""}
         ${s.synced_at ? `<p class="hint" style="margin:12px 0 0">${esc(t("sp.liveInfo", { ago: ago(s.synced_at) }))}</p>` : ""}
       </div>
     </section>
+
+    ${s.map_url ? `
+    <section id="live-map">
+      <div class="section-head">
+        <h2>🗺️ ${t("map.open")}</h2>
+        <a class="btn" href="${esc(s.map_url)}" target="_blank" rel="noopener">⛶ ${t("map.fullscreen")}</a>
+      </div>
+      <p class="hint">${t("map.hint")}</p>
+      <div id="map-slot"></div>
+    </section>` : ""}
 
     <section>
       <div class="section-head">
@@ -86,6 +98,16 @@ function render() {
   // Keep one chat instance alive across re-renders so it doesn't reset or double-poll.
   if (!chatEl) { chatEl = document.createElement("div"); mountChat(chatEl, id, user); }
   main.querySelector("#chat-slot").replaceWith(chatEl);
+  const slot = main.querySelector("#map-slot");
+  if (slot) {
+    if (!mapEl || mapEl.dataset.url !== s.map_url) {
+      mapEl = document.createElement("div");
+      mapEl.className = "map-frame card";
+      mapEl.dataset.url = s.map_url;
+      mapEl.innerHTML = `<iframe src="${esc(s.map_url)}" title="${esc(t("map.open"))}" loading="lazy" allowfullscreen referrerpolicy="no-referrer"></iframe>`;
+    }
+    slot.replaceWith(mapEl);
+  }
 
   wire();
   for (const tid of openTasks) {

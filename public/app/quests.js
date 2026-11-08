@@ -1,9 +1,12 @@
-import { api, esc, rich, can, t, initPage, onSubmit, toast, ago, localized, levelBadge } from "./common.js";
+import { api, esc, rich, can, t, initPage, onSubmit, toast, ago, localized, levelBadge, SITE, gameLabel } from "./common.js";
 
 const user = await initPage();
 const main = document.getElementById("main");
 document.title = `${t("nav.quests")} · Moikas`;
-let data = null, servers = [], reviews = [];
+let data = null, servers = [], reviews = [], catalog = null;
+// Sections: one tab per game that has quests, plus "General" (site / any-game quests). ?game=<id> or #general
+let section = new URLSearchParams(location.search).get("game") || (location.hash === "#general" ? "_general" : "_all");
+const gameOf = (q) => q.section_game || "_general";
 
 async function load() {
   try {
@@ -30,9 +33,18 @@ function render() {
           <h3 style="margin:0 0 10px">${t("q.reviews", { n: reviews.length })}</h3>
           ${reviews.map(reviewRow).join("")}
         </div>` : ""}
-      <div class="quest-grid">${data.quests.map(questCard).join("") || `<p class="muted">${t("q.none")}</p>`}</div>
+      ${sectionTabs()}
+      <div class="quest-grid">${data.quests.filter((q) => section === "_all" || gameOf(q) === section).map(questCard).join("") || `<p class="muted">${t("q.none")}</p>`}</div>
     </section>`;
   wire();
+}
+
+function sectionTabs() {
+  const count = (id) => data.quests.filter((q) => id === "_all" || gameOf(q) === id).length;
+  const games = SITE.games.filter((g) => count(g.id));
+  if (!games.length && !count("_general")) return "";
+  const tab = (id, label) => `<button data-section="${esc(id)}" class="${section === id ? "active" : ""}">${label} <span class="muted small">${count(id)}</span></button>`;
+  return `<div class="chips quest-tabs">${tab("_all", t("q.allGames"))}${games.map((g) => tab(g.id, `${esc(g.icon || "🎮")} ${esc(gameLabel(g))}`)).join("")}${count("_general") ? tab("_general", `🌐 ${t("q.general")}`) : ""}</div>`;
 }
 
 function questCard(q) {
@@ -113,16 +125,19 @@ function questForm(q = {}) {
           <option value="auto" ${auto ? "selected" : ""}>${t("q.autoLong")}</option></select></label>
         <label>${t("q.fServer")}<select name="server_id"><option value="">${t("q.anyServer")}</option>
           ${servers.map((s) => `<option value="${esc(s.id)}" ${q.server_id === s.id ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select></label>
+        <label class="game-field">${t("q.fGame")}<select name="game_id"><option value="">🌐 ${t("q.general")}</option>
+          ${SITE.games.map((g) => `<option value="${esc(g.id)}" ${q.game_id === g.id ? "selected" : ""}>${esc(g.icon || "🎮")} ${esc(gameLabel(g))}</option>`).join("")}</select></label>
       </div>
       <div class="auto-fields ${auto ? "" : "hidden"}">
         <div class="row">
           <label>${t("q.fCheck")}<select name="criteria_type">
             <option value="advancement" ${q.criteria_type === "stat" ? "" : "selected"}>${t("q.advancement")}</option>
             <option value="stat" ${q.criteria_type === "stat" ? "selected" : ""}>${t("q.stat")}</option></select></label>
-          <label>${t("q.fKey")}<input name="criteria_key" value="${esc(q.criteria_key)}" placeholder="minecraft:story/mine_diamond"></label>
+          <label>${t("q.fKey")}<input name="criteria_key" list="crit-keys" autocomplete="off" value="${esc(q.criteria_key)}" placeholder="minecraft:story/mine_diamond"><datalist id="crit-keys"></datalist></label>
           <label class="target-field">${t("q.fTarget")}<input name="criteria_target" type="number" min="1" value="${esc(q.criteria_target ?? "")}" placeholder="1000"></label>
         </div>
         <p class="hint">${t("q.keyHelp")}</p>
+        <div class="quest-ideas"></div>
       </div>
       <div class="row">
         <label>${t("ad.sortOrder")}<input name="sort_order" type="number" value="${esc(q.sort_order ?? 0)}"></label>
@@ -142,8 +157,20 @@ function openForm(q = {}) {
   const sync = () => {
     form.querySelector(".auto-fields").classList.toggle("hidden", form.kind.value !== "auto");
     form.querySelector(".target-field").classList.toggle("hidden", form.criteria_type.value !== "stat");
+    // a server quest goes under that server's game, so the game picker is only for "any server" quests
+    form.querySelector(".game-field").classList.toggle("hidden", !!form.server_id.value);
+    if (form.kind.value === "auto") ideas(form);
   };
-  form.kind.onchange = sync; form.criteria_type.onchange = sync; sync();
+  form.kind.onchange = sync; form.criteria_type.onchange = sync; form.server_id.onchange = sync; sync();
+  form.querySelector(".quest-ideas").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-idea]");
+    if (!b) return;
+    const [type, key, target] = JSON.parse(b.dataset.idea);
+    form.criteria_type.value = type; form.criteria_key.value = key;
+    if (target) form.criteria_target.value = target;
+    if (!form.title.value) form.title.value = niceName(key, type, target);
+    sync();
+  });
   form.querySelector("[data-cancel]").onclick = () => (holder.innerHTML = "");
   onSubmit(form, async (d) => {
     if (q.id) await api(`/api/quests/${q.id}`, { method: "PATCH", body: d });
@@ -152,7 +179,62 @@ function openForm(q = {}) {
   });
 }
 
+// "minecraft:story/mine_diamond" → "Mine Diamond"; "minecraft:killed/minecraft:zombie" + 50 → "Killed Zombie ×50"
+function niceName(key, type, target) {
+  const last = key.split(/[:/]/).filter(Boolean).pop() || key;
+  const words = last.replace(/[_.-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  if (type !== "stat") return words;
+  const verb = (key.split("/")[0].split(":")[1] || "").replace(/_/g, " ");
+  return `${verb.charAt(0).toUpperCase()}${verb.slice(1)} ${words}${target ? ` ×${target}` : ""}`;
+}
+const roundTarget = (n) => { if (n <= 10) return Math.max(1, n); const p = 10 ** Math.floor(Math.log10(n)); return Math.round(n / p) * p; };
+
+// Quest ideas from what players on this server really have (NAS scan every 6 h): common goals to start with,
+// rare ones for hard quests, grouped by mod. Clicking one fills the form.
+async function ideas(form) {
+  const box = form.querySelector(".quest-ideas"), list = form.querySelector("#crit-keys");
+  try { catalog ||= (await api("/api/quests/catalog")).servers; } catch { catalog = {}; }
+  const ids = form.server_id.value ? [form.server_id.value] : Object.keys(catalog);
+  const merged = { players: 0, stats: new Map(), adv: new Map() };
+  for (const id of ids) {
+    const c = catalog[id]; if (!c) continue;
+    merged.players += c.players;
+    for (const [k, n, mx] of c.stats) { const e = merged.stats.get(k) || [0, 0]; merged.stats.set(k, [e[0] + n, Math.max(e[1], mx)]); }
+    for (const [k, n] of c.advancements) merged.adv.set(k, (merged.adv.get(k) || 0) + n);
+  }
+  const type = form.criteria_type.value;
+  if (!merged.players) { box.innerHTML = `<p class="hint">💡 ${t("q.ideasNone")}</p>`; list.innerHTML = ""; return; }
+  const P = merged.players;
+  if (type === "advancement") {
+    const all = [...merged.adv].sort((a, b) => b[1] - a[1]);
+    list.innerHTML = all.map(([k, n]) => `<option value="${esc(k)}">${n}/${P}</option>`).join("");
+    const byMod = {};
+    for (const [k, n] of all) (byMod[k.split(":")[0]] ||= []).push([k, n]);
+    const chip = ([k, n]) => `<button type="button" class="idea" data-idea='${esc(JSON.stringify(["advancement", k]))}' title="${esc(k)}">${esc(niceName(k, "advancement"))} <span class="muted small">${n}/${P}</span></button>`;
+    box.innerHTML = `<p class="hint">💡 ${t("q.ideasAdv", { p: P })}</p>` + Object.entries(byMod).sort((a, b) => b[1].length - a[1].length).map(([mod, l]) =>
+      `<details class="idea-group" ${mod !== "minecraft" ? "open" : ""}><summary><b>${esc(mod)}</b> <span class="muted small">${l.length}</span></summary>
+        <div class="idea-row"><span class="small muted">${t("q.easy")}</span>${l.slice(0, 8).map(chip).join("")}</div>
+        ${l.length > 8 ? `<div class="idea-row"><span class="small muted">${t("q.hard")}</span>${l.slice(-8).reverse().map(chip).join("")}</div>` : ""}</details>`).join("");
+  } else {
+    // time stats are in game ticks (and playtime already gives XP), so they make poor goals
+    const all = [...merged.stats].filter(([k]) => !/play_time|play_one_minute|time_since|total_world_time|sneak_time/.test(k))
+      .sort((a, b) => b[1][0] - a[1][0] || b[1][1] - a[1][1]);
+    list.innerHTML = all.map(([k, [n, mx]]) => `<option value="${esc(k)}">max ${mx}</option>`).join("");
+    const byCat = {};
+    for (const [k, v] of all) (byCat[k.split("/")[0]] ||= []).push([k, v]);
+    const chip = ([k, [n, mx]]) => { const tg = roundTarget(Math.max(1, Math.round(mx * 1.5))); return `<button type="button" class="idea" data-idea='${esc(JSON.stringify(["stat", k, tg]))}' title="${esc(k)} · max ${mx}">${esc(niceName(k, "stat"))} <span class="muted small">→ ${tg.toLocaleString()}</span></button>`; };
+    box.innerHTML = `<p class="hint">💡 ${t("q.ideasStat", { p: P })}</p>` + Object.entries(byCat).map(([c, l], i) =>
+      `<details class="idea-group" ${i === 0 ? "open" : ""}><summary><b>${esc(c.replace("minecraft:", ""))}</b> <span class="muted small">${l.length}</span></summary>
+        <div class="idea-row">${l.slice(0, 16).map(chip).join("")}</div></details>`).join("");
+  }
+}
+
 function wire() {
+  main.querySelectorAll("[data-section]").forEach((b) => b.onclick = () => {
+    section = b.dataset.section;
+    history.replaceState(null, "", section === "_all" ? "/quests" : section === "_general" ? "/quests#general" : `/quests?game=${encodeURIComponent(section)}`);
+    render();
+  });
   main.querySelector("#new-quest")?.addEventListener("click", () => openForm({}));
   const find = (id) => data.quests.find((q) => String(q.id) === String(id));
 

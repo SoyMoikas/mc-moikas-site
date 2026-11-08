@@ -4,6 +4,7 @@
 //         font / textstyle {font, effect: none|solid|gradient|rainbow|glow|graffiti|3d, color, color2, animate}
 import { t, lang } from "./i18n.js";
 import { PART_SLOTS, ART, DEFAULT_COLORS } from "./avatar-parts.js";
+import { themePreviewHTML } from "./themes.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const safeColor = (c) => (/^#[0-9a-f]{6}$/i.test(c || "") ? c : "#9aa0aa");
@@ -70,16 +71,25 @@ function frameAttrs(item) {
 
 // fit = the wearer's own adjustment ({size, x, y, rotate}, JSON string or object) for their equipped hat.
 function parseFit(f) { if (!f) return null; if (typeof f === "object") return f; try { return JSON.parse(f); } catch { return null; } }
-function hatHTML(item, fit) {
+function hatHTML(item, fit, idx = 0) {
   if (!item) return "";
   const f = parseFit(fit);
   const v = f && !item.visual?.halo ? { ...item.visual, ...f } : item.visual || {};
   if (v.halo) return `<span class="av-halo"></span>`;
   const p = hatPlacement(v);
   const style = ` style="--hs:${p.size / 100};left:${50 + p.x}%;top:${50 + p.y}%;transform:translate(-50%,-50%) rotate(${p.rotate}deg)"`;
-  if (v.image && safeUrl(v.image)) return `<span class="av-hat"${style}><img src="${esc(v.image)}" alt=""></span>`;
-  if (v.emoji) return `<span class="av-hat"${style}>${esc(v.emoji)}</span>`;
+  if (v.image && safeUrl(v.image)) return `<span class="av-hat" data-acc="${idx}"${style}><img src="${esc(v.image)}" alt=""></span>`;
+  if (v.emoji) return `<span class="av-hat" data-acc="${idx}"${style}>${esc(v.emoji)}</span>`;
   return "";
+}
+
+// How many accessories one avatar can wear (keep in sync with MAX_ACCESSORIES in lib/catalog.js).
+export const MAX_ACCESSORIES = 3;
+// Extra accessories: [{ id, size, x, y, rotate }] (JSON from users.acc_extra)
+export function parseExtras(s) {
+  let l = s;
+  if (typeof s === "string") { try { l = JSON.parse(s); } catch { l = []; } }
+  return Array.isArray(l) ? l.filter((a) => a && typeof a.id === "string").slice(0, MAX_ACCESSORIES - 1) : [];
 }
 
 // Where a hat sits: size (% of avatar width), x/y (% of the avatar, from its centre; negative y = up), rotate (deg).
@@ -119,8 +129,11 @@ export function avatarHTML(u, size = 32, over = {}) {
   const frame = "frame" in over ? over.frame : catalogItem(u?.eq_frame);
   const hat = "hat" in over ? over.hat : catalogItem(u?.eq_hat);
   const fit = "fit" in over ? over.fit : "hat" in over ? null : u?.hat_fit;
+  // extras: [{ item | id, fit }] when previewing; otherwise the wearer's saved list (none on store previews)
+  const extras = "extras" in over ? over.extras : "hat" in over ? [] : parseExtras(u?.acc_extra).map((a) => ({ id: a.id, fit: a.x !== undefined ? a : null }));
   const f = frameAttrs(frame);
-  return `<span class="av${f.cls}" style="--av:${size}px;${f.style}">${usesBuild(build) ? buildSVG(build) : `<img class="av-pic" src="${img}" alt="" loading="lazy">`}${f.img}${hatHTML(hat, fit)}</span>`;
+  const acc = hatHTML(hat, fit, 0) + extras.map((a, i) => hatHTML(a.item || catalogItem(a.id), a.fit, i + 1)).join("");
+  return `<span class="av${f.cls}" style="--av:${size}px;${f.style}">${usesBuild(build) ? buildSVG(build) : `<img class="av-pic" src="${img}" alt="" loading="lazy">`}${f.img}${acc}</span>`;
 }
 
 // Username with equipped name color + name style (font/effect). `over` / `fontOver` = items to preview.
@@ -154,6 +167,7 @@ export function itemPreview(item, user, size = 56) {
   if (item.type === "font") return `<span class="color-preview font-preview">${nameHTML(base, "", undefined, item)}</span>`;
   if (item.type === "textstyle") { const a = textAttrs(null, item); return `<span class="text-preview"><span class="body${a.cls}" style="${a.style}">${esc(t("st.textSample"))}</span></span>`; }
   if (item.type === "banner") return `<span class="banner-preview has-art ${item.visual?.animate ? "art-anim" : ""}" style="${bgStyle(item)}">${avatarHTML({ ...base, eq_frame: null, eq_hat: null }, 30, { frame: null, hat: null })}<b>${esc(base.username || "")}</b></span>`;
+  if (item.type === "theme") return themePreviewHTML(item);
   if (item.type === "part") { // a sample avatar wearing this part on top of the starter look
     const parts = { shape: "part_shape_round", eyes: "part_eyes_dots", mouth: "part_mouth_smile", [item.visual?.slot || "shape"]: item };
     return `<span class="av" style="--av:${size}px">${buildSVG({ parts })}</span>`;
@@ -165,7 +179,10 @@ export function itemPreview(item, user, size = 56) {
 // Banner / wallpaper look → CSS background value. visual: {color, color2, pattern, image, animate}
 export function bgCSS(v = {}) {
   const c = safeColor(v.color || "#181c28"), c2 = safeColor(v.color2 || v.color || "#212637");
-  if (v.image && safeUrl(v.image)) return `url('${v.image}') center/cover no-repeat, ${c}`;
+  if (v.image && safeUrl(v.image)) {
+    if (v.tile) { const s = Math.min(512, Math.max(8, Number(v.tile_size) || 64)); return `url('${v.image}') 0 0/${s}px ${s}px repeat, ${c}`; }
+    return `url('${v.image}') center/cover no-repeat, ${c}`;
+  }
   switch (v.pattern) {
     case "dots": return `radial-gradient(${c2} 1.2px, transparent 1.8px) 0 0/18px 18px, ${c}`;
     case "grid": return `linear-gradient(${c2} 1px, transparent 1px) 0 0/24px 24px, linear-gradient(90deg, ${c2} 1px, transparent 1px) 0 0/24px 24px, ${c}`;
@@ -191,7 +208,7 @@ function bricksSVG(c, c2) {
 export function bgStyle(itemOrId) {
   const item = typeof itemOrId === "string" ? catalogItem(itemOrId) : itemOrId;
   if (!item) return "";
-  return `--bg-art:${bgCSS(item.visual)};`;
+  return `--bg-art:${bgCSS(item.visual)};${item.visual?.pixel ? "image-rendering:pixelated;" : ""}`;
 }
 // Brick-wall banners cover the whole post (the "graffiti on a wall" look) instead of just its top strip.
 export const bgWall = (itemOrId) => {
@@ -206,5 +223,5 @@ export const bgAnimated = (itemOrId) => {
 // Author fields on posts come prefixed (author_avatar, author_frame…).
 export const fromAuthor = (p) => ({
   username: p.author, avatar: p.author_avatar, xp: p.author_xp,
-  eq_frame: p.author_frame, eq_hat: p.author_hat, hat_fit: p.author_hat_fit, avatar_build: p.author_avatar_build, eq_color: p.author_color, eq_font: p.author_font,
+  eq_frame: p.author_frame, eq_hat: p.author_hat, hat_fit: p.author_hat_fit, avatar_build: p.author_avatar_build, acc_extra: p.author_acc_extra, eq_color: p.author_color, eq_font: p.author_font,
 });

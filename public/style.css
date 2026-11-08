@@ -724,9 +724,9 @@ main.page footer { padding: 24px 0; }
 @keyframes art-drift { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
 
 body.has-wallpaper::before { content: ""; position: fixed; inset: 0; z-index: -2; background: var(--wallpaper); }
-body.has-wallpaper::after { content: ""; position: fixed; inset: 0; z-index: -1; background: linear-gradient(rgba(12,14,22,.62), rgba(12,14,22,.78)); }
+body.has-wallpaper::after { content: ""; position: fixed; inset: 0; z-index: -1; background: color-mix(in srgb, var(--bg) var(--wp-dim, 70%), transparent); }
 body.wallpaper-anim::before { background-size: 300% 300%; animation: art-drift 20s ease-in-out infinite alternate; }
-body.has-wallpaper .rail { background: rgba(16,19,28,.55); backdrop-filter: blur(6px); }
+body.has-wallpaper .rail { background: color-mix(in srgb, var(--bg) var(--wp-dim, 70%), transparent); backdrop-filter: blur(6px); }
 
 .profile-card { padding-top: 0; overflow: hidden; }
 .pc-banner { height: 110px; margin: 0 -16px 0; }
@@ -735,7 +735,7 @@ body.has-wallpaper .rail { background: rgba(16,19,28,.55); backdrop-filter: blur
 .pc-head img, .pc-head .av { position: relative; }
 
 .rail-me.has-art { position: relative; overflow: hidden; }
-.rail-me.has-art::before { content: ""; position: absolute; inset: 0; background: linear-gradient(rgba(24,28,40,.35), rgba(24,28,40,.92) 70%); }
+.rail-me.has-art::before { content: ""; position: absolute; inset: 0; background: linear-gradient(color-mix(in srgb, var(--panel) 35%, transparent), color-mix(in srgb, var(--panel) 92%, transparent) 70%); }
 .rail-me.has-art > * { position: relative; }
 
 .fpost.has-banner { position: relative; overflow: hidden; }
@@ -751,7 +751,7 @@ tr.has-banner td + td { background: none; }
 .banner-preview { display: flex; align-items: center; gap: 8px; width: 150px; height: 56px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--border); }
 .banner-preview b { text-shadow: 0 1px 3px rgba(0,0,0,.8); font-size: .85rem; }
 .wp-preview { display: grid; grid-template-columns: 1fr 3fr 2fr; gap: 6px; width: 150px; height: 84px; padding: 8px; border-radius: 6px; border: 1px solid var(--border); }
-.wp-preview i { background: rgba(24,28,40,.85); border-radius: 3px; }
+.wp-preview i { background: color-mix(in srgb, var(--panel) 85%, transparent); border-radius: 3px; }
 .admin-item-prev .banner-preview, .admin-item-prev .wp-preview { width: 70px; height: 34px; padding: 3px; }
 .admin-item-prev .banner-preview b, .admin-item-prev .banner-preview .av { display: none; }
 .rt-item .banner-preview, .rt-item .wp-preview { width: 60px; height: 30px; padding: 2px; }
@@ -1035,3 +1035,69 @@ tr.has-banner td + td { background: none; }
 .cz-banner.has-art { background: var(--bg-art); }
 .cz-banner.has-art.art-anim { background-size: 300% 300%; animation: art-drift 12s ease-in-out infinite alternate; }
 .ae-mode button.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--text, inherit); }
+
+/* ---- Site themes (store items, Profile → Customize → Theme). Variables come from public/app/themes.js ---- */
+html.tf-body body { font-family: var(--theme-font); }
+html.tf-head :is(h1, h2, h3, .brand) { font-family: var(--theme-heading); font-weight: 400; letter-spacing: .02em; }
+html.themed :is(.card, .server-card, .task, .chat, .rank-chip, .game-card, .rail-me, .game-tile, .store-item):not(.has-art),
+.theme-preview .tp-card { background-image: var(--tex); background-size: var(--tex-size); }
+html.themed :is(.card, .server-card, .task, .chat, .rank-chip, .game-card, .rail-me, .game-tile, .store-item) { border-radius: var(--radius); }
+html.themed :is(button, .btn, input, select, textarea) { border-radius: calc(var(--radius) * .6); }
+html.te-dashed :is(.card, .server-card, .task, .chat, .rank-chip, .game-card, .rail-me, .game-tile, .store-item), .theme-preview.te-dashed .tp-card { border-style: dashed; }
+html.te-double :is(.card, .server-card, .task, .chat, .rank-chip, .game-card, .rail-me, .game-tile, .store-item), .theme-preview.te-double .tp-card { border-style: double; border-width: 4px; }
+html.te-none :is(.card, .server-card, .task, .chat, .rank-chip, .game-card, .rail-me, .game-tile, .store-item), .theme-preview.te-none .tp-card { border-color: transparent; }
+html.te-glow :is(.card, .server-card, .task, .chat, .rank-chip, .game-card, .rail-me, .game-tile, .store-item), .theme-preview.te-glow .tp-card {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 22%, transparent); }
+/* pixel: square blocks with stepped (missing) corners, like a game UI */
+html.te-pixel :is(.card, .server-card, .task, .chat, .rank-chip, .game-card, .rail-me, .game-tile, .store-item), .theme-preview.te-pixel .tp-card {
+  border-color: transparent; border-radius: 0 !important;
+  box-shadow: 0 -4px 0 0 var(--border), 0 4px 0 0 var(--border), -4px 0 0 0 var(--border), 4px 0 0 0 var(--border); }
+/* small preview used on store cards and in Customize */
+.theme-preview { display: inline-flex; width: 132px; height: 86px; padding: 9px; box-sizing: border-box; background: var(--bg); border-radius: 6px; color: var(--text); }
+.tp-card { flex: 1; display: flex; flex-direction: column; gap: 5px; padding: 7px 8px; background-color: var(--panel); border: 2px solid var(--border); border-radius: var(--radius); }
+.tp-h { font-family: var(--theme-heading, inherit); color: var(--accent); line-height: 1; font-size: 1rem; font-weight: 400; }
+.tp-line { height: 4px; width: 90%; background: var(--muted); opacity: .7; border-radius: 2px; }
+.tp-line.short { width: 60%; }
+.tp-btn { margin-top: auto; width: 34px; height: 9px; background: var(--accent); border-radius: calc(var(--radius) * .5); }
+.item-form .f-theme { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px 14px; }
+.f-theme .row-inline { display: flex; align-items: center; gap: 8px; }
+.f-theme input[type=color] { width: 54px; height: 32px; padding: 2px; }
+.f-theme input[type=range] { width: 100%; accent-color: var(--accent); }
+.cz-chip .theme-preview { transform: scale(.62); margin: -16px -25px; }
+/* walls are dark whatever the theme, so their text stays light */
+.fpost.wall { --text: #f3eee8; --muted: #d9d0c6; color: var(--text); }
+
+body.wallpaper-pixel::before { image-rendering: pixelated; }
+.f-tile { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
+.f-tile .tile-size { flex: 1 1 220px; }
+.f-tile input[type=range] { width: 100%; accent-color: var(--accent); }
+/* see-through blocks: a little blur keeps text readable over busy wallpapers */
+html.see-through :is(.card, .server-card, .task, .chat, .rank-chip, .game-card, .rail-me, .game-tile, .store-item) { backdrop-filter: blur(4px); }
+/* Customize → Accessory slots */
+.acc-slots { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+.acc-slot { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 58px; height: 58px; padding: 0; border: 2px solid var(--border); border-radius: 10px; background: transparent; cursor: pointer; }
+.acc-slot.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.acc-slot .acc-num { position: absolute; top: 2px; left: 5px; font-size: .7rem; color: var(--muted); }
+.acc-slot .av { transform: scale(.85); }
+
+/* Map page (embedded BlueMap) */
+.map-tabs { margin-bottom: 8px; }
+.map-frame { padding: 0; overflow: hidden; height: calc(100vh - var(--topbar, 60px) - 190px); min-height: 420px; }
+.map-frame iframe { display: block; width: 100%; height: 100%; border: 0; background: #000; }
+@media (max-width: 760px) { .map-frame { height: calc(100vh - 220px); } }
+
+/* Image uploads in the post composer */
+.composer-img { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+.composer-img img { max-height: 120px; max-width: 220px; border-radius: 8px; border: 1px solid var(--border); object-fit: cover; }
+.composer.drop { outline: 2px dashed var(--accent); outline-offset: 3px; }
+.up-status { color: var(--muted); }
+
+/* Quests: game sections + quest ideas */
+.quest-tabs { margin: 6px 0 14px; }
+.quest-ideas { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.idea-group { border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; }
+.idea-group summary { cursor: pointer; }
+.idea-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0; }
+.idea-row > .small { width: 60px; }
+.idea { padding: 4px 10px; border-radius: 999px; font-size: .85rem; }
+#live-map .map-frame { height: min(70vh, 640px); min-height: 380px; }

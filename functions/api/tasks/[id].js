@@ -15,7 +15,7 @@ export async function onRequestGet({ request, env, params }) {
   delete task.server_hidden;
 
   const { results } = await env.DB.prepare(
-    `SELECT c.id, c.body, c.created_at, c.user_id, u.username, u.avatar, u.role, u.xp, u.eq_frame, u.eq_hat, u.hat_fit, u.avatar_build, u.eq_color
+    `SELECT c.id, c.body, c.created_at, c.user_id, u.username, u.avatar, u.role, u.xp, u.eq_frame, u.eq_hat, u.hat_fit, u.avatar_build, u.acc_extra, u.eq_color
        FROM comments c LEFT JOIN users u ON u.id = c.user_id
       WHERE c.task_id = ? ORDER BY c.created_at ASC LIMIT 500`
   ).bind(params.id).all();

@@ -16,6 +16,7 @@ const SECTIONS = [
   { type: "wallpaper", key: "st.wallpapers", id: "wallpapers" },
   { type: "sticker", key: "st.stickers", id: "stickers" },
   { type: "part", key: "st.parts", id: "avatar-parts" },
+  { type: "theme", key: "st.themes", id: "themes" },
 ];
 const NEW_MS = 14 * 86400_000;
 let data = null, me = null;
@@ -198,6 +199,7 @@ function renderResults() {
         ${s.type === "font" ? `<p class="hint">${t("st.fontHint")}</p>` : ""}
         ${s.type === "textstyle" ? `<p class="hint">${t("st.textHint")}</p>` : ""}
         ${s.type === "part" ? `<p class="hint">${t("st.partsHint")}</p>` : ""}
+        ${s.type === "theme" ? `<p class="hint">${t("st.themesHint")}</p>` : ""}
         <div class="store-grid">${items.map(card).join("") || `<p class="muted">—</p>`}</div>
       </section>`;
   }).join("");

@@ -11,14 +11,16 @@ async function likeEmoji(env) {
 export async function onRequestGet({ env }) {
   const games = await listGames(env).catch(() => []);
   const servers = (await env.DB.prepare(
-    `SELECT s.id, s.game_id, COALESCE(s.name, json_extract(p.data, '$.name'), s.id) AS name
+    `SELECT s.id, s.game_id, s.map_url, COALESCE(s.name, json_extract(p.data, '$.name'), s.id) AS name
        FROM servers s LEFT JOIN ptero_servers p ON p.uuid = s.ptero_uuid
       WHERE s.hidden = 0 ORDER BY s.sort_order, name`
   ).all().catch(() => ({ results: [] }))).results;
   return json({
     like_emoji: await likeEmoji(env),
     games: games.map((g) => ({ id: g.id, name: g.name, name_es: g.name_es, icon: g.icon, color: g.color,
-      servers: servers.filter((s) => s.game_id === g.id).map((s) => ({ id: s.id, name: s.name })) })),
+      servers: servers.filter((s) => s.game_id === g.id).map((s) => ({ id: s.id, name: s.name, map_url: s.map_url || null })) })),
+    // servers with a live web map (Map page + sidebar link)
+    maps: servers.filter((s) => s.map_url).map((s) => ({ id: s.id, name: s.name, url: s.map_url })),
   }, 200, { "cache-control": "public, max-age=30" });
 }
 

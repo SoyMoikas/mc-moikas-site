@@ -26,7 +26,7 @@ main.innerHTML = `
       </div>`; })() : ""}
     ${players.length ? `
     <div class="card table-wrap"><table class="ranking">
-      <thead><tr><th>${t("rk.player")}</th><th>${t("rk.level")}</th><th>XP</th><th>${t("rk.hours")}</th><th>${t("rk.quests")}</th></tr></thead>
+      <thead><tr><th>${t("rk.player")}</th><th>${t("rk.level")}</th><th>XP</th><th>${t("rk.hours")}</th><th>${t("rk.site")}</th><th>${t("rk.quests")}</th></tr></thead>
       <tbody>${players.map((p, i) => {
         const l = levelInfo(p.xp);
         return `<tr class="${user && p.id === user.id ? "me-row" : ""} ${i < 3 ? "top" : ""} ${p.eq_banner ? "has-banner" : ""}" style="${bgStyle(p.eq_banner)}">
@@ -38,6 +38,7 @@ main.innerHTML = `
             <span class="hint">${esc(t("xp.toNext", { n: (l.needed - l.into).toLocaleString(), level: l.level + 1 }))}</span></div></td>
           <td data-label="XP">${l.xp.toLocaleString()}</td>
           <td data-label="${esc(t("rk.hours"))}">${fmtHours(p.play_minutes)}</td>
+          <td data-label="${esc(t("rk.site"))}">${(p.site_xp || 0).toLocaleString()}</td>
           <td data-label="${esc(t("rk.quests"))}">${p.quests}</td>
         </tr>`;
       }).join("")}</tbody>

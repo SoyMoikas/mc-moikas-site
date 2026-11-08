@@ -1,6 +1,8 @@
+import { uploadImage } from "./common.js";
 import { api, esc, can, perm, t, initPage, SITE, gameLabel, localized, toISO, toLocalInput, onSubmit, toast, ago, fmtDate, statusBadge, roleLabel } from "./common.js";
 import { itemPreview, itemName, FONTS, EFFECTS, registerFont, hatPlacement } from "./cosmetics.js";
 import { PART_SLOTS, ART_IDS } from "./avatar-parts.js";
+import { TEXTURES, EDGES } from "./themes.js";
 
 const user = await initPage();
 const main = document.getElementById("main");
@@ -113,6 +115,7 @@ async function editServer(id) {
         ${f("modpack", t("ad.modpack"))}
         ${f("modpack_version", t("ad.packVersion"))}
         ${f("modpack_url", t("ad.modpackLink"), { ph: "https://www.curseforge.com/…" })}
+        ${f("map_url", t("ad.mapLink"), { ph: "https://map.moikas.cc" })}
       </div>
       <div class="row">
         ${f("mc_version", t("ad.mcVersion"))}
@@ -499,7 +502,7 @@ async function walletPanel(uid) {
 
 /* ---------------- Store ---------------- */
 
-const TYPES = ["frame", "hat", "color", "font", "textstyle", "sticker", "banner", "wallpaper", "part"];
+const TYPES = ["frame", "hat", "color", "font", "textstyle", "sticker", "banner", "wallpaper", "part", "theme"];
 const FRAME_STYLES = ["solid", "glow", "pulse", "rainbow", "shimmer"];
 
 async function storeTab() {
@@ -517,6 +520,19 @@ async function storeTab() {
       <p class="hint" id="coin-example"></p>
       <div class="actions"><span style="flex:1"></span><button class="primary">${t("save")}</button></div>
     </form>
+    <form class="card stack" id="activity-settings">
+      <h3 style="margin:0">${t("ad.activityXp")}</h3>
+      <p class="hint" style="margin:0">${t("ad.activityHelp")}</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th></th><th>${t("ad.actXp")}</th><th>${t("ad.actCap")}</th></tr></thead>
+        <tbody>${Object.entries(settings.activity || {}).map(([k, a]) => `
+          <tr><td class="primary-cell">${t(`act.${k}`)}</td>
+            <td data-label="${esc(t("ad.actXp"))}"><input type="number" min="0" name="${k}_xp" value="${a.xp}" style="width:90px"></td>
+            <td data-label="${esc(t("ad.actCap"))}"><input type="number" min="0" name="${k}_cap" value="${a.cap}" style="width:90px"></td></tr>`).join("")}
+        </tbody></table></div>
+      <p class="hint" id="act-total"></p>
+      <div class="actions"><span style="flex:1"></span><button class="primary">${t("save")}</button></div>
+    </form>
     <div class="section-head" style="margin-top:18px"><h3 style="margin:0">${t("st.collections")}</h3><button id="add-col">${t("ad.addCollection")}</button></div>
     <div id="col-editor"></div>
     <div class="col-admin-list">${collections.map((c) => `
@@ -529,7 +545,7 @@ async function storeTab() {
     <div id="item-editor"></div>
     <details class="card fonts-admin"><summary><b>${t("ad.uploadedFonts")}</b> <span class="muted small" id="font-count"></span></summary><div id="font-list"></div></details>
     ${TYPES.map((type) => `
-      <h3>${t(`st.${{ frame: "frames", hat: "hats", color: "colors", font: "fonts", textstyle: "textstyles", sticker: "stickers", banner: "banners", wallpaper: "wallpapers", part: "parts" }[type]}`)}</h3>
+      <h3>${t(`st.${{ frame: "frames", hat: "hats", color: "colors", font: "fonts", textstyle: "textstyles", sticker: "stickers", banner: "banners", wallpaper: "wallpapers", part: "parts", theme: "themes" }[type]}`)}</h3>
       <div class="card table-wrap"><table>
         <thead><tr><th></th><th>${t("ad.colName")}</th><th>${t("ad.itemPrice")}</th><th>${t("ad.itemReward")}</th><th></th></tr></thead>
         <tbody>${items.filter((i) => i.type === type).map((i) => `
@@ -550,6 +566,18 @@ async function storeTab() {
   };
   cs.addEventListener("input", example); example();
   onSubmit(cs, async (d) => { await api("/api/settings", { method: "PATCH", body: d }); toast(t("saved")); });
+
+  const as = tabEl.querySelector("#activity-settings");
+  const actTotal = () => {
+    const caps = Object.keys(settings.activity || {}).reduce((sum, k) => sum + (Number(as[`${k}_cap`].value) || 0), 0);
+    tabEl.querySelector("#act-total").textContent = t("ad.actTotal", { n: caps });
+  };
+  as.addEventListener("input", actTotal); actTotal();
+  as.onsubmit = async (e) => {
+    e.preventDefault();
+    const activity = Object.fromEntries(Object.keys(settings.activity || {}).map((k) => [k, { xp: Number(as[`${k}_xp`].value) || 0, cap: Number(as[`${k}_cap`].value) || 0 }]));
+    try { await api("/api/settings", { method: "PATCH", body: { activity } }); toast(t("saved")); } catch (err) { toast(err.message, true); }
+  };
 
   tabEl.querySelector("#add-item").onclick = () => editItem(null, items);
   tabEl.querySelector("#add-col").onclick = () => editCollection(null);
@@ -581,7 +609,9 @@ function editItem(item, items) {
           <div class="row look-row">
             <label class="f-emoji">${t("ad.emoji")}<input name="emoji" maxlength="16" value="${esc(v.emoji)}" placeholder="😎"></label>
             <label class="f-text">${t("ad.text")}<input name="text" maxlength="8" value="${esc(v.text)}" placeholder="GG"></label>
-            <label class="f-image">${t("ad.image")}<input name="image" value="${esc(v.image)}" placeholder="https://…/sticker.png"></label>
+            <label class="f-image">${t("ad.image")}<span class="font-pick"><input name="image" value="${esc(v.image)}" placeholder="https://…/sticker.png">
+              <button type="button" data-upload-img title="${esc(t("up.help"))}">⬆ ${t("up.upload")}</button>
+              <input type="file" name="imgfile" accept="image/png,image/jpeg,image/gif,image/webp" hidden></span></label>
             <label class="f-color">${t("ad.color")}<input name="color" type="color" value="${esc(v.color || "#6fcf5a")}"></label>
             <label class="f-style">${t("ad.style")}<select name="style"></select></label>
             ${(() => { const hp = hatPlacement(v); const sl = (n, label, min, max, val, unit) => `<label class="f-hat">${t(label)} <b data-val="${n}">${val}${unit}</b><input type="range" name="${n}" min="${min}" max="${max}" step="1" value="${val}"></label>`;
@@ -589,6 +619,23 @@ function editItem(item, items) {
                 + `<button type="button" class="f-hat link small" data-hat-reset>${t("ad.hatReset")}</button>`; })()}
             <label class="check f-halo"><input type="checkbox" name="halo" ${v.halo ? "checked" : ""}> ${t("ad.halo")}</label>
             <label class="f-color2">${t("ad.color2")}<input name="color2" type="color" value="${esc(v.color2 || "#3a4a6b")}"></label>
+            <div class="f-theme theme-fields">
+              ${[["bg", "#14161a"], ["panel", "#1d2026"], ["border", "#323742"], ["text", "#e8e6e1"], ["muted", "#9aa0aa"], ["accent", ""]].map(([k, d]) =>
+                `<label>${t(`th.${k}`)}<span class="row-inline"><input type="color" name="th_${k}" value="${esc(v[k] || d || "#6fcf5a")}">${k === "accent" ? `<span class="check small"><input type="checkbox" name="th_accent_on" ${v.accent ? "checked" : ""}> ${t("th.useAccent")}</span>` : ""}</span></label>`).join("")}
+              <label>${t("th.texture")}<select name="th_texture">${TEXTURES.map((x) => `<option value="${x}" ${(v.texture || "none") === x ? "selected" : ""}>${t(`th.tex.${x}`)}</option>`).join("")}</select></label>
+              <label>${t("th.strength")} <b data-th="strength">${esc(v.strength ?? 50)}%</b><input type="range" name="th_strength" min="0" max="100" value="${esc(v.strength ?? 50)}"></label>
+              <label>${t("th.edge")}<select name="th_edge">${EDGES.map((x) => `<option value="${x}" ${(v.edge || "solid") === x ? "selected" : ""}>${t(`th.edge.${x}`)}</option>`).join("")}</select></label>
+              <label>${t("th.radius")} <b data-th="radius">${esc(v.radius ?? 8)}px</b><input type="range" name="th_radius" min="0" max="24" value="${esc(v.radius ?? 8)}"></label>
+              <label>${t("th.dim")} <b data-th="dim">${esc(v.dim ?? 70)}%</b><input type="range" name="th_dim" min="0" max="100" value="${esc(v.dim ?? 70)}"></label>
+              <label>${t("th.blocks")} <b data-th="blocks">${esc(v.blocks ?? 100)}%</b><input type="range" name="th_blocks" min="20" max="100" value="${esc(v.blocks ?? 100)}"></label>
+              <label>${t("th.font")}<select name="th_font">${fontOptions(v.font)}</select></label>
+              <label>${t("th.heading")}<select name="th_heading">${fontOptions(v.heading)}</select></label>
+            </div>
+            <div class="f-tile row-inline">
+              <label class="check"><input type="checkbox" name="tile" ${v.tile ? "checked" : ""}> ${t("ad.tile")}</label>
+              <label class="tile-size">${t("ad.tileSize")} <b data-tile-val>${esc(v.tile_size || 64)}px</b><input type="range" name="tile_size" min="8" max="512" step="4" value="${esc(v.tile_size || 64)}"></label>
+              <label class="check tile-px"><input type="checkbox" name="pixel" ${v.pixel ? "checked" : ""}> ${t("ad.pixel")}</label>
+            </div>
             <label class="f-pattern">${t("ad.pattern")}<select name="pattern">${["none", "dots", "grid", "stripes", "blocks", "bricks"].map((x) => `<option value="${x}" ${(v.pattern || "none") === x ? "selected" : ""}>${t(`ad.pattern.${x}`)}</option>`).join("")}</select></label>
             <label class="f-slot">${t("av.part")}<select name="slot">${PART_SLOTS.map((x) => `<option value="${x}" ${v.slot === x ? "selected" : ""}>${t(`av.slot.${x}`)}</option>`).join("")}</select></label>
             <label class="f-art">${t("av.drawing")}<select name="art"><option value="">${t("av.useImage")}</option></select></label>
@@ -634,7 +681,14 @@ function editItem(item, items) {
     if (type === "frame" && form.image.value.trim()) return { image: form.image.value.trim() };
     if (type === "frame" || type === "color") return { color: form.color.value, style: form.style.value };
     if (type === "banner" || type === "wallpaper") return { color: form.color.value, color2: form.color2.value, pattern: form.pattern.value,
+      tile: form.tile.checked || undefined, tile_size: Number(form.tile_size.value), pixel: form.pixel.checked || undefined,
       image: form.image.value.trim() || undefined, animate: form.animate.checked || undefined };
+    if (type === "theme") {
+      const g = (k) => form[`th_${k}`].value;
+      return { bg: g("bg"), panel: g("panel"), border: g("border"), text: g("text"), muted: g("muted"), accent: form.th_accent_on.checked ? g("accent") : undefined,
+        texture: g("texture"), strength: Number(g("strength")), edge: g("edge"), radius: Number(g("radius")), dim: Number(g("dim")), blocks: Number(g("blocks")), font: g("font"), heading: g("heading"),
+        image: g("texture") === "image" ? form.image.value.trim() : undefined };
+    }
     if (type === "part") return form.image.value.trim() && !form.art.value ? { slot: form.slot.value, image: form.image.value.trim() } : { slot: form.slot.value, art: form.art.value };
     if (type === "font" || type === "textstyle") return { font: form.font.value, effect: form.effect.value, color: form.color.value,
       color2: form.color2.value, animate: form.animate.checked || undefined };
@@ -656,20 +710,40 @@ function editItem(item, items) {
     const bg = type === "banner" || type === "wallpaper";
     show(".f-color2", bg); show(".f-pattern", bg); show(".f-animate", bg);
     if (bg) { show(".f-color", true); show(".f-image", true); show(".f-emoji", false); show(".f-style", false); }
+    show(".f-tile", bg && !!form.image.value.trim());
+    form.querySelector(".tile-size").classList.toggle("hidden", !form.tile.checked);
+    form.querySelector(".tile-px").classList.toggle("hidden", !form.tile.checked);
+    form.querySelector("[data-tile-val]").textContent = form.tile_size.value + "px";
     if (type === "frame") { // color + style, or a PNG image instead
       const img = !!form.image.value.trim();
       checkFrameImage(form.image.value.trim(), form.querySelector(".look-hint"));
       show(".f-image", true); show(".f-style", !img); show(".f-color", !img && form.style.value !== "rainbow");
       form.image.placeholder = "/frames/my-frame.png";
     }
+    const theme = type === "theme";
+    show(".f-theme", theme);
+    if (theme) {
+      ["emoji", "style", "color", "color2", "pattern", "animate", "slot", "art", "font", "effect"].forEach((f) => show(`.f-${f}`, false));
+      show(".f-image", form.th_texture.value === "image");
+      form.image.placeholder = "/textures/my-tile.png";
+      form.querySelector('[data-th="strength"]').textContent = form.th_strength.value + "%";
+      form.querySelector('[data-th="radius"]').textContent = form.th_radius.value + "px";
+      form.querySelector('[data-th="dim"]').textContent = form.th_dim.value + "%";
+      form.querySelector('[data-th="blocks"]').textContent = form.th_blocks.value + "%";
+    }
     const part = type === "part";
     show(".f-slot", part); show(".f-art", part);
     if (part) {
       // built-in drawings for the chosen slot (art ids start with the slot name), or a PNG image
-      const cur = form.art.value || v.art || "";
+      // keep whatever is picked, including "(use an image instead)"; only pick a default drawing the first time
+      // or when the part type changes (see slot.onchange below)
       const opts = ART_IDS.filter((a) => a.startsWith(form.slot.value + "_"));
-      form.art.innerHTML = `<option value="">${t("av.useImage")}</option>` + opts.map((a) => `<option value="${a}" ${a === cur ? "selected" : ""}>${a.replace(/^[a-z]+_/, "")}</option>`).join("");
-      if (!opts.includes(cur) && !form.image.value.trim() && opts.length) form.art.value = opts[0];
+      if (form.art.dataset.slot !== form.slot.value) {
+        const cur = form.art.dataset.slot ? "" : (v.art || (v.image ? "" : opts[0] || ""));
+        form.art.innerHTML = `<option value="">${t("av.useImage")}</option>` + opts.map((a) => `<option value="${a}">${a.replace(/^[a-z]+_/, "")}</option>`).join("");
+        form.art.value = form.art.dataset.slot && !form.image.value.trim() ? opts[0] || "" : cur;
+        form.art.dataset.slot = form.slot.value;
+      }
       show(".f-emoji", false); show(".f-style", false); show(".f-color", false); show(".f-image", !form.art.value);
       form.image.placeholder = "/parts/my-eyes.png";
     }
@@ -704,6 +778,19 @@ function editItem(item, items) {
     const up = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", up); };
     addEventListener("pointermove", move); addEventListener("pointerup", up);
   });
+
+  // Upload an image (frame, hat, sticker, banner, wallpaper, part, theme tile) instead of pushing it to the repo.
+  // Small files go up untouched so pixel art and exact frame sizes are kept.
+  const imgIn = form.querySelector("[name=imgfile]");
+  form.querySelector("[data-upload-img]").onclick = () => imgIn.click();
+  imgIn.onchange = async () => {
+    const file = imgIn.files[0]; imgIn.value = "";
+    if (!file) return;
+    const btn = form.querySelector("[data-upload-img]"); btn.disabled = true; btn.textContent = t("up.uploading");
+    try { form.image.value = await uploadImage(file, { keepOriginal: true, maxSide: 2560 }); toast(t("up.done")); refresh(); }
+    catch (e) { toast(e.message, true); }
+    finally { btn.disabled = false; btn.textContent = `⬆ ${t("up.upload")}`; }
+  };
 
   // Upload a font right from the editor: it's saved, added to the list, selected, and the preview uses it.
   const fileIn = form.querySelector("[name=fontfile]");

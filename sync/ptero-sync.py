@@ -9,10 +9,12 @@ to the site. Your panel and API key never leave the house. Python 3 stdlib only.
 Config: sync.env next to this script (see sync.env.example).
 Every run (cron, every 2 min): server status + sends pending website link codes in-game (/tell).
 Every 10 min: player playtime, stats and advancements for levels and quests.
+Every 6 h: a catalog of every stat/advancement players have (so the site can suggest trackable quests).
 
 Usage:  python3 ptero-sync.py          # run once (cron calls this)
         python3 ptero-sync.py --dry    # print what would be sent, don't send
         python3 ptero-sync.py --stats  # force the player stats sync now
+        python3 ptero-sync.py --scan   # force the stats + quest-ideas catalog scan now
 """
 import json
 import os
@@ -235,7 +237,11 @@ def stat_value(stats, key):
     return (stats.get(cat) or {}).get(item, 0)
 
 
-def collect_players(cfg, servers, want_stats, want_adv):
+CATALOG_PER_CATEGORY = 60  # most common items per stat category (mined, crafted, killed…) sent to the site
+
+
+def collect_players(cfg, servers, want_stats, want_adv, catalog=None):
+    """catalog: dict to fill with {ptero_uuid: {"stats": {key: [players, max]}, "advancements": {id: players}}}."""
     players, rows = {}, []
     for x in servers:
         ident = x["identifier"]
@@ -253,6 +259,7 @@ def collect_players(cfg, servers, want_stats, want_adv):
         except ValueError:
             pass
         files = [f for f in ptero_list(cfg, ident, f"/{world}/stats") if f.endswith(".json")]
+        cat = {"stats": {}, "advancements": {}} if catalog is not None else None
         for f in files:
             uuid = f[:-5].lower()
             try:
@@ -262,27 +269,50 @@ def collect_players(cfg, servers, want_stats, want_adv):
             custom = st.get("minecraft:custom", {})
             ticks = custom.get("minecraft:play_time", custom.get("minecraft:play_one_minute", 0))
             adv_done = []
-            if want_adv:
+            if want_adv or cat is not None:
                 try:
                     adv = json.loads(ptero_text(cfg, ident, f"/{world}/advancements/{f}") or "{}")
                     adv_done = [k for k in want_adv if isinstance(adv.get(k), dict) and adv[k].get("done")]
+                    if cat is not None:
+                        for k, v in adv.items():
+                            if ":recipes/" not in k and isinstance(v, dict) and v.get("done"):
+                                cat["advancements"][k] = cat["advancements"].get(k, 0) + 1
                 except ValueError:
                     pass
+            if cat is not None:
+                for category, items in st.items():
+                    if isinstance(items, dict):
+                        for item, val in items.items():
+                            if isinstance(val, (int, float)) and val > 0:
+                                e = cat["stats"].setdefault(f"{category}/{item}", [0, 0])
+                                e[0] += 1
+                                e[1] = max(e[1], int(val))
             rows.append({
                 "uuid": uuid, "ptero_uuid": x["uuid"], "play_minutes": int(ticks) // 1200,
                 "stats": {k: stat_value(st, k) for k in want_stats}, "advancements": adv_done,
             })
+        if cat is not None and files:
+            # keep every minecraft:custom stat, and the most common items of the other categories
+            by_cat = {}
+            for k, (n, mx) in cat["stats"].items():
+                by_cat.setdefault(k.split("/", 1)[0], []).append((k, n, mx))
+            keep = {}
+            for c, lst in by_cat.items():
+                lst.sort(key=lambda e: (-e[1], -e[2]))
+                for k, n, mx in (lst if c == "minecraft:custom" else lst[:CATALOG_PER_CATEGORY]):
+                    keep[k] = [n, mx]
+            catalog[x["uuid"]] = {"players": len(files), "stats": keep, "advancements": cat["advancements"]}
         print(f"  {x['name']}: {len(files)} player stat file(s)")
     return [{"uuid": u, "name": n} for u, n in players.items()], rows
 
 
-def stats_due(cfg):
-    path = os.path.join(HERE, ".last_stats_sync")
+def stats_due(cfg, name=".last_stats_sync", minutes=None):
+    path = os.path.join(HERE, name)
     try:
         last = os.path.getmtime(path)
     except OSError:
         last = 0
-    return time.time() - last >= cfg["STATS_EVERY_MIN"] * 60 - 30, path
+    return time.time() - last >= (minutes or cfg["STATS_EVERY_MIN"]) * 60 - 30, path
 
 
 def main():
@@ -309,15 +339,27 @@ def main():
         send_link_codes(cfg, servers, conf["verify"], dry)
 
     due, stamp = stats_due(cfg)
-    if due or "--stats" in sys.argv or dry:
-        players, rows = collect_players(cfg, servers, conf.get("stats", []), conf.get("advancements", []))
+    scan_due, scan_stamp = stats_due(cfg, ".last_catalog_scan", 360)
+    scan = scan_due or "--scan" in sys.argv
+    if due or scan or "--stats" in sys.argv or dry:
+        catalog = {} if scan else None
+        players, rows = collect_players(cfg, servers, conf.get("stats", []), conf.get("advancements", []), catalog)
         if dry:
-            print(json.dumps({"players": players, "stats": rows}, indent=2))
+            print(json.dumps({"players": players, "stats": rows, "catalog": catalog}, indent=2)[:20000])
             return
         res = http_json(site + "/api/sync/players", auth, {"players": players, "stats": rows})
         print(f"Synced stats for {len(rows)} player/server pair(s); {res.get('quests_completed', 0)} quest(s) completed")
         with open(stamp, "w") as f:
             f.write(str(int(time.time())))
+        if catalog:
+            try:
+                res = http_json(site + "/api/sync/catalog", auth, {"servers": catalog})
+                print(f"Sent the quest-ideas catalog: {res.get('rows', 0)} stat/advancement(s)")
+                with open(scan_stamp, "w") as f:
+                    f.write(str(int(time.time())))
+            except urllib.error.HTTPError as e:
+                if e.code != 404:  # 404 = site doesn't have the catalog yet
+                    raise
 
 
 if __name__ == "__main__":

@@ -1,3 +1,4 @@
+import { awardActivity } from "../../../lib/activity.js";
 import { json, err, body, now, str, HttpError } from "../../../lib/util.js";
 import { need, hasRole, hasPerm } from "../../../lib/auth.js";
 import { STICKER_RE, getItem, ownedSet, owns } from "../../../lib/catalog.js";
@@ -28,7 +29,7 @@ export async function onRequestGet({ request, env, params }) {
   const after = Number(url.searchParams.get("after")) || 0;
   const since = Number(url.searchParams.get("since")) || 0;
 
-  const cols = `m.id, m.body, m.created_at, m.user_id, u.username, u.avatar, u.role, u.xp, u.eq_frame, u.eq_hat, u.hat_fit, u.avatar_build, u.eq_color, u.eq_font, u.eq_text`;
+  const cols = `m.id, m.body, m.created_at, m.user_id, u.username, u.avatar, u.role, u.xp, u.eq_frame, u.eq_hat, u.hat_fit, u.avatar_build, u.acc_extra, u.eq_color, u.eq_font, u.eq_text`;
   let rows;
   if (after) {
     ({ results: rows } = await env.DB.prepare(
@@ -61,7 +62,7 @@ export async function onRequestGet({ request, env, params }) {
   return json({ messages, removed, pulse });
 }
 
-export async function onRequestPost({ request, env, params }) {
+export async function onRequestPost({ request, env, params, waitUntil }) {
   const user = await need(env, request, "member");
   if (user instanceof Response) return user;
   const channel = channelOf(params);
@@ -84,5 +85,6 @@ export async function onRequestPost({ request, env, params }) {
   const res = await env.DB.prepare(
     "INSERT INTO chat_messages (channel, user_id, body, created_at) VALUES (?, ?, ?, ?)"
   ).bind(channel, user.id, text, now()).run();
+  waitUntil(awardActivity(env, user, "chat"));
   return json({ id: res.meta.last_row_id }, 201);
 }

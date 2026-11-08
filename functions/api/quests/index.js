@@ -8,7 +8,7 @@ export async function onRequestGet({ request, env }) {
   const user = await getUser(env, request);
   const staff = hasRole(user, "staff");
   const { results: quests } = await env.DB.prepare(
-    `SELECT q.*, s.ptero_uuid, COALESCE(s.name, s.id) AS server_name,
+    `SELECT q.*, s.ptero_uuid, COALESCE(s.name, s.id) AS server_name, COALESCE(q.game_id, s.game_id, CASE WHEN q.kind = 'auto' THEN (SELECT id FROM games WHERE id = 'minecraft') END) AS section_game,
             (SELECT COUNT(*) FROM quest_completions c WHERE c.quest_id = q.id AND c.status = 'approved') AS completions
        FROM quests q LEFT JOIN servers s ON s.id = q.server_id
       ${staff ? "" : "WHERE q.active = 1"}

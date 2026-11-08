@@ -1,0 +1,2 @@
+CREATE TABLE IF NOT EXISTS uploads ( id TEXT PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE SET NULL, ext TEXT NOT NULL, data TEXT NOT NULL, size INTEGER NOT NULL, created_at INTEGER NOT NULL );
+CREATE INDEX IF NOT EXISTS uploads_user ON uploads (user_id, created_at);

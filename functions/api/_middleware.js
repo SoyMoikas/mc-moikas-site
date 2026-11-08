@@ -5,7 +5,7 @@ export async function onRequest({ request, next }) {
   const url = new URL(request.url);
 
   // CSRF guard: browser writes must come from this site. /api/sync uses a bearer secret instead.
-  if (!["GET", "HEAD", "OPTIONS"].includes(request.method) && url.pathname !== "/api/sync") {
+  if (!["GET", "HEAD", "OPTIONS"].includes(request.method) && !url.pathname.startsWith("/api/sync")) {
     const origin = request.headers.get("origin");
     if (!origin || origin !== url.origin) return err(403, "Bad origin");
   }

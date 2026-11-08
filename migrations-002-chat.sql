@@ -1,0 +1,2 @@
+CREATE TABLE IF NOT EXISTS chat_messages ( id INTEGER PRIMARY KEY AUTOINCREMENT, channel TEXT NOT NULL, user_id INTEGER REFERENCES users(id) ON DELETE SET NULL, body TEXT NOT NULL, deleted INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL );
+CREATE INDEX IF NOT EXISTS idx_chat_channel ON chat_messages(channel, id);

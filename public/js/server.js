@@ -1,6 +1,7 @@
+import { mountChat } from "./chat.js";
 import {
   api, esc, rich, can, t, initPage, statusBadge, renderPost, postForm, bindPostActions,
-  onSubmit, toast, toISO, ago, fmtDate, loginHint, roleLabel, taskLabel, localized,
+  onSubmit, toast, toISO, ago, fmtDate, loginHint, roleLabel, taskLabel, localized, levelBadge,
 } from "./common.js";
 
 const user = await initPage();
@@ -8,6 +9,7 @@ const id = new URLSearchParams(location.search).get("id");
 const main = document.getElementById("main");
 let data = null;
 const openTasks = new Set(); // keep expanded tasks open across reloads
+let chatEl = null;
 
 const STATUSES = ["open", "in_progress", "done"];
 
@@ -65,6 +67,11 @@ function render() {
     </section>
 
     <section>
+      <div class="section-head"><h2>${t("chat.title")}</h2></div>
+      <div id="chat-slot"></div>
+    </section>
+
+    <section>
       <div class="section-head">
         <h2>${t("sp.tasks")}</h2>
         ${can(user, "staff") ? `<button id="new-task">${t("sp.newTask")}</button>` : ""}
@@ -74,6 +81,10 @@ function render() {
       <div id="tasks">${tasks.length ? tasks.map(taskRow).join("") : `<p class="muted">${t("sp.noTasks")}</p>`}</div>
       ${!can(user, "member") ? `<p class="hint">${loginHint(user)}</p>` : ""}
     </section>`;
+
+  // Keep one chat instance alive across re-renders so it doesn't reset or double-poll.
+  if (!chatEl) { chatEl = document.createElement("div"); mountChat(chatEl, id, user); }
+  main.querySelector("#chat-slot").replaceWith(chatEl);
 
   wire();
   for (const tid of openTasks) {
@@ -122,7 +133,7 @@ async function loadTask(el) {
         <div class="comment">
           <img src="${esc(c.avatar || "https://cdn.discordapp.com/embed/avatars/0.png")}" alt="">
           <div class="main">
-            <div class="who"><b>${esc(c.username || t("deletedUser"))}</b>
+            <div class="who"><b>${esc(c.username || t("deletedUser"))}</b>${c.username ? levelBadge(c.xp) : ""}
               ${c.role === "staff" || c.role === "admin" ? `<span class="role ${esc(c.role)}">${esc(roleLabel(c.role))}</span>` : ""}
               <span class="when">${esc(ago(c.created_at))}</span>
               ${c.can_delete ? `<button class="link" data-delete-comment="${c.id}">${t("deleteLower")}</button>` : ""}</div>

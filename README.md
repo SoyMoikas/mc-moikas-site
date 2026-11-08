@@ -81,7 +81,14 @@ The site picks Spanish for anyone whose browser is in Spanish; everyone can swit
 UI text lives in `public/js/i18n.js`. Each server has optional Spanish description and join steps (Admin → Edit).
 Announcements, tasks and comments are shown as written.
 
-If your database was created before the Spanish update, run `migrations-001-spanish.sql` once in the D1 console.
+Database updates for existing installs: run each `migrations-00X-*.sql` file you haven't run yet, once, in the D1 console (001 = Spanish fields, 002 = chat, 003 = levels & quests).
+
+## Levels & quests
+- XP = 1 per minute played on any server (from each world's `stats/<uuid>.json`) + quest XP. Level L needs 30·L² XP.
+- Players link their Minecraft account on their profile; the NAS script `/tell`s them a 6-digit code in-game.
+- Automatic quests check advancements (`minecraft:story/mine_diamond`) or statistics (`minecraft:mined/minecraft:stone` ≥ N).
+  Manual quests are submitted by players and approved by staff on the Quests page.
+- The sync script reads stats through Pterodactyl's file API every 10 minutes (`STATS_EVERY_MIN` in sync.env).
 
 ## Adding another server later
 1. Create it in Pterodactyl, giving it its own port (e.g. 25566).

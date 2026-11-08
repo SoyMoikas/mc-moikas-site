@@ -188,7 +188,7 @@ async function usersTab() {
       <tbody>${users.map((u) => {
         const locked = u.id === user.id || u.discord_id === owner_discord_id;
         return `<tr>
-          <td class="primary-cell"><img src="${esc(u.avatar)}" alt="">${esc(u.username)}<div class="hint">${esc(t("ad.discordId", { id: u.discord_id }))}</div></td>
+          <td class="primary-cell"><img src="${esc(u.avatar)}" alt="">${esc(u.username)}<div class="hint">${esc(t("ad.discordId", { id: u.discord_id }))}${u.mc_name ? ` · MC: ${esc(u.mc_name)} <button class="link" data-unlink="${u.id}">${t("ad.unlink")}</button>` : ""}</div></td>
           <td data-label="${esc(t("ad.colRole"))}">${locked ? `<span class="role ${esc(u.role)}">${esc(roleLabel(u.role))}</span>` : `
             <select data-user="${u.id}" style="width:auto">
               ${ROLES.map((r) => `<option value="${r}" ${u.role === r ? "selected" : ""}>${esc(roleLabel(r))}</option>`).join("")}
@@ -197,6 +197,11 @@ async function usersTab() {
           <td class="small" data-label="${esc(t("ad.colLastLogin"))}">${u.last_login ? esc(ago(u.last_login)) : "—"}</td>
         </tr>`;
       }).join("")}</tbody></table></div>`;
+  tabEl.querySelectorAll("[data-unlink]").forEach((b) => b.onclick = async () => {
+    if (!confirm(t("ad.confirmUnlink"))) return;
+    try { await api(`/api/users/${b.dataset.unlink}`, { method: "PATCH", body: { unlink_mc: true } }); usersTab(); }
+    catch (e) { toast(e.message, true); }
+  });
   tabEl.querySelectorAll("[data-user]").forEach((sel) => {
     const was = sel.value;
     sel.onchange = async () => {

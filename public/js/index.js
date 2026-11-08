@@ -1,3 +1,4 @@
+import { mountChat } from "./chat.js";
 import { api, esc, can, t, initPage, statusBadge, renderPost, postForm, bindPostActions, onSubmit, toast, toISO } from "./common.js";
 
 const user = await initPage();
@@ -59,6 +60,7 @@ if (can(user, "staff")) {
   };
 }
 
+mountChat(document.getElementById("chat"), "general", user);
 await loadServers();
 loadPosts();
 setInterval(loadServers, 60_000); // keep status fresh

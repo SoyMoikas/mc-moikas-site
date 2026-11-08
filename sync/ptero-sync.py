@@ -7,11 +7,17 @@ pings each Minecraft server for its player count, then sends a small JSON summar
 to the site. Your panel and API key never leave the house. Python 3 stdlib only.
 
 Config: sync.env next to this script (see sync.env.example).
+Every run (cron, every 2 min): server status + sends pending website link codes in-game (/tell).
+Every 10 min: player playtime, stats and advancements for levels and quests.
+
 Usage:  python3 ptero-sync.py          # run once (cron calls this)
         python3 ptero-sync.py --dry    # print what would be sent, don't send
+        python3 ptero-sync.py --stats  # force the player stats sync now
 """
 import json
 import os
+import time
+import urllib.parse
 import socket
 import struct
 import sys
@@ -39,13 +45,14 @@ def load_config():
                 if line and not line.startswith("#") and "=" in line:
                     k, v = line.split("=", 1)
                     cfg[k.strip()] = v.strip().strip('"').strip("'")
-    for k in ("PTERO_URL", "PTERO_KEY", "SITE_URL", "SYNC_SECRET", "PING_HOST", "VARIABLES"):
+    for k in ("PTERO_URL", "PTERO_KEY", "SITE_URL", "SYNC_SECRET", "PING_HOST", "VARIABLES", "STATS_EVERY_MIN"):
         if os.environ.get(k):
             cfg[k] = os.environ[k]
     missing = [k for k in ("PTERO_URL", "PTERO_KEY", "SITE_URL", "SYNC_SECRET") if not cfg.get(k)]
     if missing:
         sys.exit(f"Missing config: {', '.join(missing)} (set them in {path})")
     cfg.setdefault("PING_HOST", "127.0.0.1")
+    cfg["STATS_EVERY_MIN"] = int(cfg.get("STATS_EVERY_MIN") or 10)
     cfg["VARIABLES"] = [v.strip() for v in cfg["VARIABLES"].split(",")] if cfg.get("VARIABLES") else DEFAULT_VARIABLES
     return cfg
 
@@ -60,11 +67,46 @@ def http_json(url, headers=None, data=None, timeout=15):
         return json.loads(r.read() or b"{}")
 
 
+def _ptero_headers(cfg):
+    return {"Authorization": f"Bearer {cfg['PTERO_KEY']}", "Accept": "Application/vnd.pterodactyl.v1+json",
+            "User-Agent": "moikas-ptero-sync/1.0"}
+
+
 def ptero(cfg, path):
-    return http_json(cfg["PTERO_URL"].rstrip("/") + path, {
-        "Authorization": f"Bearer {cfg['PTERO_KEY']}",
-        "Accept": "Application/vnd.pterodactyl.v1+json",
-    })
+    return http_json(cfg["PTERO_URL"].rstrip("/") + path, _ptero_headers(cfg))
+
+
+def ptero_text(cfg, ident, file_path):
+    """Read a file from a server through Pterodactyl's file API. Returns None if it doesn't exist."""
+    q = urllib.parse.quote(file_path, safe="")
+    req = urllib.request.Request(f"{cfg['PTERO_URL'].rstrip('/')}/api/client/servers/{ident}/files/contents?file={q}",
+                                 headers=_ptero_headers(cfg))
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            return r.read().decode("utf-8", "replace")
+    except urllib.error.HTTPError as e:
+        if e.code in (404, 400, 500):
+            return None
+        raise
+
+
+def ptero_list(cfg, ident, directory):
+    q = urllib.parse.quote(directory, safe="")
+    try:
+        data = ptero(cfg, f"/api/client/servers/{ident}/files/list?directory={q}")
+    except urllib.error.HTTPError as e:
+        if e.code in (404, 400, 500):
+            return []
+        raise
+    return [x["attributes"]["name"] for x in data.get("data", []) if x["attributes"].get("is_file")]
+
+
+def ptero_command(cfg, ident, command):
+    req = urllib.request.Request(f"{cfg['PTERO_URL'].rstrip('/')}/api/client/servers/{ident}/command",
+                                 data=json.dumps({"command": command}).encode(),
+                                 headers={**_ptero_headers(cfg), "Content-Type": "application/json"}, method="POST")
+    with urllib.request.urlopen(req, timeout=10):
+        pass
 
 
 def list_servers(cfg):
@@ -169,15 +211,113 @@ def collect(cfg):
     return out
 
 
+def send_link_codes(cfg, servers, codes, dry):
+    """DM each pending website link code to that player on every running server."""
+    running = [x for x in servers if x["state"] == "running"]
+    for v in codes:
+        name = str(v.get("name", ""))
+        code = str(v.get("code", ""))
+        if not (3 <= len(name) <= 16 and name.replace("_", "").isalnum() and code.isdigit()):
+            continue  # never put anything odd into a console command
+        for x in running:
+            cmd = f"tell {name} Moikas MC - codigo/code: {code}"
+            if dry:
+                print(f"  would run on {x['name']}: {cmd}")
+                continue
+            try:
+                ptero_command(cfg, x["identifier"], cmd)
+            except Exception as e:
+                print(f"  {x['name']}: couldn't send code ({e})", file=sys.stderr)
+
+
+def stat_value(stats, key):
+    cat, _, item = key.partition("/")
+    return (stats.get(cat) or {}).get(item, 0)
+
+
+def collect_players(cfg, servers, want_stats, want_adv):
+    players, rows = {}, []
+    for x in servers:
+        ident = x["identifier"]
+        props = ptero_text(cfg, ident, "/server.properties")
+        if props is None:
+            continue  # not a Minecraft server
+        world = "world"
+        for line in props.splitlines():
+            if line.startswith("level-name="):
+                world = line.split("=", 1)[1].strip() or "world"
+        try:
+            for entry in json.loads(ptero_text(cfg, ident, "/usercache.json") or "[]"):
+                if entry.get("uuid") and entry.get("name"):
+                    players[entry["uuid"].lower()] = entry["name"]
+        except ValueError:
+            pass
+        files = [f for f in ptero_list(cfg, ident, f"/{world}/stats") if f.endswith(".json")]
+        for f in files:
+            uuid = f[:-5].lower()
+            try:
+                st = json.loads(ptero_text(cfg, ident, f"/{world}/stats/{f}") or "{}").get("stats", {})
+            except ValueError:
+                continue
+            custom = st.get("minecraft:custom", {})
+            ticks = custom.get("minecraft:play_time", custom.get("minecraft:play_one_minute", 0))
+            adv_done = []
+            if want_adv:
+                try:
+                    adv = json.loads(ptero_text(cfg, ident, f"/{world}/advancements/{f}") or "{}")
+                    adv_done = [k for k in want_adv if isinstance(adv.get(k), dict) and adv[k].get("done")]
+                except ValueError:
+                    pass
+            rows.append({
+                "uuid": uuid, "ptero_uuid": x["uuid"], "play_minutes": int(ticks) // 1200,
+                "stats": {k: stat_value(st, k) for k in want_stats}, "advancements": adv_done,
+            })
+        print(f"  {x['name']}: {len(files)} player stat file(s)")
+    return [{"uuid": u, "name": n} for u, n in players.items()], rows
+
+
+def stats_due(cfg):
+    path = os.path.join(HERE, ".last_stats_sync")
+    try:
+        last = os.path.getmtime(path)
+    except OSError:
+        last = 0
+    return time.time() - last >= cfg["STATS_EVERY_MIN"] * 60 - 30, path
+
+
 def main():
     cfg = load_config()
+    dry = "--dry" in sys.argv
     servers = collect(cfg)
-    if "--dry" in sys.argv:
+    site = cfg["SITE_URL"].rstrip("/")
+    auth = {"Authorization": f"Bearer {cfg['SYNC_SECRET']}"}
+
+    if dry:
         print(json.dumps({"servers": servers}, indent=2))
-        return
-    res = http_json(cfg["SITE_URL"].rstrip("/") + "/api/sync",
-                    {"Authorization": f"Bearer {cfg['SYNC_SECRET']}"}, {"servers": servers})
-    print(f"Synced {res.get('received')} server(s)")
+    else:
+        res = http_json(site + "/api/sync", auth, {"servers": servers})
+        print(f"Synced {res.get('received')} server(s)")
+
+    try:
+        conf = http_json(site + "/api/sync/config", auth)
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return  # site doesn't have levels yet
+        raise
+
+    if conf.get("verify"):
+        send_link_codes(cfg, servers, conf["verify"], dry)
+
+    due, stamp = stats_due(cfg)
+    if due or "--stats" in sys.argv or dry:
+        players, rows = collect_players(cfg, servers, conf.get("stats", []), conf.get("advancements", []))
+        if dry:
+            print(json.dumps({"players": players, "stats": rows}, indent=2))
+            return
+        res = http_json(site + "/api/sync/players", auth, {"players": players, "stats": rows})
+        print(f"Synced stats for {len(rows)} player/server pair(s); {res.get('quests_completed', 0)} quest(s) completed")
+        with open(stamp, "w") as f:
+            f.write(str(int(time.time())))
 
 
 if __name__ == "__main__":

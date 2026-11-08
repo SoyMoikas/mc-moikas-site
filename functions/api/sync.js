@@ -1,9 +1,9 @@
-import { json, err, now, timingSafeEqual } from "../../lib/util.js";
+import { json, err, now } from "../../lib/util.js";
+import { syncAuthorized } from "../../lib/sync-auth.js";
 
 // Called by sync/ptero-sync.py on the NAS. Authenticated with the SYNC_SECRET bearer token.
 export async function onRequestPost({ request, env }) {
-  const auth = request.headers.get("authorization") || "";
-  if (!env.SYNC_SECRET || !timingSafeEqual(auth, `Bearer ${env.SYNC_SECRET}`)) return err(401, "Bad sync token");
+  if (!syncAuthorized(request, env)) return err(401, "Bad sync token");
 
   const text = await request.text();
   if (text.length > 512 * 1024) return err(413, "Payload too large");

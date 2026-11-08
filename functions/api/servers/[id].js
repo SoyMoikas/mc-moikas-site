@@ -57,7 +57,10 @@ export async function onRequestPatch({ request, env, params }) {
 export async function onRequestDelete({ request, env, params }) {
   const user = await need(env, request, "admin");
   if (user instanceof Response) return user;
-  const res = await env.DB.prepare("DELETE FROM servers WHERE id = ?").bind(params.id).run();
+  const [res] = await env.DB.batch([
+    env.DB.prepare("DELETE FROM servers WHERE id = ?").bind(params.id),
+    env.DB.prepare("DELETE FROM chat_messages WHERE channel = ?").bind(params.id),
+  ]);
   if (!res.meta.changes) return err(404, "Server not found");
   return json({ ok: true });
 }

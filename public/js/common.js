@@ -1,6 +1,7 @@
 // Shared helpers for every page.
 import { t, tErr, lang, locale, setLang, applyStatic } from "./i18n.js";
-export { t, lang };
+import { levelBadge } from "./levels.js";
+export { t, lang, levelBadge };
 
 const RANK = { pending: 0, member: 1, staff: 2, admin: 3 };
 export const can = (user, role) => !!user && RANK[user.role] >= RANK[role];
@@ -71,23 +72,26 @@ export async function initPage() {
   let user = null;
   try { ({ user } = await api("/api/me")); } catch { /* offline: treat as logged out */ }
 
-  const here = location.pathname + location.search;
   const bar = document.createElement("header");
   bar.className = "topbar";
+  const here = location.pathname;
+  const navLink = (href, key) => `<a href="${href}" class="${here === href || (href !== "/" && here.startsWith(href)) ? "active" : ""}">${t(key)}</a>`;
   bar.innerHTML = `
     <div class="wrap">
       <a class="brand" href="/">Moikas MC</a>
       <nav>
-        <a href="/">${t("nav.servers")}</a>
-        ${can(user, "admin") ? `<a href="/admin">${t("nav.admin")}</a>` : ""}
+        ${navLink("/", "nav.servers")}
+        ${navLink("/quests", "nav.quests")}
+        ${navLink("/ranking", "nav.ranking")}
+        ${can(user, "admin") ? navLink("/admin", "nav.admin") : ""}
       </nav>
       <div class="userbox">
         <button class="lang" title="${esc(t("lang.switchTitle"))}" data-lang="${lang === "es" ? "en" : "es"}">${t("lang.switch")}</button>
         ${user
-          ? `<img src="${esc(user.avatar)}" alt=""><span class="uname">${esc(user.username)}</span>
+          ? `<a class="me" href="/profile" title="${esc(t("nav.profile"))}"><img src="${esc(user.avatar)}" alt=""><span class="uname">${esc(user.username)}</span>${levelBadge(user.xp)}</a>
              <span class="role ${esc(user.role)}">${esc(roleLabel(user.role))}</span>
-             <a class="small muted" href="/auth/logout">${t("auth.logout")}</a>`
-          : `<a class="btn discord" href="/auth/login?next=${encodeURIComponent(here)}">${t("auth.login")}</a>`}
+             <a class="small muted logout" href="/auth/logout">${t("auth.logout")}</a>`
+          : `<a class="btn discord" href="/auth/login?next=${encodeURIComponent(location.pathname + location.search)}">${t("auth.login")}</a>`}
       </div>
     </div>`;
   document.body.prepend(bar);

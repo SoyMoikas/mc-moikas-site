@@ -2,10 +2,16 @@ import { json, err, body, now, str, HttpError } from "../../../lib/util.js";
 import { need, hasRole, hasPerm } from "../../../lib/auth.js";
 import { STICKER_RE, getItem, ownedSet, owns } from "../../../lib/catalog.js";
 
-// Channels: "general" or a server id. Members and up can read and post.
+// Channels: "general", "game:<id>", or a server id. Members and up can read and post.
+const channelOf = (params) => { try { return decodeURIComponent(params.channel); } catch { return params.channel; } };
 
 async function checkChannel(env, channel, user) {
   if (channel === "general") return;
+  if (channel.startsWith("game:")) {
+    const g = await env.DB.prepare("SELECT active FROM games WHERE id = ?").bind(channel.slice(5)).first();
+    if (!g || (!g.active && !hasPerm(user, "servers"))) throw new HttpError(404, "Game not found");
+    return;
+  }
   const s = await env.DB.prepare("SELECT hidden FROM servers WHERE id = ?").bind(channel).first();
   if (!s || (s.hidden && !hasPerm(user, "servers"))) throw new HttpError(404, "Server not found");
 }
@@ -15,7 +21,8 @@ async function checkChannel(env, channel, user) {
 export async function onRequestGet({ request, env, params }) {
   const user = await need(env, request, "member");
   if (user instanceof Response) return user;
-  await checkChannel(env, params.channel, user);
+  const channel = channelOf(params);
+  await checkChannel(env, channel, user);
 
   const url = new URL(request.url);
   const after = Number(url.searchParams.get("after")) || 0;
@@ -27,19 +34,19 @@ export async function onRequestGet({ request, env, params }) {
     ({ results: rows } = await env.DB.prepare(
       `SELECT ${cols} FROM chat_messages m LEFT JOIN users u ON u.id = m.user_id
         WHERE m.channel = ? AND m.id > ? AND m.deleted = 0 ORDER BY m.id ASC LIMIT 100`
-    ).bind(params.channel, after).all());
+    ).bind(channel, after).all());
   } else {
     ({ results: rows } = await env.DB.prepare(
       `SELECT * FROM (SELECT ${cols} FROM chat_messages m LEFT JOIN users u ON u.id = m.user_id
         WHERE m.channel = ? AND m.deleted = 0 ORDER BY m.id DESC LIMIT 50) ORDER BY id ASC`
-    ).bind(params.channel).all());
+    ).bind(channel).all());
   }
 
   let removed = [];
   if (since) {
     const r = await env.DB.prepare(
       "SELECT id FROM chat_messages WHERE channel = ? AND deleted = 1 AND id >= ?"
-    ).bind(params.channel, since).all();
+    ).bind(channel, since).all();
     removed = r.results.map((x) => x.id);
   }
 
@@ -51,7 +58,8 @@ export async function onRequestGet({ request, env, params }) {
 export async function onRequestPost({ request, env, params }) {
   const user = await need(env, request, "member");
   if (user instanceof Response) return user;
-  await checkChannel(env, params.channel, user);
+  const channel = channelOf(params);
+  await checkChannel(env, channel, user);
   const b = await body(request, 8 * 1024);
   if (b instanceof Response) return b;
   const text = str(b.body, 500, "message");
@@ -69,6 +77,6 @@ export async function onRequestPost({ request, env, params }) {
 
   const res = await env.DB.prepare(
     "INSERT INTO chat_messages (channel, user_id, body, created_at) VALUES (?, ?, ?, ?)"
-  ).bind(params.channel, user.id, text, now()).run();
+  ).bind(channel, user.id, text, now()).run();
   return json({ id: res.meta.last_row_id }, 201);
 }

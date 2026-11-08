@@ -1,6 +1,7 @@
 import { api, esc, t, initPage, onSubmit, toast, fmtDate, roleLabel, localized, avatarHTML, nameHTML } from "./common.js";
 import { levelInfo, fmtHours } from "./levels.js";
 import { itemName } from "./cosmetics.js";
+import { mountFeed } from "./feed.js";
 
 const user = await initPage();
 const main = document.getElementById("main");
@@ -17,7 +18,7 @@ async function load() {
   catch (e) { main.innerHTML = `<p style="padding:40px 0">${esc(e.message)}</p>`; return; }
   const own = user && p.user.id === user.id;
   const l = levelInfo(p.user.xp);
-  document.title = `${p.user.username} · Moikas MC`;
+  document.title = `${p.user.username} · Moikas`;
 
   main.innerHTML = `
     <section>
@@ -47,6 +48,11 @@ async function load() {
     ${own ? `<section><div class="section-head"><h2>${t("pf2.mcAccount")}</h2></div><div id="link" class="card"></div></section>` : ""}
 
     <section>
+      <div class="section-head"><h2>${own ? t("feed.myPosts") : t("feed.posts")}</h2></div>
+      <div id="user-feed"></div>
+    </section>
+
+    <section>
       <div class="section-head"><h2>${t("pf2.perServer")}</h2></div>
       ${p.servers.length ? `<div class="card">${p.servers.map((s) => `
         <div class="kv"><span>${s.server_id ? `<a href="/server?id=${encodeURIComponent(s.server_id)}">${esc(s.name)}</a>` : esc(s.name)}</span>
@@ -63,6 +69,7 @@ async function load() {
 
     ${own ? `<p style="margin-top:24px" class="actions"><a class="btn primary" href="/store">🪙 ${t("nav.store")}</a><a class="btn" href="/auth/logout">${t("auth.logout")}</a></p>` : ""}`;
 
+  mountFeed(main.querySelector("#user-feed"), user, { userId: p.user.id, composer: own, modes: false });
   if (own) renderLink();
 }
 

@@ -69,22 +69,37 @@ export function toast(msg, error = false) {
   toast._t = setTimeout(() => (el.hidden = true), 3000);
 }
 
+// Site-wide info loaded on every page: games (for the nav menu) and the like emoji.
+export const SITE = { games: [], like_emoji: "❤️" };
+export const gameLabel = (g) => (g ? (lang === "es" && g.name_es ? g.name_es : g.name) : "");
+
 // Builds the top bar, translates static text, and returns the logged-in user (or null).
 export async function initPage() {
   applyStatic();
   let user = null;
-  const [me] = await Promise.allSettled([api("/api/me"), loadCatalog()]);
+  const [me, site] = await Promise.allSettled([api("/api/me"), api("/api/site"), loadCatalog()]);
   if (me.status === "fulfilled") user = me.value.user;
+  if (site.status === "fulfilled") Object.assign(SITE, site.value);
 
   const bar = document.createElement("header");
   bar.className = "topbar";
   const here = location.pathname;
+  const curGame = here === "/game" ? new URLSearchParams(location.search).get("id") : null;
+  const gamesMenu = SITE.games.length ? `
+    <details class="nav-games">
+      <summary class="${curGame ? "active" : ""}">${curGame ? esc(gameLabel(SITE.games.find((g) => g.id === curGame)) || t("nav.games")) : t("nav.games")} ▾</summary>
+      <div class="nav-games-menu">
+        ${SITE.games.map((g) => `<a href="/game?id=${encodeURIComponent(g.id)}" class="${g.id === curGame ? "active" : ""}">
+          <span class="g-ico">${esc(g.icon || "🎮")}</span>${esc(gameLabel(g))}</a>`).join("")}
+      </div>
+    </details>` : "";
   const navLink = (href, key) => `<a href="${href}" class="${here === href || (href !== "/" && here.startsWith(href)) ? "active" : ""}">${t(key)}</a>`;
   bar.innerHTML = `
     <div class="wrap">
-      <a class="brand" href="/">Moikas MC</a>
+      <a class="brand" href="/">Moikas</a>
       <nav>
-        ${navLink("/", "nav.servers")}
+        ${navLink("/", "nav.home")}
+        ${gamesMenu}
         ${navLink("/quests", "nav.quests")}
         ${navLink("/ranking", "nav.ranking")}
         ${navLink("/store", "nav.store")}
@@ -103,6 +118,12 @@ export async function initPage() {
     </div>`;
   document.body.prepend(bar);
   bar.querySelector("[data-lang]").onclick = (e) => setLang(e.currentTarget.dataset.lang);
+
+  // Close the games menu when clicking elsewhere.
+  document.addEventListener("click", (e) => {
+    const d = bar.querySelector(".nav-games");
+    if (d?.open && !d.contains(e.target)) d.open = false;
+  });
 
   document.addEventListener("click", async (e) => {
     const b = e.target.closest("button[data-copy]");
@@ -197,6 +218,7 @@ export function renderPost(p, { user, showServer = false } = {}) {
           <span>${fmtDate(p.created_at)}</span>
           ${showServer ? (p.server_id
             ? `<a class="server-link" href="/server?id=${encodeURIComponent(p.server_id)}">${esc(p.server_name)}</a>`
+            : p.game_id ? `<span class="server-link muted">${esc(p.game_icon || "")} ${t("allServers")}</span>`
             : `<span class="server-link muted">${t("allServers")}</span>`) : ""}
         </div>
         <h3>${esc(p.title)}</h3>

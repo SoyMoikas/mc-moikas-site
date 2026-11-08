@@ -4,7 +4,7 @@ import { levelInfo } from "./levels.js";
 
 const user = await initPage();
 const main = document.getElementById("main");
-document.title = `${t("nav.store")} · Moikas MC`;
+document.title = `${t("nav.store")} · Moikas`;
 
 const SECTIONS = [
   { type: "frame", key: "st.frames", id: "frames" },

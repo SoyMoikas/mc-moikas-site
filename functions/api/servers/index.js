@@ -7,9 +7,12 @@ import { serverFields } from "../../../lib/fields.js";
 export async function onRequestGet({ request, env }) {
   const user = await getUser(env, request);
   const admin = hasPerm(user, "servers");
-  const { results } = await env.DB.prepare(
-    `${SERVER_SELECT} ${admin ? "" : "WHERE s.hidden = 0"} ORDER BY s.sort_order, s.name, s.id`
-  ).all();
+  const game = new URL(request.url).searchParams.get("game");
+  const where = [admin ? null : "s.hidden = 0", game ? "s.game_id = ?" : null].filter(Boolean);
+  const stmt = env.DB.prepare(
+    `${SERVER_SELECT} ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY s.sort_order, s.name, s.id`
+  );
+  const { results } = await (game ? stmt.bind(game) : stmt).all();
   const servers = results.map((r) => mergeServer(...splitRow(r), env, { admin }));
 
   // Open-task counts for the cards.
@@ -32,6 +35,7 @@ export async function onRequestPost({ request, env }) {
   if (b instanceof Response) return b;
 
   const fields = serverFields(b);
+  if (fields.game_id && !(await env.DB.prepare("SELECT 1 FROM games WHERE id = ?").bind(fields.game_id).first())) return err(404, "Game not found");
   let base = slugify(str(b.id, 40, "id") || fields.name || "server");
   let id = base;
   for (let i = 2; await env.DB.prepare("SELECT 1 FROM servers WHERE id = ?").bind(id).first(); i++) id = `${base}-${i}`;

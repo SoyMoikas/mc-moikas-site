@@ -3,37 +3,45 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Moikas MC</title>
+  <title>Moikas</title>
   <meta name="description" content="Moikas community game servers: how to join, which modpacks to install, events and community tasks.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Silkscreen&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=7">
+  <link rel="stylesheet" href="/style.css?v=8">
 </head>
 <body>
   <div class="hero">
     <div class="wrap">
-      <h1>Moikas MC</h1>
+      <h1>Moikas</h1>
       <p data-i18n="hero.tagline">Community game servers. Open to everyone, built together.</p>
     </div>
   </div>
   <main class="wrap">
     <section>
-      <div class="section-head">
-        <h2 data-i18n="home.announcements">Announcements</h2>
-        <button id="new-post" class="hidden" data-i18n="home.newAnnouncement">+ New announcement</button>
-      </div>
-      <div id="post-form"></div>
-      <div id="posts"><p class="muted" data-i18n="loading">Loading…</p></div>
+      <div class="section-head"><h2 data-i18n="home.games">Games</h2></div>
+      <div id="games" class="games-grid"><p class="muted" data-i18n="loading">Loading…</p></div>
     </section>
-    <section>
-      <div class="section-head"><h2 data-i18n="home.servers">Servers</h2></div>
-      <div id="servers" class="grid"><p class="muted" data-i18n="loading">Loading…</p></div>
-    </section>
-    <section>
-      <div class="section-head"><h2 data-i18n="chat.general">General chat</h2></div>
-      <div id="chat"></div>
-    </section>
+    <div class="home-cols">
+      <section class="col-main">
+        <div class="section-head"><h2 data-i18n="feed.title">For you</h2></div>
+        <div id="feed"></div>
+      </section>
+      <aside class="col-side">
+        <section>
+          <div class="section-head">
+            <h2 data-i18n="home.announcements">Announcements</h2>
+            <button id="new-post" class="hidden" data-i18n="home.newAnnouncement">+ New announcement</button>
+          </div>
+          <div id="post-form"></div>
+          <div id="posts"><p class="muted" data-i18n="loading">Loading…</p></div>
+        </section>
+        <section>
+          <div class="section-head"><h2 data-i18n="chat.general">General chat</h2></div>
+          <div id="chat"></div>
+        </section>
+      </aside>
+    </div>
   </main>
   <footer class="wrap"><p data-i18n="footer">Not affiliated with Mojang or Microsoft.</p></footer>
   <script type="module" src="/app/index.js"></script>

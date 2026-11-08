@@ -1,6 +1,6 @@
 import { mountChat } from "./chat.js";
 import {
-  api, esc, rich, can, t, initPage, statusBadge, renderPost, postForm, bindPostActions,
+  api, esc, rich, can, t, initPage, SITE, gameLabel, statusBadge, renderPost, postForm, bindPostActions,
   onSubmit, toast, toISO, ago, fmtDate, loginHint, roleLabel, taskLabel, localized, levelBadge, avatarHTML, nameHTML,
 } from "./common.js";
 
@@ -26,7 +26,7 @@ async function load() {
 
 function render() {
   const { server: s, posts, tasks } = data;
-  document.title = `${s.name} · Moikas MC`;
+  document.title = `${s.name} · Moikas`;
   const done = tasks.filter((x) => x.status === "done").length;
   const pct = tasks.length ? Math.round((done / tasks.length) * 100) : 0;
   const spec = (label, val) => val ? `<div class="spec"><span>${label}</span><strong>${esc(val)}</strong></div>` : "";
@@ -35,6 +35,7 @@ function render() {
 
   main.innerHTML = `
     <section>
+      ${(() => { const g = SITE.games.find((x) => x.id === s.game_id); return g ? `<a class="crumb" href="/game?id=${encodeURIComponent(g.id)}">← ${esc(g.icon || "")} ${esc(gameLabel(g))}</a>` : ""; })()}
       ${s.hidden ? `<div class="notice warn">${t("sp.draftNotice")}</div>` : ""}
       <div class="section-head">
         <h2 style="font-size:1.8rem;color:var(--accent)">${esc(s.name)}</h2>

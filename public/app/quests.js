@@ -2,7 +2,7 @@ import { api, esc, rich, can, t, initPage, onSubmit, toast, ago, localized, leve
 
 const user = await initPage();
 const main = document.getElementById("main");
-document.title = `${t("nav.quests")} · Moikas MC`;
+document.title = `${t("nav.quests")} · Moikas`;
 let data = null, servers = [], reviews = [];
 
 async function load() {

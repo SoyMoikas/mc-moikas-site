@@ -1,12 +1,12 @@
-import { api, esc, can, perm, t, initPage, onSubmit, toast, ago, fmtDate, statusBadge, roleLabel } from "./common.js";
+import { api, esc, can, perm, t, initPage, SITE, gameLabel, localized, onSubmit, toast, ago, fmtDate, statusBadge, roleLabel } from "./common.js";
 import { itemPreview, itemName } from "./cosmetics.js";
 
 const user = await initPage();
 const main = document.getElementById("main");
 
 // Admins see every tab; sub-admins only the ones they've been given.
-const TAB_PERM = { servers: "servers", ptero: "servers", users: "users", store: "store" };
-const allowed = Object.keys(TAB_PERM).filter((tab) => perm(user, TAB_PERM[tab]));
+const TAB_PERM = { servers: "servers", ptero: "servers", users: "users", store: "store", site: "admin" };
+const allowed = Object.keys(TAB_PERM).filter((tab) => (TAB_PERM[tab] === "admin" ? user?.role === "admin" : perm(user, TAB_PERM[tab])));
 
 if (!allowed.length) {
   main.innerHTML = `<p style="padding:40px 0">${user ? t("ad.only") : t("ad.loginToContinue")}</p>`;
@@ -19,7 +19,7 @@ if (!allowed.length) {
 }
 
 const tabEl = main.querySelector("#tab") || document.createElement("section");
-const tabs = { servers: serversTab, ptero: pteroTab, users: usersTab, store: storeTab };
+const tabs = { servers: serversTab, ptero: pteroTab, users: usersTab, store: storeTab, site: siteTab };
 main.querySelectorAll("[data-tab]").forEach((b) => b.onclick = () => {
   main.querySelectorAll("[data-tab]").forEach((x) => x.classList.toggle("active", x === b));
   tabs[b.dataset.tab]().catch((e) => (tabEl.innerHTML = `<p class="muted">${esc(e.message)}</p>`));
@@ -27,18 +27,32 @@ main.querySelectorAll("[data-tab]").forEach((b) => b.onclick = () => {
 
 /* ---------------- Servers ---------------- */
 
+let GAMES = [];
+
 async function serversTab() {
   tabEl.innerHTML = `<p class="muted">${t("loading")}</p>`;
-  const { servers } = await api("/api/servers");
+  const [{ servers }, { games }] = await Promise.all([api("/api/servers"), api("/api/games")]);
+  GAMES = games;
   tabEl.innerHTML = `
-    <div class="section-head"><h2>${t("ad.serverPages")}</h2><button id="add">${t("ad.addManual")}</button></div>
+    <div class="section-head"><h2>${t("ad.games")}</h2><button id="add-game">${t("ad.addGame")}</button></div>
+    <div id="game-editor"></div>
+    <div class="game-admin-list">${games.map((g) => `
+      <div class="card game-admin" style="--gc:${esc(g.color || "#6fcf5a")}">
+        <span class="ga-ico">${esc(g.icon || "🎮")}</span>
+        <div class="ga-main"><b>${esc(gameLabel(g))}</b>${g.active ? "" : ` <span class="draft">${t("q.inactive")}</span>`}
+          <div class="hint">${esc(g.id)} · ${t("home.serverCount", { n: servers.filter((s) => s.game_id === g.id).length })}</div></div>
+        <button data-edit-game="${esc(g.id)}">${t("edit")}</button>
+      </div>`).join("")}</div>
+
+    <div class="section-head" style="margin-top:24px"><h2>${t("ad.serverPages")}</h2><button id="add">${t("ad.addManual")}</button></div>
     <p class="hint">${t("ad.serversHint")}</p>
     <div id="editor"></div>
     <div class="card table-wrap"><table>
       <thead><tr><th>${t("ad.colName")}</th><th>${t("ad.colConnect")}</th><th>${t("ad.colStatus")}</th><th>${t("ad.colVisible")}</th><th>${t("ad.colOrder")}</th><th></th></tr></thead>
       <tbody>${servers.map((s) => `
         <tr>
-          <td class="primary-cell"><a href="/server?id=${encodeURIComponent(s.id)}">${esc(s.name)}</a><div class="hint">${esc(s.id)}${s.linked ? ` · ${t("ad.linked")}` : ""}</div></td>
+          <td class="primary-cell"><a href="/server?id=${encodeURIComponent(s.id)}">${esc(s.name)}</a><div class="hint">${esc(s.id)}${s.linked ? ` · ${t("ad.linked")}` : ""}
+            · ${(() => { const g = games.find((x) => x.id === s.game_id); return g ? `${esc(g.icon || "")} ${esc(gameLabel(g))}` : `<span class="draft">${t("ad.noGame")}</span>`; })()}</div></td>
           <td data-label="${esc(t("ad.colConnect"))}"><code>${esc(s.connect)}</code></td>
           <td data-label="${esc(t("ad.colStatus"))}">${statusBadge(s) || `<span class="muted small">${t("ad.notLinked")}</span>`}</td>
           <td data-label="${esc(t("ad.colVisible"))}">${s.hidden ? `<span class="draft">${t("ad.draft")}</span>` : t("ad.public")}</td>
@@ -47,6 +61,8 @@ async function serversTab() {
         </tr>`).join("") || `<tr><td colspan="6" class="muted">${t("home.noServers")}</td></tr>`}
       </tbody></table></div>`;
   tabEl.querySelector("#add").onclick = () => editServer(null);
+  tabEl.querySelector("#add-game").onclick = () => editGame(null);
+  tabEl.querySelectorAll("[data-edit-game]").forEach((b) => b.onclick = () => editGame(games.find((g) => g.id === b.dataset.editGame)));
   tabEl.querySelectorAll("[data-edit]").forEach((b) => b.onclick = () => editServer(b.dataset.edit));
 }
 
@@ -76,6 +92,11 @@ async function editServer(id) {
         </select>
         <span class="hint">${t("ad.linkHint")}</span>
       </label>
+      <label>${t("ad.serverGame")}
+        <select name="game_id">
+          <option value="">${t("ad.noGame")}</option>
+          ${GAMES.map((g) => `<option value="${esc(g.id)}" ${(raw.game_id || (!id && GAMES.length === 1 ? GAMES[0].id : "")) === g.id ? "selected" : ""}>${esc(g.icon || "🎮")} ${esc(gameLabel(g))}</option>`).join("")}
+        </select></label>
       <div class="row">
         ${id ? "" : `<label>${t("ad.urlId")}<input name="id" placeholder="${esc(t("ad.urlIdPh"))}"></label>`}
         ${f("name", t("ad.displayName"))}
@@ -135,6 +156,74 @@ async function editServer(id) {
     toast(t("saved"));
     serversTab();
   });
+}
+
+function editGame(g) {
+  const editor = tabEl.querySelector("#game-editor");
+  const isNew = !g;
+  g = g || { active: 1, sort_order: GAMES.length, color: "#6aa8e0", icon: "🎮" };
+  editor.innerHTML = `
+    <form class="stack card">
+      <h3 style="margin:0">${isNew ? t("ad.newGame") : esc(t("ad.editTitle", { name: gameLabel(g) }))}</h3>
+      <div class="row">
+        ${isNew ? `<label>${t("ad.gameId")}<input name="id" required pattern="[a-z0-9-]{2,30}" placeholder="valheim"></label>` : ""}
+        <label>${t("ad.nameEn")}<input name="name" required maxlength="50" value="${esc(g.name)}"></label>
+        <label>${t("ad.nameEs")}<input name="name_es" maxlength="50" value="${esc(g.name_es)}"></label>
+      </div>
+      <div class="row">
+        <label>${t("ad.emoji")}<input name="icon" maxlength="16" value="${esc(g.icon)}"></label>
+        <label>${t("ad.color")}<input name="color" type="color" value="${esc(g.color || "#6aa8e0")}"></label>
+        <label>${t("ad.gameImage")}<input name="image" value="${esc(g.image)}" placeholder="https://…/banner.jpg"></label>
+      </div>
+      <div class="row">
+        <label>${t("ad.description")}<textarea name="description" maxlength="500">${esc(g.description)}</textarea></label>
+        <label>${t("ad.descriptionEs")}<textarea name="description_es" maxlength="500">${esc(g.description_es)}</textarea></label>
+      </div>
+      <div class="row">
+        <label>${t("ad.sortOrder")}<input name="sort_order" type="number" value="${esc(g.sort_order ?? 0)}"></label>
+        <label class="check"><input type="checkbox" name="active" ${g.active ? "checked" : ""}> ${t("ad.gameActive")}</label>
+      </div>
+      <div class="actions">
+        ${isNew ? "" : `<button type="button" class="danger" data-delete>${t("delete")}</button>`}
+        <span style="flex:1"></span>
+        <button type="button" data-cancel>${t("cancel")}</button>
+        <button class="primary">${isNew ? t("ad.create") : t("save")}</button>
+      </div>
+    </form>`;
+  editor.scrollIntoView({ behavior: "smooth", block: "start" });
+  const form = editor.querySelector("form");
+  form.querySelector("[data-cancel]").onclick = () => (editor.innerHTML = "");
+  form.querySelector("[data-delete]")?.addEventListener("click", async () => {
+    if (!confirm(t("ad.confirmDeleteGame", { name: gameLabel(g) }))) return;
+    try { await api(`/api/games/${encodeURIComponent(g.id)}`, { method: "DELETE" }); toast(t("ad.deleted")); serversTab(); }
+    catch (e) { toast(e.message, true); }
+  });
+  onSubmit(form, async (d) => {
+    if (isNew) await api("/api/games", { method: "POST", body: d });
+    else await api(`/api/games/${encodeURIComponent(g.id)}`, { method: "PATCH", body: d });
+    toast(t("saved")); serversTab();
+  });
+}
+
+/* ---------------- Site (admin only) ---------------- */
+
+async function siteTab() {
+  tabEl.innerHTML = `
+    <div class="section-head"><h2>${t("ad.tabSite")}</h2></div>
+    <form class="card stack" id="site-form">
+      <label>${t("ad.likeEmoji")}
+        <div class="actions"><input name="like_emoji" maxlength="16" value="${esc(SITE.like_emoji)}" style="max-width:120px;font-size:1.5rem;text-align:center">
+          <span class="like-preview">${t("ad.likePreview")}: <button type="button" class="like on"><span class="emo">${esc(SITE.like_emoji)}</span> <span class="n">12</span></button></span></div>
+      </label>
+      <div class="emoji-picks">${["❤️", "🔥", "👍", "⭐", "💎", "⛏️", "🍺", "😂", "💀", "🫶", "🙌", "🌮"].map((e) => `<button type="button" data-pick="${e}">${e}</button>`).join("")}</div>
+      <p class="hint">${t("ad.likeHint")}</p>
+      <div class="actions"><span style="flex:1"></span><button class="primary">${t("save")}</button></div>
+    </form>`;
+  const form = tabEl.querySelector("#site-form");
+  const sync = () => (form.querySelector(".like-preview .emo").textContent = form.like_emoji.value || "❤️");
+  form.like_emoji.addEventListener("input", sync);
+  form.querySelectorAll("[data-pick]").forEach((b) => b.onclick = () => { form.like_emoji.value = b.dataset.pick; sync(); });
+  onSubmit(form, async (d) => { await api("/api/site", { method: "PATCH", body: d }); toast(t("saved")); });
 }
 
 /* ---------------- Pterodactyl ---------------- */

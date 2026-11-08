@@ -42,6 +42,7 @@ export async function onRequestPatch({ request, env, params }) {
 
   const fields = serverFields(b);
   if (!Object.keys(fields).length) return err(400, "Nothing to update");
+  if (fields.game_id && !(await env.DB.prepare("SELECT 1 FROM games WHERE id = ?").bind(fields.game_id).first())) return err(404, "Game not found");
   if (fields.ptero_uuid) {
     const taken = await env.DB.prepare("SELECT id FROM servers WHERE ptero_uuid = ? AND id != ?")
       .bind(fields.ptero_uuid, params.id).first();

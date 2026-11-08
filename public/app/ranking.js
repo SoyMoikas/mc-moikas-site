@@ -3,7 +3,7 @@ import { levelInfo, levelBadge, fmtHours, RANKS, xpForLevel } from "./levels.js"
 
 const user = await initPage();
 const main = document.getElementById("main");
-document.title = `${t("nav.ranking")} · Moikas MC`;
+document.title = `${t("nav.ranking")} · Moikas`;
 
 let players = [];
 try { ({ players } = await api("/api/leaderboard")); }

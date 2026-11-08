@@ -1,44 +1,30 @@
 import { mountChat } from "./chat.js";
-import { api, esc, can, t, initPage, statusBadge, renderPost, postForm, bindPostActions, onSubmit, toast, toISO } from "./common.js";
+import { mountFeed } from "./feed.js";
+import { api, esc, can, t, initPage, renderPost, postForm, bindPostActions, onSubmit, toast, toISO, gameLabel, localized } from "./common.js";
 
 const user = await initPage();
-let servers = [];
-let posts = [];
+let posts = [], games = [];
 
-async function loadServers() {
-  const el = document.getElementById("servers");
-  try {
-    ({ servers } = await api("/api/servers"));
-  } catch (e) {
-    el.innerHTML = `<p class="muted">${esc(t("couldntLoad", { msg: e.message }))}</p>`;
-    return;
-  }
-  el.innerHTML = servers.length ? servers.map(card).join("") : `<p class="muted">${t("home.noServers")}</p>`;
-}
-
-function card(s) {
-  const sub = [s.modpack || s.game, s.mc_version, s.loader].filter(Boolean).join(" · ");
-  const tasks = s.tasks_total ? t("home.tasksDone", { done: s.tasks_done, total: s.tasks_total }) : "";
-  return `
-    <a class="server-card" href="/server?id=${encodeURIComponent(s.id)}">
-      <h3>${esc(s.name)}${s.hidden ? `<span class="draft">${t("draft")}</span>` : ""}</h3>
-      <div class="sub">${esc(sub)}</div>
-      <code class="connect">${esc(s.connect || "—")}</code>
-      <div class="foot"><span>${statusBadge(s)}</span><span>${esc(tasks)}</span></div>
-    </a>`;
+async function loadGames() {
+  const el = document.getElementById("games");
+  try { ({ games } = await api("/api/games")); }
+  catch (e) { el.innerHTML = `<p class="muted">${esc(t("couldntLoad", { msg: e.message }))}</p>`; return; }
+  el.innerHTML = games.length ? games.map((g) => `
+    <a class="game-card" href="/game?id=${encodeURIComponent(g.id)}" style="--gc:${esc(g.color || "#6fcf5a")}">
+      ${g.image ? `<div class="gc-img" style="background-image:url('${esc(g.image)}')"></div>` : `<div class="gc-img gc-icon">${esc(g.icon || "🎮")}</div>`}
+      <div class="gc-body">
+        <h3>${esc(g.icon || "🎮")} ${esc(gameLabel(g))}${g.active ? "" : ` <span class="draft">${t("q.inactive")}</span>`}</h3>
+        <div class="small muted">${esc(localized(g.description, g.description_es) || "")}</div>
+        <div class="small gc-count">${t("home.serverCount", { n: g.servers })}</div>
+      </div>
+    </a>`).join("") : `<p class="muted">${t("home.noGames")}</p>`;
 }
 
 async function loadPosts() {
   const el = document.getElementById("posts");
-  try {
-    ({ posts } = await api("/api/posts?limit=15"));
-  } catch (e) {
-    el.innerHTML = `<p class="muted">${esc(t("couldntLoad", { msg: e.message }))}</p>`;
-    return;
-  }
-  el.innerHTML = posts.length
-    ? posts.map((p) => renderPost(p, { user, showServer: true })).join("")
-    : `<p class="muted">${t("home.noAnnouncements")}</p>`;
+  try { ({ posts } = await api("/api/posts?scope=site&limit=5")); }
+  catch (e) { el.innerHTML = `<p class="muted">${esc(t("couldntLoad", { msg: e.message }))}</p>`; return; }
+  el.innerHTML = posts.length ? posts.map((p) => renderPost(p, { user })).join("") : `<p class="muted">${t("home.noAnnouncements")}</p>`;
 }
 
 bindPostActions(document.getElementById("posts"), () => posts, { user, reload: loadPosts });
@@ -48,19 +34,17 @@ if (can(user, "staff")) {
   const holder = document.getElementById("post-form");
   btn.classList.remove("hidden");
   btn.onclick = () => {
-    holder.innerHTML = postForm({}, { servers });
+    holder.innerHTML = postForm({});
     const form = holder.querySelector("form");
     form.querySelector("[data-cancel]").onclick = () => (holder.innerHTML = "");
     onSubmit(form, async (d) => {
-      await api("/api/posts", { method: "POST", body: { ...d, server_id: d.server_id || null, event_at: toISO(d.event_at) } });
-      holder.innerHTML = "";
-      toast(t("pf.posted"));
-      loadPosts();
+      await api("/api/posts", { method: "POST", body: { ...d, server_id: null, game_id: null, event_at: toISO(d.event_at) } });
+      holder.innerHTML = ""; toast(t("pf.posted")); loadPosts();
     });
   };
 }
 
+mountFeed(document.getElementById("feed"), user);
 mountChat(document.getElementById("chat"), "general", user);
-await loadServers();
+loadGames();
 loadPosts();
-setInterval(loadServers, 60_000); // keep status fresh

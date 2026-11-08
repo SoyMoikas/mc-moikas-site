@@ -34,7 +34,7 @@ export function textureCSS(v) {
     default: return "none";
   }
 }
-const TEX_SIZE = { dots: "14px 14px", grid: "22px 22px", pixel: "16px 16px", bricks: "72px 48px" };
+const TEX_SIZE = { dots: "14px 14px", grid: "22px 22px", pixel: "16px 16px", bricks: "72px 48px", image: "64px 64px" };
 
 const family = (id) => (!id || id === "default" ? "" : id.startsWith("u_") ? `"uf-${id}", sans-serif` : FONTS[id] ? `"${FONTS[id]}", sans-serif` : "");
 
@@ -45,7 +45,10 @@ export function themeVars(v) {
     "--bg": v.bg, "--panel": v.panel, "--panel-2": `color-mix(in srgb, ${v.panel} 85%, ${v.text})`, "--border": v.border,
     "--text": v.text, "--muted": v.muted, "--radius": `${Math.min(24, Math.max(0, Number(v.radius ?? 8)))}px`,
     "--tex": textureCSS(v), "--tex-size": TEX_SIZE[v.texture] || "auto",
+    "--wp-dim": `${Math.min(100, Math.max(0, Number(v.dim ?? 70)))}%`,
   };
+  const blocks = Math.min(100, Math.max(20, Number(v.blocks ?? 100)));
+  if (blocks < 100) { vars["--panel"] = `color-mix(in srgb, ${v.panel} ${blocks}%, transparent)`; vars["--panel-2"] = `color-mix(in srgb, ${v.panel} ${Math.min(100, blocks + 10)}%, transparent)`; }
   // light themes: darker status colours (staff/announcement labels, info, errors) so they stay readable
   const lum = (h) => { const n = parseInt(h.slice(1), 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255; };
   if (lum(v.bg) > 0.55) Object.assign(vars, { "--warn": "#9a5b00", "--info": "#1f5f99", "--bad": "#b0352a" });
@@ -54,7 +57,7 @@ export function themeVars(v) {
   if (family(v.heading)) vars["--theme-heading"] = family(v.heading);
   return vars;
 }
-export const themeClasses = (v) => ["themed", `te-${EDGES.includes(v?.edge) ? v.edge : "solid"}`, v?.font ? "tf-body" : "", v?.heading ? "tf-head" : ""].filter(Boolean);
+export const themeClasses = (v) => ["themed", Number(v?.blocks ?? 100) < 100 ? "see-through" : "", `te-${EDGES.includes(v?.edge) ? v.edge : "solid"}`, v?.font ? "tf-body" : "", v?.heading ? "tf-head" : ""].filter(Boolean);
 
 // Apply to the whole page (null = back to the site's normal look). `remember` caches it so the next page
 // can paint it before anything loads.
@@ -67,7 +70,7 @@ export function applyTheme(item, remember = true) {
   if (remember) try { item?.visual ? localStorage.setItem(CACHE, JSON.stringify(item.visual)) : localStorage.removeItem(CACHE); } catch { /* storage off */ }
   const root = document.documentElement;
   for (const k of applied) root.style.removeProperty(k);
-  root.classList.remove(...[...root.classList].filter((c) => c === "themed" || c.startsWith("te-") || c === "tf-body" || c === "tf-head"));
+  root.classList.remove(...[...root.classList].filter((c) => c === "themed" || c === "see-through" || c.startsWith("te-") || c === "tf-body" || c === "tf-head"));
   applied = [];
   const v = item?.visual, vars = themeVars(v);
   if (!vars) return;

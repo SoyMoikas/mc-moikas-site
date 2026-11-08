@@ -167,7 +167,10 @@ export function itemPreview(item, user, size = 56) {
 // Banner / wallpaper look → CSS background value. visual: {color, color2, pattern, image, animate}
 export function bgCSS(v = {}) {
   const c = safeColor(v.color || "#181c28"), c2 = safeColor(v.color2 || v.color || "#212637");
-  if (v.image && safeUrl(v.image)) return `url('${v.image}') center/cover no-repeat, ${c}`;
+  if (v.image && safeUrl(v.image)) {
+    if (v.tile) { const s = Math.min(512, Math.max(8, Number(v.tile_size) || 64)); return `url('${v.image}') 0 0/${s}px ${s}px repeat, ${c}`; }
+    return `url('${v.image}') center/cover no-repeat, ${c}`;
+  }
   switch (v.pattern) {
     case "dots": return `radial-gradient(${c2} 1.2px, transparent 1.8px) 0 0/18px 18px, ${c}`;
     case "grid": return `linear-gradient(${c2} 1px, transparent 1px) 0 0/24px 24px, linear-gradient(90deg, ${c2} 1px, transparent 1px) 0 0/24px 24px, ${c}`;
@@ -193,7 +196,7 @@ function bricksSVG(c, c2) {
 export function bgStyle(itemOrId) {
   const item = typeof itemOrId === "string" ? catalogItem(itemOrId) : itemOrId;
   if (!item) return "";
-  return `--bg-art:${bgCSS(item.visual)};`;
+  return `--bg-art:${bgCSS(item.visual)};${item.visual?.pixel ? "image-rendering:pixelated;" : ""}`;
 }
 // Brick-wall banners cover the whole post (the "graffiti on a wall" look) instead of just its top strip.
 export const bgWall = (itemOrId) => {

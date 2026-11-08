@@ -128,6 +128,7 @@ export async function initPage() {
     document.body.style.setProperty("--wallpaper", bgCSS(wp.visual));
     document.body.classList.add("has-wallpaper");
     if (wp.visual?.animate) document.body.classList.add("wallpaper-anim");
+    if (wp.visual?.pixel) document.body.classList.add("wallpaper-pixel");
   }
 
   // Game pages take on that game's color as the accent.

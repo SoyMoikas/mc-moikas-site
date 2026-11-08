@@ -597,8 +597,15 @@ function editItem(item, items) {
               <label>${t("th.strength")} <b data-th="strength">${esc(v.strength ?? 50)}%</b><input type="range" name="th_strength" min="0" max="100" value="${esc(v.strength ?? 50)}"></label>
               <label>${t("th.edge")}<select name="th_edge">${EDGES.map((x) => `<option value="${x}" ${(v.edge || "solid") === x ? "selected" : ""}>${t(`th.edge.${x}`)}</option>`).join("")}</select></label>
               <label>${t("th.radius")} <b data-th="radius">${esc(v.radius ?? 8)}px</b><input type="range" name="th_radius" min="0" max="24" value="${esc(v.radius ?? 8)}"></label>
+              <label>${t("th.dim")} <b data-th="dim">${esc(v.dim ?? 70)}%</b><input type="range" name="th_dim" min="0" max="100" value="${esc(v.dim ?? 70)}"></label>
+              <label>${t("th.blocks")} <b data-th="blocks">${esc(v.blocks ?? 100)}%</b><input type="range" name="th_blocks" min="20" max="100" value="${esc(v.blocks ?? 100)}"></label>
               <label>${t("th.font")}<select name="th_font">${fontOptions(v.font)}</select></label>
               <label>${t("th.heading")}<select name="th_heading">${fontOptions(v.heading)}</select></label>
+            </div>
+            <div class="f-tile row-inline">
+              <label class="check"><input type="checkbox" name="tile" ${v.tile ? "checked" : ""}> ${t("ad.tile")}</label>
+              <label class="tile-size">${t("ad.tileSize")} <b data-tile-val>${esc(v.tile_size || 64)}px</b><input type="range" name="tile_size" min="8" max="512" step="4" value="${esc(v.tile_size || 64)}"></label>
+              <label class="check tile-px"><input type="checkbox" name="pixel" ${v.pixel ? "checked" : ""}> ${t("ad.pixel")}</label>
             </div>
             <label class="f-pattern">${t("ad.pattern")}<select name="pattern">${["none", "dots", "grid", "stripes", "blocks", "bricks"].map((x) => `<option value="${x}" ${(v.pattern || "none") === x ? "selected" : ""}>${t(`ad.pattern.${x}`)}</option>`).join("")}</select></label>
             <label class="f-slot">${t("av.part")}<select name="slot">${PART_SLOTS.map((x) => `<option value="${x}" ${v.slot === x ? "selected" : ""}>${t(`av.slot.${x}`)}</option>`).join("")}</select></label>
@@ -645,11 +652,12 @@ function editItem(item, items) {
     if (type === "frame" && form.image.value.trim()) return { image: form.image.value.trim() };
     if (type === "frame" || type === "color") return { color: form.color.value, style: form.style.value };
     if (type === "banner" || type === "wallpaper") return { color: form.color.value, color2: form.color2.value, pattern: form.pattern.value,
+      tile: form.tile.checked || undefined, tile_size: Number(form.tile_size.value), pixel: form.pixel.checked || undefined,
       image: form.image.value.trim() || undefined, animate: form.animate.checked || undefined };
     if (type === "theme") {
       const g = (k) => form[`th_${k}`].value;
       return { bg: g("bg"), panel: g("panel"), border: g("border"), text: g("text"), muted: g("muted"), accent: form.th_accent_on.checked ? g("accent") : undefined,
-        texture: g("texture"), strength: Number(g("strength")), edge: g("edge"), radius: Number(g("radius")), font: g("font"), heading: g("heading"),
+        texture: g("texture"), strength: Number(g("strength")), edge: g("edge"), radius: Number(g("radius")), dim: Number(g("dim")), blocks: Number(g("blocks")), font: g("font"), heading: g("heading"),
         image: g("texture") === "image" ? form.image.value.trim() : undefined };
     }
     if (type === "part") return form.image.value.trim() && !form.art.value ? { slot: form.slot.value, image: form.image.value.trim() } : { slot: form.slot.value, art: form.art.value };
@@ -673,6 +681,10 @@ function editItem(item, items) {
     const bg = type === "banner" || type === "wallpaper";
     show(".f-color2", bg); show(".f-pattern", bg); show(".f-animate", bg);
     if (bg) { show(".f-color", true); show(".f-image", true); show(".f-emoji", false); show(".f-style", false); }
+    show(".f-tile", bg && !!form.image.value.trim());
+    form.querySelector(".tile-size").classList.toggle("hidden", !form.tile.checked);
+    form.querySelector(".tile-px").classList.toggle("hidden", !form.tile.checked);
+    form.querySelector("[data-tile-val]").textContent = form.tile_size.value + "px";
     if (type === "frame") { // color + style, or a PNG image instead
       const img = !!form.image.value.trim();
       checkFrameImage(form.image.value.trim(), form.querySelector(".look-hint"));
@@ -687,6 +699,8 @@ function editItem(item, items) {
       form.image.placeholder = "/textures/my-tile.png";
       form.querySelector('[data-th="strength"]').textContent = form.th_strength.value + "%";
       form.querySelector('[data-th="radius"]').textContent = form.th_radius.value + "px";
+      form.querySelector('[data-th="dim"]').textContent = form.th_dim.value + "%";
+      form.querySelector('[data-th="blocks"]').textContent = form.th_blocks.value + "%";
     }
     const part = type === "part";
     show(".f-slot", part); show(".f-art", part);

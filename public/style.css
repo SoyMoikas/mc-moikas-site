@@ -724,9 +724,9 @@ main.page footer { padding: 24px 0; }
 @keyframes art-drift { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
 
 body.has-wallpaper::before { content: ""; position: fixed; inset: 0; z-index: -2; background: var(--wallpaper); }
-body.has-wallpaper::after { content: ""; position: fixed; inset: 0; z-index: -1; background: linear-gradient(color-mix(in srgb, var(--bg) 62%, transparent), color-mix(in srgb, var(--bg) 80%, transparent)); }
+body.has-wallpaper::after { content: ""; position: fixed; inset: 0; z-index: -1; background: color-mix(in srgb, var(--bg) var(--wp-dim, 70%), transparent); }
 body.wallpaper-anim::before { background-size: 300% 300%; animation: art-drift 20s ease-in-out infinite alternate; }
-body.has-wallpaper .rail { background: color-mix(in srgb, var(--bg) 70%, transparent); backdrop-filter: blur(6px); }
+body.has-wallpaper .rail { background: color-mix(in srgb, var(--bg) var(--wp-dim, 70%), transparent); backdrop-filter: blur(6px); }
 
 .profile-card { padding-top: 0; overflow: hidden; }
 .pc-banner { height: 110px; margin: 0 -16px 0; }
@@ -1066,3 +1066,10 @@ html.te-pixel :is(.card, .server-card, .task, .chat, .rank-chip, .game-card, .ra
 .cz-chip .theme-preview { transform: scale(.62); margin: -16px -25px; }
 /* walls are dark whatever the theme, so their text stays light */
 .fpost.wall { --text: #f3eee8; --muted: #d9d0c6; color: var(--text); }
+
+body.wallpaper-pixel::before { image-rendering: pixelated; }
+.f-tile { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
+.f-tile .tile-size { flex: 1 1 220px; }
+.f-tile input[type=range] { width: 100%; accent-color: var(--accent); }
+/* see-through blocks: a little blur keeps text readable over busy wallpapers */
+html.see-through :is(.card, .server-card, .task, .chat, .rank-chip, .game-card, .rail-me, .game-tile, .store-item) { backdrop-filter: blur(4px); }

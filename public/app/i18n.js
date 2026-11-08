@@ -364,6 +364,7 @@ const STRINGS = {
     "chat.placeholder": "Say something…",
     "chat.send": "Send",
     "chat.empty": "No messages yet. Say hi!",
+    "chat.newMessages": "New messages ↓", "feed.newPost": "1 new post ↑", "feed.newPosts": "{n} new posts ↑",
     "chat.confirmDelete": "Delete this message?",
 
     // API errors (server sends English; translated here when known)
@@ -755,6 +756,7 @@ const STRINGS = {
     "chat.placeholder": "Escribe algo…",
     "chat.send": "Enviar",
     "chat.empty": "Todavía no hay mensajes. ¡Saluda!",
+    "chat.newMessages": "Mensajes nuevos ↓", "feed.newPost": "1 publicación nueva ↑", "feed.newPosts": "{n} publicaciones nuevas ↑",
     "chat.confirmDelete": "¿Eliminar este mensaje?",
     "err.Message can't be empty": "El mensaje no puede estar vacío",
     "err.Message not found": "Mensaje no encontrado",

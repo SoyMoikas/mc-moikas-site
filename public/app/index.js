@@ -1,6 +1,6 @@
 import { mountChat } from "./chat.js";
 import { mountFeed } from "./feed.js";
-import { api, esc, can, t, initPage, mountMobileTabs, renderPost, postForm, bindPostActions, onSubmit, toast, toISO, gameLabel, localized } from "./common.js";
+import { api, esc, can, t, initPage, mountMobileTabs, livePosts, renderPost, postForm, bindPostActions, onSubmit, toast, toISO, gameLabel, localized } from "./common.js";
 
 const user = await initPage();
 let posts = [], games = [];
@@ -40,6 +40,8 @@ if (can(user, "staff")) {
     onSubmit(form, async (d) => {
       await api("/api/posts", { method: "POST", body: { ...d, server_id: null, game_id: null, event_at: toISO(d.event_at) } });
       holder.innerHTML = ""; toast(t("pf.posted")); loadPosts();
+livePosts(async () => (posts = (await api("/api/posts?scope=site&limit=5")).posts),
+  (ps) => ps.length ? ps.map((p) => renderPost(p, { user })).join("") : `<p class="muted">${t("home.noAnnouncements")}</p>`);
     });
   };
 }
@@ -49,3 +51,5 @@ mountChat(document.getElementById("chat"), "general", user);
 mountMobileTabs();
 loadGames();
 loadPosts();
+livePosts(async () => (posts = (await api("/api/posts?scope=site&limit=5")).posts),
+  (ps) => ps.length ? ps.map((p) => renderPost(p, { user })).join("") : `<p class="muted">${t("home.noAnnouncements")}</p>`);

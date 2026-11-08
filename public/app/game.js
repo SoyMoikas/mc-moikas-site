@@ -1,7 +1,7 @@
 import { mountChat } from "./chat.js";
 import { mountFeed } from "./feed.js";
 import {
-  api, esc, rich, can, t, initPage, mountMobileTabs, statusBadge, renderPost, postForm, bindPostActions, onSubmit, toast, toISO, gameLabel, localized,
+  api, esc, rich, can, t, initPage, mountMobileTabs, statusBadge, renderPost, postForm, bindPostActions, onSubmit, toast, toISO, gameLabel, localized, livePosts,
 } from "./common.js";
 
 const user = await initPage();
@@ -73,4 +73,6 @@ async function load() {
   mountMobileTabs();
 }
 
-load();
+await load();
+livePosts(async () => (data.posts = (await api(`/api/games/${encodeURIComponent(id || "")}`)).posts),
+  (ps) => ps.length ? ps.map((p) => renderPost(p, { user, showServer: true })).join("") : `<p class="muted small">${t("home.noAnnouncements")}</p>`);

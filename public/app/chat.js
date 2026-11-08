@@ -1,8 +1,14 @@
-// Chat box. Polls for new messages every few seconds while the tab is visible.
-import { api, esc, rich, can, t, ago, toast, roleLabel, loginHint, levelBadge, avatarHTML, nameHTML } from "./common.js";
+// Chat box. Polls for new messages every couple of seconds while you're active (slower when idle,
+// paused when the tab is hidden). Each poll also carries the page's "pulse" for feed/announcements.
+import { api, esc, rich, can, t, ago, toast, roleLabel, loginHint, levelBadge, avatarHTML, nameHTML, emitPulse } from "./common.js";
 import { STICKER_RE, catalogItem, stickerHTML, stickerCode } from "./cosmetics.js";
 
-const POLL_MS = 4000;
+const POLL_MS = 2500;       // while you're using the page
+const IDLE_POLL_MS = 8000;  // after 2 minutes without touching anything
+const IDLE_AFTER = 120_000;
+let lastInput = Date.now();
+for (const ev of ["pointermove", "pointerdown", "keydown", "scroll", "touchstart", "wheel"])
+  addEventListener(ev, () => { lastInput = Date.now(); }, { passive: true, capture: true });
 
 export function mountChat(el, channel, user) {
   el.classList.add("chat");
@@ -14,6 +20,7 @@ export function mountChat(el, channel, user) {
 
   el.innerHTML = `
     <div class="chat-log" aria-live="polite"><p class="muted small chat-empty">${t("loading")}</p></div>
+    <button type="button" class="chat-new hidden">${esc(t("chat.newMessages"))}</button>
     <div class="sticker-picker hidden"></div>
     <form class="chat-form">
       <button type="button" class="sticker-btn" title="${esc(t("chat.stickers"))}">🙂</button>
@@ -24,9 +31,17 @@ export function mountChat(el, channel, user) {
   const log = el.querySelector(".chat-log");
   const form = el.querySelector("form");
   const input = form.querySelector("textarea");
+  const pill = el.querySelector(".chat-new");
   let lastId = 0, firstId = 0, timer = null, busy = false, failures = 0;
+  // "pinned" = the reader is at the bottom and wants to follow new messages.
+  let pinned = true;
 
   const atBottom = () => log.scrollHeight - log.scrollTop - log.clientHeight < 60;
+  const toBottom = () => { log.scrollTop = log.scrollHeight; pinned = true; pill.classList.add("hidden"); };
+  log.addEventListener("scroll", () => { pinned = atBottom(); if (pinned) pill.classList.add("hidden"); }, { passive: true });
+  // Avatars and image stickers load after we scroll; keep following the bottom while they grow the log.
+  log.addEventListener("load", () => { if (pinned) log.scrollTop = log.scrollHeight; }, true);
+  pill.onclick = toBottom;
 
   function row(m) {
     const staffBadge = m.role === "staff" || m.role === "admin" ? `<span class="role ${esc(m.role)}">${esc(roleLabel(m.role))}</span>` : "";
@@ -43,13 +58,18 @@ export function mountChat(el, channel, user) {
       </div>`;
   }
 
+  // A chat that was removed from the page (e.g. the game page re-rendered) stops polling.
+  let wasConnected = false;
+  const gone = () => { if (el.isConnected) wasConnected = true; return wasConnected && !el.isConnected; };
+
   async function poll(initial = false) {
-    if (busy) return;
+    if (busy || gone()) return;
     busy = true;
     try {
       const q = initial ? "" : `?after=${lastId}&since=${firstId}`;
-      const { messages, removed } = await api(`/api/chat/${encodeURIComponent(channel)}${q}`);
-      const stick = initial || atBottom();
+      const { messages, removed, pulse } = await api(`/api/chat/${encodeURIComponent(channel)}${q}`);
+      emitPulse(pulse);
+      const stick = initial || pinned;
       if (initial) log.innerHTML = "";
       for (const id of removed || []) log.querySelector(`[data-id="${id}"]`)?.remove();
       if (messages.length) {
@@ -59,7 +79,8 @@ export function mountChat(el, channel, user) {
         if (!firstId) firstId = messages[0].id;
       }
       if (!log.querySelector(".chat-msg")) log.innerHTML = `<p class="muted small chat-empty">${t("chat.empty")}</p>`;
-      if (stick) log.scrollTop = log.scrollHeight;
+      if (stick) toBottom();
+      else if (messages.length && messages.some((m) => !m.mine)) pill.classList.remove("hidden");
       failures = 0;
     } catch (e) {
       failures++;
@@ -71,13 +92,15 @@ export function mountChat(el, channel, user) {
 
   function schedule() {
     clearTimeout(timer);
-    if (document.hidden) return; // paused while the tab is in the background
-    timer = setTimeout(async () => { await poll(); schedule(); }, POLL_MS * Math.min(1 + failures, 5));
+    if (document.hidden || gone()) return; // paused while the tab is in the background
+    const base = Date.now() - lastInput > IDLE_AFTER ? IDLE_POLL_MS : POLL_MS;
+    timer = setTimeout(async () => { await poll(); schedule(); }, base * Math.min(1 + failures, 5));
   }
 
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) { poll().then(schedule); } else clearTimeout(timer);
   });
+  window.addEventListener("focus", () => poll());
 
   // Sticker picker: shows the stickers you own (free ones included).
   const picker = el.querySelector(".sticker-picker");
@@ -96,7 +119,7 @@ export function mountChat(el, channel, user) {
     const b = e.target.closest("[data-st]");
     if (!b) return;
     picker.classList.add("hidden");
-    try { await api(`/api/chat/${encodeURIComponent(channel)}`, { method: "POST", body: { body: stickerCode(b.dataset.st) } }); await poll(); log.scrollTop = log.scrollHeight; }
+    try { await api(`/api/chat/${encodeURIComponent(channel)}`, { method: "POST", body: { body: stickerCode(b.dataset.st) } }); await poll(); toBottom(); }
     catch (err) { toast(err.message, true); }
   });
 
@@ -109,7 +132,7 @@ export function mountChat(el, channel, user) {
       input.value = "";
       autosize();
       await poll();
-      log.scrollTop = log.scrollHeight;
+      toBottom();
     } catch (e) { toast(e.message, true); }
     finally { input.disabled = false; input.focus(); }
   }

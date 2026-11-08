@@ -1,5 +1,5 @@
 // Private "For you" feed: composer, posts, likes, replies. Approved members only.
-import { api, esc, rich, can, t, ago, toast, roleLabel, loginHint, levelBadge, avatarHTML, nameHTML, SITE, gameLabel, bgStyle, bgAnimated } from "./common.js";
+import { api, esc, rich, can, t, ago, toast, roleLabel, loginHint, levelBadge, avatarHTML, nameHTML, SITE, gameLabel, bgStyle, bgAnimated, onPulse } from "./common.js";
 
 // opts: { game: id (filter + preselect), userId: profile filter, composer: bool, modes: bool }
 export function mountFeed(el, user, opts = {}) {
@@ -9,16 +9,18 @@ export function mountFeed(el, user, opts = {}) {
     return;
   }
   let mode = opts.userId ? "recent" : "foryou";
-  let posts = [], more = false, cursor = null;
+  let posts = [], more = false, cursor = null, seen = 0;
 
   el.innerHTML = `
     ${opts.composer !== false ? composerHTML() : ""}
     ${opts.modes !== false && !opts.userId ? `<div class="feed-modes">
       <button data-mode="foryou" class="active">${t("feed.forYou")}</button>
       <button data-mode="recent">${t("feed.recent")}</button></div>` : ""}
+    <button type="button" class="feed-new hidden"></button>
     <div class="feed-list"><p class="muted">${t("loading")}</p></div>
     <div class="feed-more"></div>`;
   const list = el.querySelector(".feed-list");
+  const newBar = el.querySelector(".feed-new");
 
   function composerHTML(p = null) {
     return `
@@ -98,6 +100,8 @@ export function mountFeed(el, user, opts = {}) {
     try {
       const r = await api(`/api/feed?${q}`);
       posts = reset ? r.posts : posts.concat(r.posts);
+      for (const p of r.posts) seen = Math.max(seen, p.id);
+      if (reset) newBar.classList.add("hidden");
       more = r.more;
       cursor = mode === "recent" || opts.userId ? posts[posts.length - 1]?.id : posts.length;
       if (reset) list.innerHTML = "";
@@ -189,6 +193,46 @@ export function mountFeed(el, user, opts = {}) {
     }
     toast(t("feed.posted")); load(true);
   });
+
+  // Live updates: when the pulse says someone posted, fetch the newest posts and slide them in at the top.
+  // If you've scrolled down past the top of the feed, a bar lets you jump back up to them.
+  let unseen = 0, checking = false;
+  async function checkNew() {
+    if (checking || document.hidden || !el.isConnected || !seen) return;
+    if (el.querySelector(".composer.editing")) return; // don't shuffle things while you're editing
+    checking = true;
+    const q = new URLSearchParams({ mode: "recent" });
+    if (opts.game) q.set("game", opts.game);
+    if (opts.userId) q.set("user", opts.userId);
+    try {
+      const r = await api(`/api/feed?${q}`);
+      const fresh = r.posts.filter((p) => p.id > seen && !list.querySelector(`.fpost[data-id="${p.id}"]`));
+      if (!fresh.length) return;
+      for (const p of fresh) seen = Math.max(seen, p.id);
+      posts = fresh.concat(posts);
+      list.querySelector(":scope > p.muted")?.remove(); // "no posts yet"
+      list.insertAdjacentHTML("afterbegin", fresh.map(postHTML).join(""));
+      fresh.forEach((p) => list.querySelector(`.fpost[data-id="${p.id}"]`)?.classList.add("fresh"));
+      if (list.getBoundingClientRect().top < 0) {
+        unseen += fresh.filter((p) => !p.mine).length;
+        if (unseen) {
+          newBar.textContent = t(unseen === 1 ? "feed.newPost" : "feed.newPosts").replace("{n}", unseen);
+          newBar.classList.remove("hidden");
+        }
+      }
+    } catch { /* offline for a moment; the next pulse will retry */ }
+    finally { checking = false; }
+  }
+  newBar.onclick = () => {
+    newBar.classList.add("hidden"); unseen = 0;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  addEventListener("scroll", () => {
+    if (unseen && list.getBoundingClientRect().top >= 0) { unseen = 0; newBar.classList.add("hidden"); }
+  }, { passive: true });
+  onPulse("feed", checkNew);
+  setInterval(checkNew, 30_000); // fallback for pages without a chat (e.g. profiles)
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) checkNew(); });
 
   load(true);
 }

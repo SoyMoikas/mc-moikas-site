@@ -19,7 +19,7 @@ export function rich(text) {
 }
 
 export async function api(path, { method = "GET", body } = {}) {
-  const opts = { method, headers: {}, credentials: "same-origin" };
+  const opts = { method, headers: {}, credentials: "same-origin", cache: "no-store" };
   if (body !== undefined) { opts.headers["content-type"] = "application/json"; opts.body = JSON.stringify(body); }
   const r = await fetch(path, opts);
   const data = await r.json().catch(() => ({}));
@@ -370,4 +370,28 @@ export function bindPostActions(root, posts, { user, reload }) {
       });
     }
   });
+}
+
+// Live updates. The chat's quick poll carries a "pulse" (fingerprints of the feed and the
+// announcements); anything on the page can subscribe and refresh only when its part changed.
+const pulseLast = {};
+export function emitPulse(p) {
+  for (const k in p || {}) {
+    const changed = k in pulseLast && pulseLast[k] !== p[k];
+    pulseLast[k] = p[k];
+    if (changed) window.dispatchEvent(new CustomEvent(`pulse:${k}`));
+  }
+}
+export function onPulse(key, fn) { window.addEventListener(`pulse:${key}`, fn); }
+
+// Announcements refresh as soon as the pulse says they changed (plus a slow fallback).
+// Skips while the tab is hidden or someone is writing/editing a post.
+export function livePosts(fetchPosts, renderList, ms = 60_000) {
+  const refresh = async () => {
+    const box = document.getElementById("posts");
+    if (document.hidden || !box || box.querySelector("form, details[open]") || document.querySelector("#post-form form")) return;
+    try { box.innerHTML = renderList(await fetchPosts()); } catch { /* try again later */ }
+  };
+  onPulse("posts", refresh);
+  setInterval(refresh, ms);
 }

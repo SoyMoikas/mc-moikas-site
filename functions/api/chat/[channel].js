@@ -52,7 +52,13 @@ export async function onRequestGet({ request, env, params }) {
 
   const staff = hasRole(user, "staff");
   const messages = rows.map(({ user_id, ...m }) => ({ ...m, mine: user_id === user.id, can_delete: staff || user_id === user.id }));
-  return json({ messages, removed });
+  // "Pulse": tiny fingerprints of the feed and announcements, so the page can refresh those
+  // the moment they change without making its own requests.
+  const pulse = await env.DB.prepare(
+    `SELECT (SELECT MAX(id) FROM social_posts WHERE deleted = 0) AS feed,
+            (SELECT COUNT(*) || ':' || IFNULL(MAX(updated_at), 0) FROM posts) AS posts`
+  ).first();
+  return json({ messages, removed, pulse });
 }
 
 export async function onRequestPost({ request, env, params }) {

@@ -1,7 +1,7 @@
 import { mountChat } from "./chat.js";
 import {
   api, esc, rich, can, t, initPage, SITE, gameLabel, statusBadge, renderPost, postForm, bindPostActions,
-  onSubmit, toast, toISO, ago, fmtDate, loginHint, roleLabel, taskLabel, localized, levelBadge, avatarHTML, nameHTML,
+  onSubmit, toast, toISO, ago, fmtDate, loginHint, roleLabel, taskLabel, localized, levelBadge, avatarHTML, nameHTML, livePosts,
 } from "./common.js";
 
 const user = await initPage();
@@ -239,3 +239,5 @@ function wire() {
 }
 
 load();
+livePosts(async () => (data.posts = (await api(`/api/servers/${encodeURIComponent(id)}`)).posts),
+  (ps) => ps.length ? ps.map((p) => renderPost(p, { user })).join("") : `<p class="muted">${t("sp.noAnnouncements")}</p>`);

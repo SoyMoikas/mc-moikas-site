@@ -36,11 +36,11 @@ async function serversTab() {
       <thead><tr><th>${t("ad.colName")}</th><th>${t("ad.colConnect")}</th><th>${t("ad.colStatus")}</th><th>${t("ad.colVisible")}</th><th>${t("ad.colOrder")}</th><th></th></tr></thead>
       <tbody>${servers.map((s) => `
         <tr>
-          <td><a href="/server?id=${encodeURIComponent(s.id)}">${esc(s.name)}</a><div class="hint">${esc(s.id)}${s.linked ? ` · ${t("ad.linked")}` : ""}</div></td>
-          <td><code>${esc(s.connect)}</code></td>
-          <td>${statusBadge(s) || `<span class="muted small">${t("ad.notLinked")}</span>`}</td>
-          <td>${s.hidden ? `<span class="draft">${t("ad.draft")}</span>` : t("ad.public")}</td>
-          <td>${s.sort_order}</td>
+          <td class="primary-cell"><a href="/server?id=${encodeURIComponent(s.id)}">${esc(s.name)}</a><div class="hint">${esc(s.id)}${s.linked ? ` · ${t("ad.linked")}` : ""}</div></td>
+          <td data-label="${esc(t("ad.colConnect"))}"><code>${esc(s.connect)}</code></td>
+          <td data-label="${esc(t("ad.colStatus"))}">${statusBadge(s) || `<span class="muted small">${t("ad.notLinked")}</span>`}</td>
+          <td data-label="${esc(t("ad.colVisible"))}">${s.hidden ? `<span class="draft">${t("ad.draft")}</span>` : t("ad.public")}</td>
+          <td data-label="${esc(t("ad.colOrder"))}">${s.sort_order}</td>
           <td class="actions"><button data-edit="${esc(s.id)}">${t("edit")}</button></td>
         </tr>`).join("") || `<tr><td colspan="6" class="muted">${t("home.noServers")}</td></tr>`}
       </tbody></table></div>`;
@@ -150,12 +150,12 @@ async function pteroTab() {
       <thead><tr><th>${t("ad.colPtero")}</th><th>${t("ad.colEgg")}</th><th>${t("ad.colPort")}</th><th>${t("ad.colState")}</th><th>${t("ad.colVersions")}</th><th>${t("ad.colPage")}</th></tr></thead>
       <tbody>${servers.map((p) => `
         <tr>
-          <td>${esc(p.data.name)}<div class="hint">${esc(p.data.identifier || p.uuid)}</div></td>
-          <td class="small">${esc(p.data.egg || "—")}</td>
-          <td>${esc(p.data.port ?? "—")}</td>
-          <td>${esc(t(`status.${p.data.state === "running" ? "running" : p.data.state}`))}${p.data.players_online !== null ? ` · ${p.data.players_online}/${p.data.players_max}` : ""}</td>
-          <td class="small">${esc([p.auto.mc_version, p.auto.loader, p.auto.loader_version].filter(Boolean).join(" · ") || "—")}</td>
-          <td>${p.linked_to
+          <td class="primary-cell">${esc(p.data.name)}<div class="hint">${esc(p.data.identifier || p.uuid)}</div></td>
+          <td class="small" data-label="${esc(t("ad.colEgg"))}">${esc(p.data.egg || "—")}</td>
+          <td data-label="${esc(t("ad.colPort"))}">${esc(p.data.port ?? "—")}</td>
+          <td data-label="${esc(t("ad.colState"))}">${esc(t(`status.${p.data.state === "running" ? "running" : p.data.state}`))}${p.data.players_online !== null ? ` · ${p.data.players_online}/${p.data.players_max}` : ""}</td>
+          <td class="small" data-label="${esc(t("ad.colVersions"))}">${esc([p.auto.mc_version, p.auto.loader, p.auto.loader_version].filter(Boolean).join(" · ") || "—")}</td>
+          <td data-label="${esc(t("ad.colPage"))}">${p.linked_to
             ? `<a href="/server?id=${encodeURIComponent(p.linked_to)}">${esc(p.linked_to)}</a>`
             : `<button data-create="${esc(p.uuid)}" data-name="${esc(p.data.name)}">${t("ad.createPage")}</button>`}</td>
         </tr>`).join("") || `<tr><td colspan="6" class="muted">${t("ad.nothingSynced")}</td></tr>`}
@@ -188,13 +188,13 @@ async function usersTab() {
       <tbody>${users.map((u) => {
         const locked = u.id === user.id || u.discord_id === owner_discord_id;
         return `<tr>
-          <td><img src="${esc(u.avatar)}" alt="">${esc(u.username)}<div class="hint">${esc(t("ad.discordId", { id: u.discord_id }))}</div></td>
-          <td>${locked ? `<span class="role ${esc(u.role)}">${esc(roleLabel(u.role))}</span>` : `
+          <td class="primary-cell"><img src="${esc(u.avatar)}" alt="">${esc(u.username)}<div class="hint">${esc(t("ad.discordId", { id: u.discord_id }))}</div></td>
+          <td data-label="${esc(t("ad.colRole"))}">${locked ? `<span class="role ${esc(u.role)}">${esc(roleLabel(u.role))}</span>` : `
             <select data-user="${u.id}" style="width:auto">
               ${ROLES.map((r) => `<option value="${r}" ${u.role === r ? "selected" : ""}>${esc(roleLabel(r))}</option>`).join("")}
             </select>`}</td>
-          <td class="small">${fmtDate(u.created_at)}</td>
-          <td class="small">${u.last_login ? esc(ago(u.last_login)) : "—"}</td>
+          <td class="small" data-label="${esc(t("ad.colJoined"))}">${fmtDate(u.created_at)}</td>
+          <td class="small" data-label="${esc(t("ad.colLastLogin"))}">${u.last_login ? esc(ago(u.last_login)) : "—"}</td>
         </tr>`;
       }).join("")}</tbody></table></div>`;
   tabEl.querySelectorAll("[data-user]").forEach((sel) => {

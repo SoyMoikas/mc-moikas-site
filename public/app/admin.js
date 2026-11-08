@@ -706,10 +706,15 @@ function editItem(item, items) {
     show(".f-slot", part); show(".f-art", part);
     if (part) {
       // built-in drawings for the chosen slot (art ids start with the slot name), or a PNG image
-      const cur = form.art.value || v.art || "";
+      // keep whatever is picked, including "(use an image instead)"; only pick a default drawing the first time
+      // or when the part type changes (see slot.onchange below)
       const opts = ART_IDS.filter((a) => a.startsWith(form.slot.value + "_"));
-      form.art.innerHTML = `<option value="">${t("av.useImage")}</option>` + opts.map((a) => `<option value="${a}" ${a === cur ? "selected" : ""}>${a.replace(/^[a-z]+_/, "")}</option>`).join("");
-      if (!opts.includes(cur) && !form.image.value.trim() && opts.length) form.art.value = opts[0];
+      if (form.art.dataset.slot !== form.slot.value) {
+        const cur = form.art.dataset.slot ? "" : (v.art || (v.image ? "" : opts[0] || ""));
+        form.art.innerHTML = `<option value="">${t("av.useImage")}</option>` + opts.map((a) => `<option value="${a}">${a.replace(/^[a-z]+_/, "")}</option>`).join("");
+        form.art.value = form.art.dataset.slot && !form.image.value.trim() ? opts[0] || "" : cur;
+        form.art.dataset.slot = form.slot.value;
+      }
       show(".f-emoji", false); show(".f-style", false); show(".f-color", false); show(".f-image", !form.art.value);
       form.image.placeholder = "/parts/my-eyes.png";
     }

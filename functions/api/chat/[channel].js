@@ -28,7 +28,7 @@ export async function onRequestGet({ request, env, params }) {
   const after = Number(url.searchParams.get("after")) || 0;
   const since = Number(url.searchParams.get("since")) || 0;
 
-  const cols = `m.id, m.body, m.created_at, m.user_id, u.username, u.avatar, u.role, u.xp, u.eq_frame, u.eq_hat, u.hat_fit, u.avatar_build, u.eq_color, u.eq_font, u.eq_text`;
+  const cols = `m.id, m.body, m.created_at, m.user_id, u.username, u.avatar, u.role, u.xp, u.eq_frame, u.eq_hat, u.hat_fit, u.avatar_build, u.acc_extra, u.eq_color, u.eq_font, u.eq_text`;
   let rows;
   if (after) {
     ({ results: rows } = await env.DB.prepare(

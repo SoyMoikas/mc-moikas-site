@@ -1073,3 +1073,9 @@ body.wallpaper-pixel::before { image-rendering: pixelated; }
 .f-tile input[type=range] { width: 100%; accent-color: var(--accent); }
 /* see-through blocks: a little blur keeps text readable over busy wallpapers */
 html.see-through :is(.card, .server-card, .task, .chat, .rank-chip, .game-card, .rail-me, .game-tile, .store-item) { backdrop-filter: blur(4px); }
+/* Customize → Accessory slots */
+.acc-slots { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+.acc-slot { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 58px; height: 58px; padding: 0; border: 2px solid var(--border); border-radius: 10px; background: transparent; cursor: pointer; }
+.acc-slot.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.acc-slot .acc-num { position: absolute; top: 2px; left: 5px; font-size: .7rem; color: var(--muted); }
+.acc-slot .av { transform: scale(.85); }

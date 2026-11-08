@@ -2,13 +2,13 @@
 // Tabs: Avatar (Discord picture or built from parts, each part movable) · Frame · Accessory (+ fit) · Name (color + style)
 //       · Chat text · Banner · Wallpaper. Save applies it all at once.
 import { api, esc, t, toast } from "./common.js";
-import { catalogItem, itemName, itemPreview, buildSVG, parseBuild, hatPlacement, avatarHTML, nameHTML, textAttrs, bgStyle, bgAnimated } from "./cosmetics.js";
+import { catalogItem, itemName, itemPreview, buildSVG, parseBuild, hatPlacement, avatarHTML, nameHTML, textAttrs, bgStyle, bgAnimated, parseExtras, MAX_ACCESSORIES } from "./cosmetics.js";
 import { PART_SLOTS, REQUIRED_SLOTS, DEFAULT_COLORS } from "./avatar-parts.js";
 import { applyTheme } from "./themes.js";
 
 const parseJSON = (s) => { if (!s) return null; if (typeof s === "object") return s; try { return JSON.parse(s); } catch { return null; } };
 // equip slots (store item type → equipped key from /api/store)
-const EQUIP = ["frame", "hat", "color", "font", "textstyle", "banner", "wallpaper", "theme"];
+const EQUIP = ["frame", "color", "font", "textstyle", "banner", "wallpaper", "theme"];
 const TABS = ["avatar", "frame", "hat", "name", "textstyle", "banner", "wallpaper", "theme"];
 let tab = "avatar";
 
@@ -28,15 +28,15 @@ export async function mountAvatarEditor(el, me) {
     parts: { ...(savedBuild.parts || {}) }, adjust: JSON.parse(JSON.stringify(savedBuild.adjust || {})),
   };
   if (!build.parts.shape) for (const slot of PART_SLOTS) { const first = partsOf(slot)[0]; if (first && slot !== "brows") build.parts[slot] = first.id; }
-  const savedFit = parseJSON(user?.hat_fit ?? me.hat_fit);
-  let fit = null;
-  const resetFit = (keepSaved) => {
-    const hat = catalogItem(eq.hat);
-    fit = hat && !hat.visual?.halo ? hatPlacement({ ...hat.visual, ...(keepSaved && savedFit ? savedFit : {}) }) : null;
-  };
-  resetFit(true);
+  // ---- accessories: slot 0 = your equipped hat (eq_hat + hat_fit), slots 1… = extras (acc_extra)
+  // each slot: { id, fit } where fit = { size, x, y, rotate } (null for halos, which fit themselves)
+  const placeFor = (id, saved) => { const it = catalogItem(id); return it && !it.visual?.halo ? hatPlacement({ ...it.visual, ...(saved || {}) }) : null; };
+  const acc = Array.from({ length: MAX_ACCESSORIES }, () => ({ id: null, fit: null }));
+  if (savedEq.hat) acc[0] = { id: savedEq.hat, fit: placeFor(savedEq.hat, parseJSON(user?.hat_fit ?? me.hat_fit)) };
+  parseExtras(user?.acc_extra ?? me.acc_extra).forEach((a, i) => { acc[i + 1] = { id: a.id, fit: placeFor(a.id, a.x !== undefined ? a : null) }; });
+  let accSlot = 0;
   const openAdjust = new Set();
-  const snapshot = () => JSON.stringify({ eq, build, fit });
+  const snapshot = () => JSON.stringify({ eq, build, acc });
   const initial = snapshot();
 
   el.innerHTML = `
@@ -64,7 +64,9 @@ export async function mountAvatarEditor(el, me) {
   // ---- live preview
   function drawPreview() {
     const look = { ...me, eq_color: eq.color, eq_font: eq.font, eq_text: eq.textstyle };
-    $(".cz-stage").innerHTML = avatarHTML(me, 120, { frame: catalogItem(eq.frame), hat: catalogItem(eq.hat), fit, build: { ...build } });
+    const worn = acc.filter((a) => a.id);
+    $(".cz-stage").innerHTML = avatarHTML(me, 120, { frame: catalogItem(eq.frame), hat: catalogItem(worn[0]?.id) || null, fit: worn[0]?.fit || null,
+      extras: worn.slice(1).map((a) => ({ id: a.id, fit: a.fit })), build: { ...build } });
     $(".cz-name").innerHTML = nameHTML(look, "", catalogItem(eq.color), catalogItem(eq.font));
     const a = textAttrs(null, eq.textstyle || null);
     $(".cz-chat").innerHTML = `<div class="cz-bubble"><div class="body${a.cls}" style="${a.style}">${esc(t("st.textSample"))}</div></div>`;
@@ -120,12 +122,21 @@ export async function mountAvatarEditor(el, me) {
           <a class="small" href="/store#avatar-parts">${t("av.getParts")} →</a>
         </div>`;
     } else if (tab === "hat") {
-      const hat = catalogItem(eq.hat);
-      panel.innerHTML = equipRow("hat") + (fit ? `
-        <div class="ae-fit stack"><b>🎯 ${esc(t("av.fitTitle", { name: itemName(hat) }))}</b>
+      const cur = acc[accSlot], usedElsewhere = new Set(acc.filter((a, i) => i !== accSlot && a.id).map((a) => a.id));
+      const list = mineOf("hat");
+      panel.innerHTML = `
+        <div class="acc-slots">${acc.map((a, i) => `<button type="button" class="acc-slot ${i === accSlot ? "active" : ""}" data-acc-slot="${i}">
+          <span class="acc-num">${i + 1}</span>${a.id ? itemPreview(catalogItem(a.id), me, 28) : `<span class="ae-none small">+</span>`}</button>`).join("")}
+          <span class="hint">${t("cz.accLimit", { n: MAX_ACCESSORIES })}</span></div>
+        <div class="cz-chips">
+          ${chipFor("hat", null, !cur.id, `data-acc-pick=""`)}
+          ${list.map((it) => usedElsewhere.has(it.id) ? "" : chipFor("hat", it, cur.id === it.id, `data-acc-pick="${esc(it.id)}"`)).join("")}
+        </div>${list.length ? "" : `<p class="hint">${t("cz.noneOwned")} <a href="/store#hats">${t("nav.store")}</a></p>`}
+        ${cur.fit ? `
+        <div class="ae-fit stack"><b>🎯 ${esc(t("av.fitTitle", { name: itemName(catalogItem(cur.id)) }))}</b>
           <p class="hint" style="margin:0">${t("av.dragHint")}</p>
-          ${sliders([["size", "ad.hatSize", 30, 200, fit.size, "%"], ["x", "ad.hatX", -100, 100, fit.x, ""], ["y", "ad.hatY", -120, 100, fit.y, ""], ["rotate", "ad.hatRot", -180, 180, fit.rotate, "°"]], "data-fit-k")}
-          <button type="button" class="link small" data-fit-reset>${t("st.fitReset")}</button></div>` : "");
+          ${sliders([["size", "ad.hatSize", 30, 200, cur.fit.size, "%"], ["x", "ad.hatX", -100, 100, cur.fit.x, ""], ["y", "ad.hatY", -120, 100, cur.fit.y, ""], ["rotate", "ad.hatRot", -180, 180, cur.fit.rotate, "°"]], "data-fit-k")}
+          <button type="button" class="link small" data-fit-reset>${t("st.fitReset")}</button></div>` : ""}`;
     } else if (tab === "name") {
       panel.innerHTML = equipRow("color", t("cz.nameColor")) + equipRow("font", t("cz.nameStyle")) + `<p class="hint">${t("cz.nameHint")}</p>`;
     } else if (tab === "textstyle") {
@@ -143,30 +154,37 @@ export async function mountAvatarEditor(el, me) {
     if (q("[data-eq]")) {
       const b = q("[data-eq]"); eq[b.dataset.eq] = b.dataset.id || null;
       if (b.dataset.eq === "theme") applyTheme(catalogItem(eq.theme), false); // try it on the whole page (Undo/leaving puts yours back)
-      if (b.dataset.eq === "hat") resetFit(b.dataset.id === savedEq.hat);
       return draw();
     }
     if (q("[data-use]")) { build.use = q("[data-use]").dataset.use === "1"; return draw(); }
     if (q("[data-slot]")) { const b = q("[data-slot]"); build.parts[b.dataset.slot] = b.dataset.part || null; build.use = true; return draw(); }
     if (q("[data-move]")) { const s = q("[data-move]").dataset.move; openAdjust.has(s) ? openAdjust.delete(s) : openAdjust.add(s); return drawPanel(); }
     if (q("[data-adjust-reset]")) { delete build.adjust[q("[data-adjust-reset]").dataset.adjustReset]; return draw(); }
-    if (q("[data-fit-reset]")) { fit = hatPlacement(catalogItem(eq.hat).visual); return draw(); }
+    if (q("[data-acc-slot]")) { accSlot = Number(q("[data-acc-slot]").dataset.accSlot); return drawPanel(); }
+    if (q("[data-acc-pick]")) { const id = q("[data-acc-pick]").dataset.accPick || null; acc[accSlot] = { id, fit: id ? placeFor(id) : null }; return draw(); }
+    if (q("[data-fit-reset]")) { acc[accSlot].fit = placeFor(acc[accSlot].id); return draw(); }
   });
   panel.addEventListener("input", (e) => {
     const r = e.target;
     const label = () => { const b = r.parentElement.querySelector("b"); if (b) b.textContent = r.value + (r.dataset.unit || ""); };
     if (r.name === "body" || r.name === "bg") { build[r.name] = r.value; return draw(); }
     if (r.dataset.partK) { const slot = r.closest("[data-adjust-slot]").dataset.adjustSlot; (build.adjust[slot] ||= { x: 0, y: 0, s: 100 })[r.dataset.partK] = Number(r.value); label(); return drawPreview(); }
-    if (r.dataset.fitK) { fit[r.dataset.fitK] = Number(r.value); label(); return drawPreview(); }
+    if (r.dataset.fitK) { acc[accSlot].fit[r.dataset.fitK] = Number(r.value); label(); return drawPreview(); }
   });
-  // drag the accessory on the preview
+  // drag any accessory on the preview (it becomes the selected slot)
   $(".cz-stage").addEventListener("pointerdown", (e) => {
-    if (!fit || !e.target.closest(".av-hat")) return;
+    const h = e.target.closest(".av-hat");
+    if (!h) return;
+    const worn = acc.map((a, i) => (a.id ? i : -1)).filter((i) => i >= 0);
+    const slot = worn[Number(h.dataset.acc) || 0];
+    if (slot === undefined || !acc[slot].fit) return;
     e.preventDefault();
+    accSlot = slot; tab = "hat"; drawPanel();
     const av = $(".cz-stage .av").getBoundingClientRect();
     const move = (ev) => {
-      fit.x = Math.round(((ev.clientX - av.left) / av.width - 0.5) * 100); fit.y = Math.round(((ev.clientY - av.top) / av.height - 0.5) * 100);
-      drawPreview(); if (tab === "hat") drawPanel();
+      const f = acc[slot].fit;
+      f.x = Math.round(((ev.clientX - av.left) / av.width - 0.5) * 100); f.y = Math.round(((ev.clientY - av.top) / av.height - 0.5) * 100);
+      drawPreview(); drawPanel();
     };
     const up = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", up); };
     addEventListener("pointermove", move); addEventListener("pointerup", up);
@@ -180,11 +198,12 @@ export async function mountAvatarEditor(el, me) {
         await api("/api/store/equip", { method: "POST", body: { slot, item: eq[slot] || null } });
       const parts = Object.fromEntries(Object.entries(build.parts).filter(([, v]) => v));
       await api("/api/avatar", { method: "POST", body: { use: build.use, body: build.body, bg: build.bg, parts, adjust: build.adjust } });
-      if (fit) {
-        const d = hatPlacement(catalogItem(eq.hat).visual);
-        const isDefault = ["size", "x", "y", "rotate"].every((k) => d[k] === fit[k]);
-        await api("/api/store/hat-fit", { method: "POST", body: isDefault ? { reset: true } : fit });
-      }
+      // accessories: first worn one = equipped hat (+ its fit), the rest = extras
+      const worn = acc.filter((a) => a.id);
+      const isDefault = (a) => { const d = placeFor(a.id); return !a.fit || ["size", "x", "y", "rotate"].every((k) => d[k] === a.fit[k]); };
+      if ((worn[0]?.id || null) !== (savedEq.hat || null)) await api("/api/store/equip", { method: "POST", body: { slot: "hat", item: worn[0]?.id || null } });
+      if (worn[0]) await api("/api/store/hat-fit", { method: "POST", body: isDefault(worn[0]) ? { reset: true } : worn[0].fit });
+      await api("/api/accessories", { method: "POST", body: { extras: worn.slice(1).map((a) => (isDefault(a) ? { id: a.id } : { id: a.id, ...a.fit })) } });
       toast(t("saved"));
       setTimeout(() => location.reload(), 400);
     } catch (err) { toast(err.message, true); btn.disabled = false; }

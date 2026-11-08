@@ -71,16 +71,25 @@ function frameAttrs(item) {
 
 // fit = the wearer's own adjustment ({size, x, y, rotate}, JSON string or object) for their equipped hat.
 function parseFit(f) { if (!f) return null; if (typeof f === "object") return f; try { return JSON.parse(f); } catch { return null; } }
-function hatHTML(item, fit) {
+function hatHTML(item, fit, idx = 0) {
   if (!item) return "";
   const f = parseFit(fit);
   const v = f && !item.visual?.halo ? { ...item.visual, ...f } : item.visual || {};
   if (v.halo) return `<span class="av-halo"></span>`;
   const p = hatPlacement(v);
   const style = ` style="--hs:${p.size / 100};left:${50 + p.x}%;top:${50 + p.y}%;transform:translate(-50%,-50%) rotate(${p.rotate}deg)"`;
-  if (v.image && safeUrl(v.image)) return `<span class="av-hat"${style}><img src="${esc(v.image)}" alt=""></span>`;
-  if (v.emoji) return `<span class="av-hat"${style}>${esc(v.emoji)}</span>`;
+  if (v.image && safeUrl(v.image)) return `<span class="av-hat" data-acc="${idx}"${style}><img src="${esc(v.image)}" alt=""></span>`;
+  if (v.emoji) return `<span class="av-hat" data-acc="${idx}"${style}>${esc(v.emoji)}</span>`;
   return "";
+}
+
+// How many accessories one avatar can wear (keep in sync with MAX_ACCESSORIES in lib/catalog.js).
+export const MAX_ACCESSORIES = 3;
+// Extra accessories: [{ id, size, x, y, rotate }] (JSON from users.acc_extra)
+export function parseExtras(s) {
+  let l = s;
+  if (typeof s === "string") { try { l = JSON.parse(s); } catch { l = []; } }
+  return Array.isArray(l) ? l.filter((a) => a && typeof a.id === "string").slice(0, MAX_ACCESSORIES - 1) : [];
 }
 
 // Where a hat sits: size (% of avatar width), x/y (% of the avatar, from its centre; negative y = up), rotate (deg).
@@ -120,8 +129,11 @@ export function avatarHTML(u, size = 32, over = {}) {
   const frame = "frame" in over ? over.frame : catalogItem(u?.eq_frame);
   const hat = "hat" in over ? over.hat : catalogItem(u?.eq_hat);
   const fit = "fit" in over ? over.fit : "hat" in over ? null : u?.hat_fit;
+  // extras: [{ item | id, fit }] when previewing; otherwise the wearer's saved list (none on store previews)
+  const extras = "extras" in over ? over.extras : "hat" in over ? [] : parseExtras(u?.acc_extra).map((a) => ({ id: a.id, fit: a.x !== undefined ? a : null }));
   const f = frameAttrs(frame);
-  return `<span class="av${f.cls}" style="--av:${size}px;${f.style}">${usesBuild(build) ? buildSVG(build) : `<img class="av-pic" src="${img}" alt="" loading="lazy">`}${f.img}${hatHTML(hat, fit)}</span>`;
+  const acc = hatHTML(hat, fit, 0) + extras.map((a, i) => hatHTML(a.item || catalogItem(a.id), a.fit, i + 1)).join("");
+  return `<span class="av${f.cls}" style="--av:${size}px;${f.style}">${usesBuild(build) ? buildSVG(build) : `<img class="av-pic" src="${img}" alt="" loading="lazy">`}${f.img}${acc}</span>`;
 }
 
 // Username with equipped name color + name style (font/effect). `over` / `fontOver` = items to preview.
@@ -211,5 +223,5 @@ export const bgAnimated = (itemOrId) => {
 // Author fields on posts come prefixed (author_avatar, author_frame…).
 export const fromAuthor = (p) => ({
   username: p.author, avatar: p.author_avatar, xp: p.author_xp,
-  eq_frame: p.author_frame, eq_hat: p.author_hat, hat_fit: p.author_hat_fit, avatar_build: p.author_avatar_build, eq_color: p.author_color, eq_font: p.author_font,
+  eq_frame: p.author_frame, eq_hat: p.author_hat, hat_fit: p.author_hat_fit, avatar_build: p.author_avatar_build, acc_extra: p.author_acc_extra, eq_color: p.author_color, eq_font: p.author_font,
 });

@@ -1,5 +1,6 @@
 import { json, err, body, str, int, now } from "../../../../lib/util.js";
 import { need } from "../../../../lib/auth.js";
+import { dropExtra } from "../../store/equip.js";
 import { loadItems, ownedSet, owns, coinsOf, levelOf, SLOTS } from "../../../../lib/catalog.js";
 
 // Admin-only tools for testing the store: see/give/take coins and items for any user (yourself included).
@@ -53,6 +54,8 @@ export async function onRequestPost({ request, env, params }) {
   } else if (b.take) {
     const id = str(b.take, 40, "take");
     await env.DB.prepare("DELETE FROM user_items WHERE user_id = ? AND item_id = ?").bind(u.id, id).run();
+    const ex = await env.DB.prepare("SELECT acc_extra FROM users WHERE id = ?").bind(u.id).first();
+    if (ex?.acc_extra) await dropExtra(env, { id: u.id, acc_extra: ex.acc_extra }, id);
     // Unequip it unless they still own it through their level.
     const item = await env.DB.prepare("SELECT type, reward_level FROM store_items WHERE id = ?").bind(id).first();
     const col = item && SLOTS[item.type];

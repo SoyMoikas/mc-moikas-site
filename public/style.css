@@ -895,3 +895,12 @@ tr.has-banner td + td { background: none; }
 .reward-levels .reward-level { margin: 6px 0; flex: none; }
 .reward-levels .store-grid { display: flex; gap: 10px; grid-template-columns: none; }
 .reward-levels .store-item { width: 150px; }
+
+/* Admin wallet tool */
+.wallet { margin-top: 16px; }
+.wallet .big { font-size: 1.6rem; }
+.wallet .row.wrap { flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+.wallet-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.wallet-item { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px; border: 1px solid var(--border); border-radius: 8px; text-align: center; }
+.wallet-item.equipped { border-color: var(--accent); }
+.wallet-item .wi-prev { min-height: 40px; display: flex; align-items: center; justify-content: center; transform: scale(.8); }

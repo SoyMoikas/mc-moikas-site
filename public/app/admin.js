@@ -341,7 +341,7 @@ async function usersTab() {
         const locked = u.id === user.id || u.discord_id === owner_discord_id || (!isAdmin && !SUB_MANAGEABLE.includes(u.role));
         const p = permsOf(u);
         return `<tr>
-          <td class="primary-cell"><img src="${esc(u.avatar)}" alt="">${esc(u.username)}<div class="hint">${esc(t("ad.discordId", { id: u.discord_id }))}${u.mc_name ? ` · MC: ${esc(u.mc_name)}${locked ? "" : ` <button class="link" data-unlink="${u.id}">${t("ad.unlink")}</button>`}` : ""}</div></td>
+          <td class="primary-cell"><img src="${esc(u.avatar)}" alt="">${esc(u.username)}${isAdmin ? ` <button class="link small" data-wallet="${u.id}">🪙 ${t("ad.wallet")}</button>` : ""}<div class="hint">${esc(t("ad.discordId", { id: u.discord_id }))}${u.mc_name ? ` · MC: ${esc(u.mc_name)}${locked ? "" : ` <button class="link" data-unlink="${u.id}">${t("ad.unlink")}</button>`}` : ""}</div></td>
           <td data-label="${esc(t("ad.colRole"))}">
             ${locked ? `<span class="role ${esc(u.role)}">${esc(roleLabel(u.role))}</span>` : `
               <select data-user="${u.id}" style="width:auto">
@@ -355,7 +355,10 @@ async function usersTab() {
           <td class="small" data-label="${esc(t("ad.colLastLogin"))}">${u.last_login ? esc(ago(u.last_login)) : "—"}</td>
         </tr>`;
       }).join("")}</tbody></table></div>
-    ${isAdmin ? `<p class="hint">${t("ad.subadminHelp")}</p>` : ""}`;
+    ${isAdmin ? `<p class="hint">${t("ad.subadminHelp")}</p>` : ""}
+    <div id="wallet-panel"></div>`;
+
+  tabEl.querySelectorAll("[data-wallet]").forEach((b) => b.onclick = () => walletPanel(b.dataset.wallet));
 
   tabEl.querySelectorAll("[data-unlink]").forEach((b) => b.onclick = async () => {
     if (!confirm(t("ad.confirmUnlink"))) return;
@@ -376,6 +379,76 @@ async function usersTab() {
     try { await api(`/api/users/${uid}`, { method: "PATCH", body: { role: "subadmin", permissions } }); toast(t("ad.permsUpdated")); }
     catch (e) { toast(e.message, true); cb.checked = !cb.checked; }
   });
+}
+
+/* ---------------- Wallet & items (admin testing tool) ---------------- */
+
+async function walletPanel(uid) {
+  const box = tabEl.querySelector("#wallet-panel");
+  box.innerHTML = `<p class="muted">${t("loading")}</p>`;
+  let w;
+  const call = async (b) => {
+    try { w = await api(`/api/users/${uid}/wallet`, b ? { method: "POST", body: b } : undefined); render(); }
+    catch (e) { toast(e.message, true); }
+  };
+  function render() {
+    const typeName = (ty) => t(`ad.type.${ty}`);
+    const have = w.items.filter((i) => i.bought || i.from_level);
+    const missing = w.items.filter((i) => !i.bought && !i.from_level);
+    const byType = (list) => [...new Set(list.map((i) => i.type))].map((ty) => [ty, list.filter((i) => i.type === ty)]);
+    box.innerHTML = `
+      <section class="card wallet stack">
+        <div class="section-head"><h2>🪙 ${esc(t("ad.walletOf", { name: w.user.username }))}</h2><button class="link" data-close>✕</button></div>
+        <div class="wallet-coins">
+          <b class="big">🪙 ${w.user.coins.toLocaleString()}</b> <span class="muted small">${t("lvl.short")} ${w.user.level}</span>
+          <div class="row wrap">
+            ${[100, 1000, 10000].map((n) => `<button data-add="${n}">+${n.toLocaleString()}</button>`).join("")}
+            ${[100, 1000].map((n) => `<button data-add="-${n}">−${n.toLocaleString()}</button>`).join("")}
+            <input type="number" name="amt" placeholder="${esc(t("ad.amount"))}" style="width:110px">
+            <button class="primary" data-set>${t("ad.setTo")}</button>
+            <button class="danger" data-zero>${t("ad.setZero")}</button>
+          </div>
+          <p class="hint">${t("ad.walletHint")}</p>
+        </div>
+        <div class="row wrap">
+          <select name="give" style="flex:1;min-width:220px">
+            ${byType(missing).map(([ty, list]) => `<optgroup label="${esc(typeName(ty))}">${list.map((i) => `<option value="${esc(i.id)}">${esc(itemName(i))}${i.active ? "" : ` (${t("q.inactive")})`}</option>`).join("")}</optgroup>`).join("")}
+          </select>
+          <button class="primary" data-give ${missing.length ? "" : "disabled"}>${t("ad.giveItem")}</button>
+          <button data-give-all ${missing.length ? "" : "disabled"}>${t("ad.giveAll")}</button>
+          <button class="danger" data-take-all>${t("ad.takeAll")}</button>
+        </div>
+        <h3 style="margin:6px 0 0">${t("ad.ownedItems", { n: have.length })}</h3>
+        <div class="wallet-items">
+          ${have.map((i) => `
+            <div class="wallet-item ${Object.values(w.equipped).includes(i.id) ? "equipped" : ""}" title="${esc(typeName(i.type))}">
+              <span class="wi-prev">${itemPreview(i, null, 30)}</span>
+              <span class="small">${esc(itemName(i))}</span>
+              ${i.bought ? `<button class="link small" data-take="${esc(i.id)}">${t("ad.take")}</button>` : `<span class="hint">🎁 ${t("ad.fromLevel")}</span>`}
+            </div>`).join("") || `<p class="muted">—</p>`}
+        </div>
+      </section>`;
+    box.querySelector("[data-close]").onclick = () => (box.innerHTML = "");
+    box.querySelectorAll("[data-add]").forEach((b) => b.onclick = () => call({ coins: Number(b.dataset.add) }));
+    const amt = box.querySelector("[name=amt]");
+    box.querySelector("[data-set]").onclick = () => amt.value === "" ? toast(t("ad.amount"), true) : call({ set_coins: Number(amt.value) });
+    box.querySelector("[data-zero]").onclick = () => call({ set_coins: 0 });
+    box.querySelector("[data-give]").onclick = () => call({ give: box.querySelector("[name=give]").value });
+    box.querySelectorAll("[data-take]").forEach((b) => b.onclick = () => call({ take: b.dataset.take }));
+    box.querySelector("[data-give-all]").onclick = async () => {
+      if (!confirm(t("ad.confirmGiveAll", { n: missing.length }))) return;
+      for (const i of missing) await api(`/api/users/${uid}/wallet`, { method: "POST", body: { give: i.id } }).catch(() => {});
+      call();
+    };
+    box.querySelector("[data-take-all]").onclick = async () => {
+      const bought = w.items.filter((i) => i.bought);
+      if (!bought.length || !confirm(t("ad.confirmTakeAll", { n: bought.length }))) return;
+      for (const i of bought) await api(`/api/users/${uid}/wallet`, { method: "POST", body: { take: i.id } }).catch(() => {});
+      call();
+    };
+  }
+  await call();
+  box.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 /* ---------------- Store ---------------- */

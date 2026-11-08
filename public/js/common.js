@@ -1,7 +1,8 @@
 // Shared helpers for every page.
 import { t, tErr, lang, locale, setLang, applyStatic } from "./i18n.js";
-import { levelBadge } from "./levels.js";
-export { t, lang, levelBadge };
+import { levelBadge, levelInfo } from "./levels.js";
+import { avatarHTML, nameHTML, fromAuthor } from "./cosmetics.js";
+export { t, lang, levelBadge, avatarHTML, nameHTML };
 
 const RANK = { pending: 0, member: 1, staff: 2, admin: 3 };
 export const can = (user, role) => !!user && RANK[user.role] >= RANK[role];
@@ -83,12 +84,15 @@ export async function initPage() {
         ${navLink("/", "nav.servers")}
         ${navLink("/quests", "nav.quests")}
         ${navLink("/ranking", "nav.ranking")}
+        ${navLink("/store", "nav.store")}
         ${can(user, "admin") ? navLink("/admin", "nav.admin") : ""}
       </nav>
       <div class="userbox">
         <button class="lang" title="${esc(t("lang.switchTitle"))}" data-lang="${lang === "es" ? "en" : "es"}">${t("lang.switch")}</button>
         ${user
-          ? `<a class="me" href="/profile" title="${esc(t("nav.profile"))}"><img src="${esc(user.avatar)}" alt=""><span class="uname">${esc(user.username)}</span>${levelBadge(user.xp)}</a>
+          ? `<a class="me" href="/profile" title="${esc(t("nav.profile"))}">${avatarHTML(user, 28)}
+               <span class="me-text"><span class="me-top"><span class="uname">${esc(user.username)}</span>${levelBadge(user.xp)}</span>
+                 ${xpMini(user.xp)}</span></a>
              <span class="role ${esc(user.role)}">${esc(roleLabel(user.role))}</span>
              <a class="small muted logout" href="/auth/logout">${t("auth.logout")}</a>`
           : `<a class="btn discord" href="/auth/login?next=${encodeURIComponent(location.pathname + location.search)}">${t("auth.login")}</a>`}
@@ -106,6 +110,13 @@ export async function initPage() {
     setTimeout(() => (b.textContent = t("copy")), 1500);
   });
   return user;
+}
+
+// Thin XP bar with "X XP to level N" tooltip.
+export function xpMini(xp) {
+  const l = levelInfo(xp);
+  const tip = t("xp.toNext", { n: (l.needed - l.into).toLocaleString(), level: l.level + 1 });
+  return `<span class="xp-mini" title="${esc(tip)}" style="--rank:${l.color}"><span style="width:${l.pct}%"></span></span>`;
 }
 
 export const loginHint = (user) => !user
@@ -171,23 +182,27 @@ export function postForm(values = {}, { servers = null } = {}) {
 }
 
 export function renderPost(p, { user, showServer = false } = {}) {
+  const a = p.author ? fromAuthor(p) : null;
   return `
-    <article class="card post" data-post="${p.id}">
-      <div class="meta">
-        ${p.pinned ? `<span class="pin">${t("pf.pinned")}</span>` : ""}
-        <span class="tag ${esc(p.tag)}">${esc(tagLabel(p.tag))}</span>
-        <span>${fmtDate(p.created_at)}</span>
-        ${p.author ? `<span>${esc(t("by", { name: p.author }))}</span>` : ""}
-        ${showServer ? (p.server_id
-          ? `<a class="server-link" href="/server?id=${encodeURIComponent(p.server_id)}">${esc(p.server_name)}</a>`
-          : `<span class="server-link muted">${t("allServers")}</span>`) : ""}
+    <article class="card post ${a ? "has-author" : ""}" data-post="${p.id}">
+      ${a ? `<div class="post-av">${avatarHTML(a, 44)}</div>` : ""}
+      <div class="post-main">
+        <div class="meta">
+          ${a ? `<span class="post-author">${nameHTML(a)} ${levelBadge(a.xp)}</span>` : ""}
+          ${p.pinned ? `<span class="pin">${t("pf.pinned")}</span>` : ""}
+          <span class="tag ${esc(p.tag)}">${esc(tagLabel(p.tag))}</span>
+          <span>${fmtDate(p.created_at)}</span>
+          ${showServer ? (p.server_id
+            ? `<a class="server-link" href="/server?id=${encodeURIComponent(p.server_id)}">${esc(p.server_name)}</a>`
+            : `<span class="server-link muted">${t("allServers")}</span>`) : ""}
+        </div>
+        <h3>${esc(p.title)}</h3>
+        <div class="body">${rich(p.body)}</div>
+        ${p.event_at ? `<div class="event">🗓 ${esc(fmtDateTime(p.event_at))}</div>` : ""}
+        ${can(user, "staff") ? `<div class="actions" style="margin-top:10px">
+          <button class="link" data-edit-post="${p.id}">${t("edit")}</button>
+          <button class="link" data-delete-post="${p.id}">${t("delete")}</button></div>` : ""}
       </div>
-      <h3>${esc(p.title)}</h3>
-      <div class="body">${rich(p.body)}</div>
-      ${p.event_at ? `<div class="event">🗓 ${esc(fmtDateTime(p.event_at))}</div>` : ""}
-      ${can(user, "staff") ? `<div class="actions" style="margin-top:10px">
-        <button class="link" data-edit-post="${p.id}">${t("edit")}</button>
-        <button class="link" data-delete-post="${p.id}">${t("delete")}</button></div>` : ""}
     </article>`;
 }
 

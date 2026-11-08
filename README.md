@@ -81,7 +81,7 @@ The site picks Spanish for anyone whose browser is in Spanish; everyone can swit
 UI text lives in `public/js/i18n.js`. Each server has optional Spanish description and join steps (Admin → Edit).
 Announcements, tasks and comments are shown as written.
 
-Database updates for existing installs: run each `migrations-00X-*.sql` file you haven't run yet, once, in the D1 console (001 = Spanish fields, 002 = chat, 003 = levels & quests).
+Database updates for existing installs: run each `migrations-00X-*.sql` file you haven't run yet, once, in the D1 console (001 = Spanish fields, 002 = chat, 003 = levels & quests, 004 = store).
 
 ## Levels & quests
 - XP = 1 per minute played on any server (from each world's `stats/<uuid>.json`) + quest XP. Level L needs 30·L² XP.
@@ -89,6 +89,11 @@ Database updates for existing installs: run each `migrations-00X-*.sql` file you
 - Automatic quests check advancements (`minecraft:story/mine_diamond`) or statistics (`minecraft:mined/minecraft:stone` ≥ N).
   Manual quests are submitted by players and approved by staff on the Quests page.
 - The sync script reads stats through Pterodactyl's file API every 10 minutes (`STATS_EVERY_MIN` in sync.env).
+
+## Store
+- Coins = XP ÷ 10, minus what you've spent (spending never lowers your level).
+- Items (frames, hats, name colors, chat stickers) are defined in `lib/catalog.js` (price, level),
+  `public/js/cosmetics.js` (look) and `public/js/i18n.js` (`item.<id>` names). Add new ones in all three.
 
 ## Adding another server later
 1. Create it in Pterodactyl, giving it its own port (e.g. 25566).

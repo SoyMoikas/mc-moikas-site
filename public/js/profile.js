@@ -1,4 +1,4 @@
-import { api, esc, t, initPage, onSubmit, toast, fmtDate, roleLabel, localized } from "./common.js";
+import { api, esc, t, initPage, onSubmit, toast, fmtDate, roleLabel, localized, avatarHTML, nameHTML } from "./common.js";
 import { levelInfo, fmtHours } from "./levels.js";
 
 const user = await initPage();
@@ -22,16 +22,16 @@ async function load() {
     <section>
       <div class="card profile-card" style="--rank:${l.color}">
         <div class="pc-head">
-          <img src="${esc(p.user.avatar)}" alt="">
+          ${avatarHTML(p.user, 64)}
           <div>
-            <h2 style="margin:0">${esc(p.user.username)}</h2>
+            <h2 style="margin:0">${nameHTML(p.user)}</h2>
             <div class="small muted">${p.user.mc_name ? `⛏ ${esc(p.user.mc_name)} · ` : ""}<span class="role ${esc(p.user.role)}">${esc(roleLabel(p.user.role))}</span></div>
           </div>
           <div class="pc-level"><span class="big">${l.level}</span><span class="small">${t("lvl.level")}</span></div>
         </div>
         <div class="pc-rank" style="color:${l.color}">${esc(l.rank)}</div>
         <div class="xpbar"><div style="width:${l.pct}%"></div></div>
-        <div class="small muted pc-xp">${t("pf2.toNext", { into: l.into.toLocaleString(), needed: l.needed.toLocaleString(), next: l.level + 1 })}</div>
+        <div class="small muted pc-xp">${t("pf2.toNext", { into: l.into.toLocaleString(), needed: l.needed.toLocaleString(), next: l.level + 1 })} · <b>${esc(t("xp.toNext", { n: (l.needed - l.into).toLocaleString(), level: l.level + 1 }))}</b></div>
         <div class="specs" style="margin-top:14px">
           <div class="spec"><span>XP</span><strong>${l.xp.toLocaleString()}</strong></div>
           <div class="spec"><span>${t("rk.hours")}</span><strong>${fmtHours(p.user.play_minutes)}</strong></div>
@@ -58,7 +58,7 @@ async function load() {
         : `<p class="muted">${t("pf2.noQuests")}</p>`}
     </section>
 
-    ${own ? `<p style="margin-top:24px"><a class="btn" href="/auth/logout">${t("auth.logout")}</a></p>` : ""}`;
+    ${own ? `<p style="margin-top:24px" class="actions"><a class="btn primary" href="/store">🪙 ${t("nav.store")}</a><a class="btn" href="/auth/logout">${t("auth.logout")}</a></p>` : ""}`;
 
   if (own) renderLink();
 }

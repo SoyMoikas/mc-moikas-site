@@ -1,5 +1,6 @@
 import { json, err, body, now, str, HttpError } from "../../../lib/util.js";
 import { need, hasRole } from "../../../lib/auth.js";
+import { ITEMS, STICKER_RE, ownedSet, owns } from "../../../lib/catalog.js";
 
 // Channels: "general" or a server id. Members and up can read and post.
 
@@ -20,7 +21,7 @@ export async function onRequestGet({ request, env, params }) {
   const after = Number(url.searchParams.get("after")) || 0;
   const since = Number(url.searchParams.get("since")) || 0;
 
-  const cols = `m.id, m.body, m.created_at, m.user_id, u.username, u.avatar, u.role, u.xp`;
+  const cols = `m.id, m.body, m.created_at, m.user_id, u.username, u.avatar, u.role, u.xp, u.eq_frame, u.eq_hat, u.eq_color`;
   let rows;
   if (after) {
     ({ results: rows } = await env.DB.prepare(
@@ -55,6 +56,11 @@ export async function onRequestPost({ request, env, params }) {
   if (b instanceof Response) return b;
   const text = str(b.body, 500, "message");
   if (!text) return err(400, "Message can't be empty");
+  const sticker = text.match(STICKER_RE);
+  if (sticker) {
+    const item = ITEMS[sticker[1]];
+    if (!item || item.type !== "sticker" || !owns(item, await ownedSet(env, user.id), user.xp)) return err(403, "You don't own that sticker");
+  }
 
   // Flood control: 6 messages per 10 seconds per user.
   const recent = await env.DB.prepare("SELECT COUNT(*) AS n FROM chat_messages WHERE user_id = ? AND created_at > ?")

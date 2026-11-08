@@ -3,7 +3,7 @@ import { json, err } from "../../../lib/util.js";
 // Public profile: level info, hours per server, completed quests.
 export async function onRequestGet({ env, params }) {
   const u = await env.DB.prepare(
-    "SELECT id, username, avatar, role, mc_uuid, mc_name, xp, play_minutes, created_at FROM users WHERE id = ?"
+    "SELECT id, username, avatar, role, mc_uuid, mc_name, xp, play_minutes, created_at, eq_frame, eq_hat, eq_color FROM users WHERE id = ?"
   ).bind(params.id).first();
   if (!u) return err(404, "User not found");
 

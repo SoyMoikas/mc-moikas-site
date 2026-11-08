@@ -7,7 +7,7 @@ export async function onRequestGet({ env, request }) {
   const limit = Math.min(Number(new URL(request.url).searchParams.get("limit")) || 15, 50);
   const { results } = await env.DB.prepare(
     `SELECT p.id, p.server_id, p.title, p.body, p.tag, p.event_at, p.pinned, p.created_at, p.updated_at,
-            u.username AS author, u.avatar AS author_avatar,
+            u.username AS author, u.avatar AS author_avatar, u.xp AS author_xp, u.eq_frame AS author_frame, u.eq_hat AS author_hat, u.eq_color AS author_color,
             COALESCE(s.name, s.id) AS server_name
        FROM posts p
        LEFT JOIN users u ON u.id = p.author_id

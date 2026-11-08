@@ -1,7 +1,7 @@
 import { mountChat } from "./chat.js";
 import {
   api, esc, rich, can, t, initPage, statusBadge, renderPost, postForm, bindPostActions,
-  onSubmit, toast, toISO, ago, fmtDate, loginHint, roleLabel, taskLabel, localized, levelBadge,
+  onSubmit, toast, toISO, ago, fmtDate, loginHint, roleLabel, taskLabel, localized, levelBadge, avatarHTML, nameHTML,
 } from "./common.js";
 
 const user = await initPage();
@@ -131,9 +131,9 @@ async function loadTask(el) {
     <div class="comments">
       ${comments.length ? comments.map((c) => `
         <div class="comment">
-          <img src="${esc(c.avatar || "https://cdn.discordapp.com/embed/avatars/0.png")}" alt="">
+          ${avatarHTML(c, 32)}
           <div class="main">
-            <div class="who"><b>${esc(c.username || t("deletedUser"))}</b>${c.username ? levelBadge(c.xp) : ""}
+            <div class="who">${nameHTML(c, t("deletedUser"))}${c.username ? levelBadge(c.xp) : ""}
               ${c.role === "staff" || c.role === "admin" ? `<span class="role ${esc(c.role)}">${esc(roleLabel(c.role))}</span>` : ""}
               <span class="when">${esc(ago(c.created_at))}</span>
               ${c.can_delete ? `<button class="link" data-delete-comment="${c.id}">${t("deleteLower")}</button>` : ""}</div>

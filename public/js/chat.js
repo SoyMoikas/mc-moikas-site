@@ -1,5 +1,6 @@
 // Chat box. Polls for new messages every few seconds while the tab is visible.
-import { api, esc, rich, can, t, ago, toast, roleLabel, loginHint, levelBadge } from "./common.js";
+import { api, esc, rich, can, t, ago, toast, roleLabel, loginHint, levelBadge, avatarHTML, nameHTML } from "./common.js";
+import { STICKER_RE, STICKERS, stickerHTML, stickerCode } from "./cosmetics.js";
 
 const POLL_MS = 4000;
 
@@ -13,7 +14,9 @@ export function mountChat(el, channel, user) {
 
   el.innerHTML = `
     <div class="chat-log" aria-live="polite"><p class="muted small chat-empty">${t("loading")}</p></div>
+    <div class="sticker-picker hidden"></div>
     <form class="chat-form">
+      <button type="button" class="sticker-btn" title="${esc(t("chat.stickers"))}">🙂</button>
       <textarea name="body" rows="1" maxlength="500" placeholder="${esc(t("chat.placeholder"))}" required></textarea>
       <button class="primary">${t("chat.send")}</button>
     </form>`;
@@ -29,13 +32,13 @@ export function mountChat(el, channel, user) {
     const staffBadge = m.role === "staff" || m.role === "admin" ? `<span class="role ${esc(m.role)}">${esc(roleLabel(m.role))}</span>` : "";
     return `
       <div class="chat-msg ${m.mine ? "mine" : ""}" data-id="${m.id}">
-        <img src="${esc(m.avatar || "https://cdn.discordapp.com/embed/avatars/0.png")}" alt="">
+        ${avatarHTML(m, 30)}
         <div class="chat-main">
-          <div class="who"><b>${esc(m.username || t("deletedUser"))}</b>${m.username ? levelBadge(m.xp) : ""}${staffBadge}
+          <div class="who">${nameHTML(m, t("deletedUser"))}${m.username ? levelBadge(m.xp) : ""}${staffBadge}
             <span class="when" data-ts="${m.created_at}" title="${esc(new Date(m.created_at).toLocaleString())}">${esc(ago(m.created_at))}</span>
             ${m.can_delete ? `<button class="link chat-del" data-del="${m.id}" title="${esc(t("delete"))}">✕</button>` : ""}
           </div>
-          <div class="body">${rich(m.body)}</div>
+          ${(() => { const st = m.body.match(STICKER_RE); return st && STICKERS[st[1]] ? `<div class="body">${stickerHTML(st[1])}</div>` : `<div class="body">${rich(m.body)}</div>`; })()}
         </div>
       </div>`;
   }
@@ -74,6 +77,27 @@ export function mountChat(el, channel, user) {
 
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) { poll().then(schedule); } else clearTimeout(timer);
+  });
+
+  // Sticker picker: shows the stickers you own (free ones included).
+  const picker = el.querySelector(".sticker-picker");
+  el.querySelector(".sticker-btn").onclick = async () => {
+    if (!picker.classList.contains("hidden")) { picker.classList.add("hidden"); return; }
+    picker.classList.remove("hidden");
+    picker.innerHTML = `<p class="muted small">${t("loading")}</p>`;
+    try {
+      const { user: me } = await api("/api/store");
+      const mine = (me?.owned || []).filter((id) => STICKERS[id]);
+      picker.innerHTML = mine.map((id) => `<button type="button" class="sticker-pick" data-st="${id}">${stickerHTML(id, { small: true })}</button>`).join("")
+        + `<a class="small" href="/store#stickers">${t("chat.moreStickers")}</a>`;
+    } catch (e) { picker.innerHTML = `<p class="muted small">${esc(e.message)}</p>`; }
+  };
+  picker.addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-st]");
+    if (!b) return;
+    picker.classList.add("hidden");
+    try { await api(`/api/chat/${encodeURIComponent(channel)}`, { method: "POST", body: { body: stickerCode(b.dataset.st) } }); await poll(); log.scrollTop = log.scrollHeight; }
+    catch (err) { toast(err.message, true); }
   });
 
   async function send() {

@@ -1,4 +1,4 @@
-import { api, esc, t, initPage } from "./common.js";
+import { api, esc, t, initPage, avatarHTML, nameHTML } from "./common.js";
 import { levelInfo, levelBadge, fmtHours, RANKS, xpForLevel } from "./levels.js";
 
 const user = await initPage();
@@ -15,6 +15,15 @@ main.innerHTML = `
   <section>
     <div class="section-head"><h2>${t("rk.title")}</h2></div>
     <p class="hint">${t("rk.explain")}</p>
+    ${user ? (() => { const l = levelInfo(user.xp); return `
+      <div class="card my-progress" style="--rank:${l.color}">
+        ${avatarHTML(user, 48)}
+        <div class="mp-main">
+          <div class="mp-top"><b>${t("rk.yourProgress")}</b> ${levelBadge(user.xp)} <span class="rank-name" style="color:${l.color}">${esc(l.rank)}</span></div>
+          <div class="xpbar"><div style="width:${l.pct}%"></div></div>
+          <div class="small muted">${t("pf2.toNext", { into: l.into.toLocaleString(), needed: l.needed.toLocaleString(), next: l.level + 1 })} · <b>${esc(t("xp.toNext", { n: (l.needed - l.into).toLocaleString(), level: l.level + 1 }))}</b></div>
+        </div>
+      </div>`; })() : ""}
     ${players.length ? `
     <div class="card table-wrap"><table class="ranking">
       <thead><tr><th>${t("rk.player")}</th><th>${t("rk.level")}</th><th>XP</th><th>${t("rk.hours")}</th><th>${t("rk.quests")}</th></tr></thead>
@@ -22,9 +31,11 @@ main.innerHTML = `
         const l = levelInfo(p.xp);
         return `<tr class="${user && p.id === user.id ? "me-row" : ""} ${i < 3 ? "top" : ""}">
           <td class="primary-cell"><span class="pos">${medal(i)}</span>
-            <a class="who-cell" href="/profile?id=${p.id}"><img src="${esc(p.avatar)}" alt=""><span><b>${esc(p.username)}</b>
+            <a class="who-cell" href="/profile?id=${p.id}">${avatarHTML(p, 34)}<span>${nameHTML(p)}
               ${p.mc_name ? `<span class="hint">${esc(p.mc_name)}</span>` : ""}</span></a></td>
-          <td data-label="${esc(t("rk.level"))}">${levelBadge(p.xp)} <span class="rank-name" style="color:${l.color}">${esc(l.rank)}</span></td>
+          <td data-label="${esc(t("rk.level"))}"><div class="lvl-cell">${levelBadge(p.xp)} <span class="rank-name" style="color:${l.color}">${esc(l.rank)}</span>
+            <span class="xp-row" style="--rank:${l.color}" title="${esc(t("xp.toNext", { n: (l.needed - l.into).toLocaleString(), level: l.level + 1 }))}"><span style="width:${l.pct}%"></span></span>
+            <span class="hint">${esc(t("xp.toNext", { n: (l.needed - l.into).toLocaleString(), level: l.level + 1 }))}</span></div></td>
           <td data-label="XP">${l.xp.toLocaleString()}</td>
           <td data-label="${esc(t("rk.hours"))}">${fmtHours(p.play_minutes)}</td>
           <td data-label="${esc(t("rk.quests"))}">${p.quests}</td>
@@ -36,6 +47,6 @@ main.innerHTML = `
     <div class="section-head"><h2>${t("rk.ranks")}</h2></div>
     <div class="ranks">${RANKS.map((r) => `
       <div class="rank-chip" style="--rank:${r.color}"><b>${t(`rank.${r.key}`)}</b>
-        <span class="small muted">${t("rk.fromLevel", { n: r.min })} · ${t("rk.aboutHours", { h: Math.round(xpForLevel(r.min) / 60) })}</span></div>`).join("")}
+        <span class="small muted">${t("rk.fromLevel", { n: r.min })} · ${xpForLevel(r.min).toLocaleString()} XP</span></div>`).join("")}
     </div>
   </section>`;

@@ -79,7 +79,7 @@ export async function mountAvatarEditor(el, me) {
   const chipFor = (type, it, on, attrs) => `
     <button type="button" class="cz-chip ${on ? "on" : ""}" ${attrs} title="${esc(it ? itemName(it) : t("av.none"))}">
       <span class="cz-chip-prev">${it ? itemPreview(it, me, 40) : `<span class="ae-none">∅</span>`}</span>
-      <span class="small">${esc(it ? itemName(it) : t("av.none"))}</span></button>`;
+      <span class="small">${esc(it ? itemName(it) : type === "theme" ? t("cz.siteDefault") : t("av.none"))}</span></button>`;
   const equipRow = (type, label) => {
     const list = mineOf(type);
     return `${label ? `<b class="small cz-label">${label}</b>` : ""}<div class="cz-chips">

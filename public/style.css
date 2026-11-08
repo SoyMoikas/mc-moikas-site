@@ -724,9 +724,9 @@ main.page footer { padding: 24px 0; }
 @keyframes art-drift { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
 
 body.has-wallpaper::before { content: ""; position: fixed; inset: 0; z-index: -2; background: var(--wallpaper); }
-body.has-wallpaper::after { content: ""; position: fixed; inset: 0; z-index: -1; background: linear-gradient(rgba(12,14,22,.62), rgba(12,14,22,.78)); }
+body.has-wallpaper::after { content: ""; position: fixed; inset: 0; z-index: -1; background: linear-gradient(color-mix(in srgb, var(--bg) 62%, transparent), color-mix(in srgb, var(--bg) 80%, transparent)); }
 body.wallpaper-anim::before { background-size: 300% 300%; animation: art-drift 20s ease-in-out infinite alternate; }
-body.has-wallpaper .rail { background: rgba(16,19,28,.55); backdrop-filter: blur(6px); }
+body.has-wallpaper .rail { background: color-mix(in srgb, var(--bg) 70%, transparent); backdrop-filter: blur(6px); }
 
 .profile-card { padding-top: 0; overflow: hidden; }
 .pc-banner { height: 110px; margin: 0 -16px 0; }
@@ -735,7 +735,7 @@ body.has-wallpaper .rail { background: rgba(16,19,28,.55); backdrop-filter: blur
 .pc-head img, .pc-head .av { position: relative; }
 
 .rail-me.has-art { position: relative; overflow: hidden; }
-.rail-me.has-art::before { content: ""; position: absolute; inset: 0; background: linear-gradient(rgba(24,28,40,.35), rgba(24,28,40,.92) 70%); }
+.rail-me.has-art::before { content: ""; position: absolute; inset: 0; background: linear-gradient(color-mix(in srgb, var(--panel) 35%, transparent), color-mix(in srgb, var(--panel) 92%, transparent) 70%); }
 .rail-me.has-art > * { position: relative; }
 
 .fpost.has-banner { position: relative; overflow: hidden; }
@@ -751,7 +751,7 @@ tr.has-banner td + td { background: none; }
 .banner-preview { display: flex; align-items: center; gap: 8px; width: 150px; height: 56px; padding: 0 10px; border-radius: 6px; border: 1px solid var(--border); }
 .banner-preview b { text-shadow: 0 1px 3px rgba(0,0,0,.8); font-size: .85rem; }
 .wp-preview { display: grid; grid-template-columns: 1fr 3fr 2fr; gap: 6px; width: 150px; height: 84px; padding: 8px; border-radius: 6px; border: 1px solid var(--border); }
-.wp-preview i { background: rgba(24,28,40,.85); border-radius: 3px; }
+.wp-preview i { background: color-mix(in srgb, var(--panel) 85%, transparent); border-radius: 3px; }
 .admin-item-prev .banner-preview, .admin-item-prev .wp-preview { width: 70px; height: 34px; padding: 3px; }
 .admin-item-prev .banner-preview b, .admin-item-prev .banner-preview .av { display: none; }
 .rt-item .banner-preview, .rt-item .wp-preview { width: 60px; height: 30px; padding: 2px; }

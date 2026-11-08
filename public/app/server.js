@@ -53,6 +53,7 @@ function render() {
           ${spec(t("sp.ram"), s.ram)}
         </div>
         ${s.modpack_url ? `<a class="btn" href="${esc(s.modpack_url)}" target="_blank" rel="noopener">${t("sp.getModpack")}</a>` : ""}
+        ${s.map_url ? `<a class="btn" href="/map?server=${encodeURIComponent(s.id)}">🗺️ ${t("map.open")}</a>` : ""}
         ${steps.length ? `<ol class="steps">${steps.map((x) => `<li>${rich(x)}</li>`).join("")}</ol>` : ""}
         ${s.synced_at ? `<p class="hint" style="margin:12px 0 0">${esc(t("sp.liveInfo", { ago: ago(s.synced_at) }))}</p>` : ""}
       </div>

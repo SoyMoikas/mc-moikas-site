@@ -1079,3 +1079,9 @@ html.see-through :is(.card, .server-card, .task, .chat, .rank-chip, .game-card, 
 .acc-slot.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .acc-slot .acc-num { position: absolute; top: 2px; left: 5px; font-size: .7rem; color: var(--muted); }
 .acc-slot .av { transform: scale(.85); }
+
+/* Map page (embedded BlueMap) */
+.map-tabs { margin-bottom: 8px; }
+.map-frame { padding: 0; overflow: hidden; height: calc(100vh - var(--topbar, 60px) - 190px); min-height: 420px; }
+.map-frame iframe { display: block; width: 100%; height: 100%; border: 0; background: #000; }
+@media (max-width: 760px) { .map-frame { height: calc(100vh - 220px); } }

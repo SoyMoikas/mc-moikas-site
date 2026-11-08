@@ -114,6 +114,7 @@ async function editServer(id) {
         ${f("modpack", t("ad.modpack"))}
         ${f("modpack_version", t("ad.packVersion"))}
         ${f("modpack_url", t("ad.modpackLink"), { ph: "https://www.curseforge.com/…" })}
+        ${f("map_url", t("ad.mapLink"), { ph: "https://map.moikas.cc" })}
       </div>
       <div class="row">
         ${f("mc_version", t("ad.mcVersion"))}

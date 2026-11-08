@@ -975,3 +975,63 @@ tr.has-banner td + td { background: none; }
 .ae-colors input[type=color] { width: 56px; height: 34px; padding: 2px; }
 .ae-fit { padding-top: 8px; border-top: 1px solid var(--border); }
 @media (max-width: 720px) { .avatar-editor { grid-template-columns: 1fr; } .ae-stage { position: static; } }
+
+/* Store: purchase confirmation panel */
+.buy-modal { position: fixed; inset: 0; z-index: 100; background: rgba(5,6,10,.72); display: flex; align-items: center; justify-content: center; padding: 16px;
+  animation: buy-fade .15s ease-out; }
+.buy-modal.closing { opacity: 0; transition: opacity .15s; }
+.buy-card { width: min(440px, 100%); max-height: 100%; overflow: auto; text-align: center; animation: buy-pop .18s ease-out; border-top: 3px solid var(--cc, var(--accent)); }
+.buy-preview { display: flex; align-items: center; justify-content: center; min-height: 200px; padding: 50px 20px 30px; margin: -4px -4px 8px;
+  background: radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 70%), var(--bg); border-radius: 8px; }
+.buy-preview .color-preview .uname-c, .buy-preview .font-preview .uname-c { font-size: 2rem; }
+.buy-preview .text-preview { max-width: 320px; font-size: 1.35rem; }
+.buy-preview .banner-preview, .buy-preview .wp-preview { transform: scale(1.8); margin: 30px 0; }
+.buy-preview .sticker:not(.img) { font-size: 3.2rem; }
+.buy-preview .sticker.img img { width: 150px; height: 150px; }
+.buy-name { margin: 6px 0 0; }
+.buy-type { margin: 2px 0 10px; }
+.buy-bundle { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; margin: 12px 0; }
+.buy-bi { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px 6px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); }
+.buy-bi.have { opacity: .55; }
+.buy-bi-prev { min-height: 70px; display: flex; align-items: center; justify-content: center; }
+.buy-sum { text-align: left; margin: 12px 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; }
+.buy-card .actions { justify-content: flex-end; }
+@keyframes buy-fade { from { opacity: 0; } }
+@keyframes buy-pop { from { transform: scale(.94); opacity: 0; } }
+.buy-bi { overflow: hidden; }
+.buy-bi .banner-preview, .buy-bi .wp-preview { transform: scale(.68); margin: -10px -24px; }
+.buy-bi .text-preview { font-size: .8rem; max-width: 100px; }
+
+/* Profile → Customize */
+.cz { display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; }
+.cz-preview { position: sticky; top: 70px; border-radius: 10px; overflow: hidden; background: var(--bg); padding: 16px; }
+.cz-wall { position: absolute; inset: 0; opacity: .9; }
+.cz-card { position: relative; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; padding-bottom: 12px; }
+.cz-banner { height: 70px; background: color-mix(in srgb, var(--panel-2, #222) 80%, #000); }
+.cz-stage { display: flex; justify-content: center; margin-top: -40px; padding: 30px 30px 6px; position: relative; }
+.cz-stage .av-hat { pointer-events: auto; cursor: grab; touch-action: none; }
+.cz-name { text-align: center; font-size: 1.2rem; margin: 6px 0 10px; }
+.cz-chat { padding: 0 12px; }
+.cz-bubble { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; }
+.cz-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.cz-tabs button.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.cz-panel { min-height: 220px; }
+.cz-label { display: block; margin: 8px 0 4px; color: var(--muted); }
+.cz-chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.cz-chip { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 4px 6px; border-radius: 8px; border: 2px solid var(--border);
+  background: transparent; cursor: pointer; overflow: hidden; min-height: 92px; }
+.cz-chip.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.cz-chip-prev { min-height: 50px; display: flex; align-items: center; justify-content: center; max-width: 100%; }
+.cz-chip .banner-preview, .cz-chip .wp-preview { transform: scale(.55); margin: -12px -34px; }
+.cz-chip .text-preview { font-size: .72rem; max-width: 90px; }
+.cz-chip .color-preview .uname-c { font-size: .9rem; }
+.cz-save { position: sticky; bottom: 0; background: var(--panel); padding: 10px 0 2px; margin-top: 12px; border-top: 1px solid var(--border); }
+.cz-dirty { color: #ffb347; }
+.ae-row { flex-wrap: wrap; }
+.ae-move { margin-left: auto; }
+.ae-move.on { color: var(--accent); }
+.ae-adjust { padding: 6px 0 10px 80px; }
+@media (max-width: 760px) { .cz { grid-template-columns: 1fr; } .cz-preview { position: static; } .ae-adjust { padding-left: 0; } }
+.cz-banner.has-art { background: var(--bg-art); }
+.cz-banner.has-art.art-anim { background-size: 300% 300%; animation: art-drift 12s ease-in-out infinite alternate; }
+.ae-mode button.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--text, inherit); }

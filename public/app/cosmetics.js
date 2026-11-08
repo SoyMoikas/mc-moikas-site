@@ -100,11 +100,16 @@ export function buildSVG(build) {
     const ref = b.parts?.[slot];
     const item = typeof ref === "string" ? catalogItem(ref) : ref;
     const v = item?.visual || {};
-    if (v.image && safeUrl(v.image)) return `<image href="${esc(v.image)}" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet"/>`;
-    return ART[v.art] || "";
+    const layer = v.image && safeUrl(v.image) ? `<image href="${esc(v.image)}" x="0" y="0" width="100" height="100" preserveAspectRatio="xMidYMid meet"/>` : ART[v.art] || "";
+    // per-part nudge from the editor: x/y in canvas units (−30…30), s = size % (50…150), scaled around the middle
+    const a = b.adjust?.[slot];
+    if (!layer || !a) return layer;
+    const x = clampN(a.x, -30, 30, 0), y = clampN(a.y, -30, 30, 0), s = clampN(a.s, 50, 150, 100) / 100;
+    return x || y || s !== 1 ? `<g transform="translate(${50 + x} ${50 + y}) scale(${s}) translate(-50 -50)">${layer}</g>` : layer;
   }).join("");
   return `<svg class="av-pic av-build" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="color:${safeColor(b.body || DEFAULT_COLORS.body)};background:${safeColor(b.bg || DEFAULT_COLORS.bg)}">${layers}</svg>`;
 }
+const clampN = (n, lo, hi, d) => { const x = Number(n); return Number.isFinite(x) ? Math.min(hi, Math.max(lo, x)) : d; };
 const usesBuild = (b) => b && b.use && b.parts?.shape;
 
 // Avatar with equipped frame and hat. Pass `over` = {frame, hat} item objects to preview unsaved items.

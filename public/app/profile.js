@@ -47,7 +47,7 @@ async function load() {
       </div>
     </section>
 
-    ${own ? `<section id="avatar"><div class="section-head"><h2>${t("av.title")}</h2></div><div id="avatar-editor"></div></section>` : ""}
+    ${own ? `<section id="avatar"><div class="section-head"><h2>${t("cz.title")}</h2></div><div id="avatar-editor"></div></section>` : ""}
 
     ${own ? `<section><div class="section-head"><h2>${t("pf2.mcAccount")}</h2></div><div id="link" class="card"></div></section>` : ""}
 

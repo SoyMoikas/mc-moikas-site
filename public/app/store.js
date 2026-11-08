@@ -220,6 +220,49 @@ function rewardTrack() {
       </div>`).join("") || `<p class="muted">—</p>`}</div>`;
 }
 
+// Purchase confirmation panel (instead of the browser's confirm()): big preview, price, coins before → after.
+// Resolves true when you press Buy; Cancel, Esc or clicking outside resolves false.
+function confirmPurchase({ item, bundle }) {
+  return new Promise((resolve) => {
+    const coins = data.user?.coins ?? 0;
+    const price = item ? item.price : bundle.your_price;
+    const its = bundle ? bundle.item_ids.map((id) => data.items.find((i) => i.id === id)).filter(Boolean) : [];
+    const dlg = document.createElement("div");
+    dlg.className = "buy-modal";
+    dlg.innerHTML = `
+      <div class="card buy-card" role="dialog" aria-modal="true" aria-label="${esc(t("st.confirmTitle"))}" style="${bundle ? `--cc:${esc(bundle.color || "#8a93a8")}` : ""}">
+        ${item ? `
+          <div class="buy-preview">${itemPreview(item, me, 128)}</div>
+          <h3 class="buy-name">${esc(itemName(item))}</h3>
+          <p class="small muted buy-type">${esc(t(`ad.type.${item.type}`))}</p>`
+        : `
+          <h3 class="buy-name">${esc(bundle.icon || "📦")} ${esc(colName(bundle))}</h3>
+          <p class="small muted">${esc(localized(bundle.description, bundle.description_es) || "")}</p>
+          <div class="buy-bundle">${its.map((i) => `
+            <div class="buy-bi ${owned(i) ? "have" : ""}">
+              <span class="buy-bi-prev">${itemPreview(i, me, 64)}</span>
+              <span class="small">${esc(itemName(i))}</span>
+              ${owned(i) ? `<span class="hint">✓ ${t("st.owned")}</span>` : ""}
+            </div>`).join("")}</div>`}
+        <div class="buy-sum">
+          <div class="kv"><span>${t("st.price")}</span><b>${bundle && bundle.your_price < bundle.price ? `<s class="muted small">🪙 ${bundle.price.toLocaleString()}</s> ` : ""}🪙 ${price.toLocaleString()}</b></div>
+          <div class="kv"><span>${t("st.yourCoins")}</span><span>🪙 ${coins.toLocaleString()} → <b>🪙 ${(coins - price).toLocaleString()}</b></span></div>
+        </div>
+        <div class="actions">
+          <button type="button" data-no>${t("cancel")}</button>
+          <button type="button" class="primary" data-yes ${coins < price ? "disabled" : ""}>${t("st.buyFor", { price: price.toLocaleString() })}</button>
+        </div>
+      </div>`;
+    let closed = false;
+    const done = (ok) => { if (closed) return; closed = true; removeEventListener("keydown", onKey); dlg.classList.add("closing"); setTimeout(() => dlg.remove(), 150); resolve(ok); };
+    const onKey = (e) => { if (e.key === "Escape") done(false); if (e.key === "Enter" && !dlg.querySelector("[data-yes]").disabled) done(true); };
+    dlg.addEventListener("click", (e) => { if (e.target === dlg || e.target.closest("[data-no]")) done(false); else if (e.target.closest("[data-yes]")) done(true); });
+    addEventListener("keydown", onKey);
+    document.body.appendChild(dlg);
+    dlg.querySelector("[data-yes]").focus();
+  });
+}
+
 function wire() {
   const f = main.querySelector(".store-filters");
   f.onsubmit = (e) => e.preventDefault();
@@ -251,7 +294,7 @@ function wire() {
     const bundle = t0.closest("[data-bundle]");
     if (bundle) {
       const c = data.collections.find((x) => x.id === bundle.dataset.bundle);
-      if (!confirm(t("st.confirmBundle", { name: colName(c), price: c.your_price }))) return;
+      if (!(await confirmPurchase({ bundle: c }))) return;
       bundle.disabled = true;
       try { const r = await api(`/api/store/collections/${encodeURIComponent(c.id)}/buy`, { method: "POST" }); toast(t("st.boughtBundle", { n: r.items.length })); load(); }
       catch (err) { toast(err.message, true); bundle.disabled = false; }
@@ -260,7 +303,7 @@ function wire() {
     const buy = t0.closest("[data-buy]");
     if (buy) {
       const item = data.items.find((i) => i.id === buy.dataset.buy);
-      if (!confirm(t("st.confirmBuy", { name: itemName(item), price: item.price }))) return;
+      if (!(await confirmPurchase({ item }))) return;
       buy.disabled = true;
       try {
         await api("/api/store/buy", { method: "POST", body: { item: item.id } });

@@ -1,6 +1,6 @@
 import { json, err, body, now, str } from "../../../lib/util.js";
 import { need } from "../../../lib/auth.js";
-import { getItem, coinsOf, levelOf, ownedSet, owns, forSale } from "../../../lib/catalog.js";
+import { getItem, coinsOf, levelOf, ownedSet, owns, forSale, collectionOpen } from "../../../lib/catalog.js";
 
 // { item } — spend coins on an item. Approved members and up.
 export async function onRequestPost({ request, env }) {
@@ -12,6 +12,10 @@ export async function onRequestPost({ request, env }) {
   if (!item || !item.active) return err(404, "Item not found");
   if (owns(item, await ownedSet(env, user.id), user.xp)) return err(409, "Already owned");
   if (!forSale(item)) return err(400, "Not for sale");
+  if (item.collection_id) {
+    const c = await env.DB.prepare("SELECT * FROM collections WHERE id = ?").bind(item.collection_id).first();
+    if (c && !collectionOpen(c)) return err(400, "This collection isn't available right now");
+  }
   if (levelOf(user.xp) < item.level) return err(403, "Level too low");
   if (coinsOf(user) < item.price) return err(402, "Not enough coins");
 

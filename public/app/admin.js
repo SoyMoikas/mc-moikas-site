@@ -1,4 +1,4 @@
-import { api, esc, can, perm, t, initPage, SITE, gameLabel, localized, onSubmit, toast, ago, fmtDate, statusBadge, roleLabel } from "./common.js";
+import { api, esc, can, perm, t, initPage, SITE, gameLabel, localized, toISO, toLocalInput, onSubmit, toast, ago, fmtDate, statusBadge, roleLabel } from "./common.js";
 import { itemPreview, itemName } from "./cosmetics.js";
 
 const user = await initPage();
@@ -205,6 +205,61 @@ function editGame(g) {
   });
 }
 
+let COLLECTIONS = [];
+
+function editCollection(c) {
+  const editor = tabEl.querySelector("#col-editor");
+  const isNew = !c;
+  c = c || { active: 1, featured: 1, color: "#c9b458", icon: "📦", price: null };
+  const local = (ms) => (ms ? toLocalInput(ms) : "");
+  editor.innerHTML = `
+    <form class="stack card">
+      <h3 style="margin:0">${isNew ? t("ad.newCollection") : esc(t("ad.editTitle", { name: localized(c.name, c.name_es) }))}</h3>
+      <div class="row">
+        ${isNew ? `<label>${t("ad.itemId")}<input name="id" required pattern="[a-z0-9_-]{2,40}" placeholder="halloween-2026"></label>` : ""}
+        <label>${t("ad.nameEn")}<input name="name" required maxlength="60" value="${esc(c.name)}"></label>
+        <label>${t("ad.nameEs")}<input name="name_es" maxlength="60" value="${esc(c.name_es)}"></label>
+      </div>
+      <div class="row">
+        <label>${t("ad.emoji")}<input name="icon" maxlength="16" value="${esc(c.icon)}"></label>
+        <label>${t("ad.color")}<input name="color" type="color" value="${esc(c.color || "#c9b458")}"></label>
+        <label>${t("ad.bundlePrice")}<input name="price" type="number" min="1" value="${esc(c.price ?? "")}" placeholder="${esc(t("ad.notSold"))}"></label>
+      </div>
+      <div class="row">
+        <label>${t("ad.description")}<textarea name="description" maxlength="400">${esc(c.description)}</textarea></label>
+        <label>${t("ad.descriptionEs")}<textarea name="description_es" maxlength="400">${esc(c.description_es)}</textarea></label>
+      </div>
+      <div class="row">
+        <label>${t("ad.startsAt")}<input name="starts_at" type="datetime-local" value="${esc(local(c.starts_at))}"></label>
+        <label>${t("ad.endsAt")}<input name="ends_at" type="datetime-local" value="${esc(local(c.ends_at))}"></label>
+        <label>${t("ad.sortOrder")}<input name="sort_order" type="number" value="${esc(c.sort_order ?? 0)}"></label>
+      </div>
+      <p class="hint">${t("ad.collectionHelp")}</p>
+      <div class="actions">
+        <label class="check"><input type="checkbox" name="featured" ${c.featured ? "checked" : ""}> ⭐ ${t("ad.featured")}</label>
+        <label class="check"><input type="checkbox" name="active" ${c.active ? "checked" : ""}> ${t("ad.itemActive")}</label>
+        <span style="flex:1"></span>
+        ${isNew ? "" : `<button type="button" class="danger" data-delete>${t("delete")}</button>`}
+        <button type="button" data-cancel>${t("cancel")}</button>
+        <button class="primary">${isNew ? t("ad.create") : t("save")}</button>
+      </div>
+    </form>`;
+  editor.scrollIntoView({ behavior: "smooth", block: "start" });
+  const form = editor.querySelector("form");
+  form.querySelector("[data-cancel]").onclick = () => (editor.innerHTML = "");
+  form.querySelector("[data-delete]")?.addEventListener("click", async () => {
+    if (!confirm(t("ad.confirmDeleteCollection"))) return;
+    try { await api(`/api/store/collections/${encodeURIComponent(c.id)}`, { method: "DELETE" }); toast(t("ad.deleted")); storeTab(); }
+    catch (e) { toast(e.message, true); }
+  });
+  onSubmit(form, async (d) => {
+    const body = { ...d, price: d.price || null, starts_at: toISO(d.starts_at), ends_at: toISO(d.ends_at) };
+    if (isNew) await api("/api/store/collections", { method: "POST", body });
+    else await api(`/api/store/collections/${encodeURIComponent(c.id)}`, { method: "PATCH", body });
+    toast(t("saved")); storeTab();
+  });
+}
+
 /* ---------------- Site (admin only) ---------------- */
 
 async function siteTab() {
@@ -330,7 +385,8 @@ const FRAME_STYLES = ["solid", "glow", "pulse", "rainbow", "shimmer"];
 
 async function storeTab() {
   tabEl.innerHTML = `<p class="muted">${t("loading")}</p>`;
-  const [{ items }, settings] = await Promise.all([api("/api/store"), api("/api/settings")]);
+  const [{ items, collections }, settings] = await Promise.all([api("/api/store"), api("/api/settings")]);
+  COLLECTIONS = collections;
   tabEl.innerHTML = `
     <div class="section-head"><h2>${t("ad.tabStore")}</h2><button id="add-item">${t("ad.addItem")}</button></div>
     <form class="card stack" id="coin-settings">
@@ -342,6 +398,15 @@ async function storeTab() {
       <p class="hint" id="coin-example"></p>
       <div class="actions"><span style="flex:1"></span><button class="primary">${t("save")}</button></div>
     </form>
+    <div class="section-head" style="margin-top:18px"><h3 style="margin:0">${t("st.collections")}</h3><button id="add-col">${t("ad.addCollection")}</button></div>
+    <div id="col-editor"></div>
+    <div class="col-admin-list">${collections.map((c) => `
+      <div class="card col-admin" style="--cc:${esc(c.color || "#8a93a8")}">
+        <span class="bundle-icon">${esc(c.icon || "📦")}</span>
+        <div class="ga-main"><b>${esc(localized(c.name, c.name_es))}</b>${c.active ? "" : ` <span class="draft">${t("q.inactive")}</span>`}${c.open === false && c.active ? ` <span class="draft">${t("st.notLive")}</span>` : ""}
+          <div class="hint">${t("st.bundleCount", { n: c.item_ids.length })} · ${c.price ? `🪙 ${c.price}` : t("st.bundleItemsOnly")}${c.featured ? ` · ⭐ ${t("ad.featured")}` : ""}</div></div>
+        <button data-edit-col="${esc(c.id)}">${t("edit")}</button>
+      </div>`).join("") || `<p class="muted small">${t("ad.noCollections")}</p>`}</div>
     <div id="item-editor"></div>
     ${TYPES.map((type) => `
       <h3>${t(`st.${{ frame: "frames", hat: "hats", color: "colors", sticker: "stickers", banner: "banners", wallpaper: "wallpapers" }[type]}`)}</h3>
@@ -350,7 +415,7 @@ async function storeTab() {
         <tbody>${items.filter((i) => i.type === type).map((i) => `
           <tr class="${i.active ? "" : "inactive-row"}">
             <td class="primary-cell"><span class="admin-item-prev">${itemPreview(i, user, 34)}</span> ${esc(itemName(i))}
-              <div class="hint">${esc(i.id)}${i.active ? "" : ` · ${t("q.inactive")}`}</div></td>
+              <div class="hint">${esc(i.id)}${i.active ? "" : ` · ${t("q.inactive")}`}${i.collection_id ? ` · 📦 ${esc(i.collection_id)}` : ""}</div></td>
             <td data-label="${esc(t("ad.itemPrice"))}">${i.price ? `🪙 ${i.price}` : `<span class="muted">${t("ad.notSold")}</span>`}</td>
             <td data-label="${esc(t("ad.itemLevel"))}">${i.price ? i.level : "—"}</td>
             <td data-label="${esc(t("ad.itemReward"))}">${i.reward_level !== null ? `🎁 ${t("lvl.short")} ${i.reward_level}` : "—"}</td>
@@ -368,6 +433,8 @@ async function storeTab() {
   onSubmit(cs, async (d) => { await api("/api/settings", { method: "PATCH", body: d }); toast(t("saved")); });
 
   tabEl.querySelector("#add-item").onclick = () => editItem(null, items);
+  tabEl.querySelector("#add-col").onclick = () => editCollection(null);
+  tabEl.querySelectorAll("[data-edit-col]").forEach((b) => b.onclick = () => editCollection(collections.find((c) => c.id === b.dataset.editCol)));
   tabEl.querySelectorAll("[data-edit-item]").forEach((b) => b.onclick = () => editItem(items.find((i) => i.id === b.dataset.editItem), items));
 }
 
@@ -410,6 +477,8 @@ function editItem(item, items) {
             <label>${t("ad.sortOrder")}<input name="sort_order" type="number" value="${esc(it.sort_order ?? 0)}"></label>
           </div>
           <p class="hint">${t("ad.itemHelp")}</p>
+          <label>${t("ad.itemCollection")}<select name="collection_id"><option value="">${t("ad.noCollection")}</option>
+            ${COLLECTIONS.map((c) => `<option value="${esc(c.id)}" ${it.collection_id === c.id ? "selected" : ""}>${esc(c.icon || "📦")} ${esc(localized(c.name, c.name_es))}</option>`).join("")}</select></label>
           <label class="check"><input type="checkbox" name="active" ${it.active ? "checked" : ""}> ${t("ad.itemActive")}</label>
         </div>
       </div>
@@ -466,7 +535,7 @@ function editItem(item, items) {
   });
   onSubmit(form, async (d) => {
     const body = { name: d.name, name_es: d.name_es, price: d.price || null, level: d.level, reward_level: d.reward_level === "" ? null : d.reward_level,
-      sort_order: d.sort_order, active: d.active, visual: visual() };
+      sort_order: d.sort_order, active: d.active, visual: visual(), collection_id: d.collection_id || null };
     if (isNew) await api("/api/store/items", { method: "POST", body: { ...body, id: d.id, type: d.type } });
     else await api(`/api/store/items/${encodeURIComponent(it.id)}`, { method: "PATCH", body });
     toast(t("saved")); location.hash = "store"; location.reload();

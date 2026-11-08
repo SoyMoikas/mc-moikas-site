@@ -11,10 +11,11 @@ export async function onRequestPost({ request, env }) {
   const f = itemFields(b, { creating: true });
   const visual = JSON.stringify(visualFields(f.type, b.visual || {}));
   if (await env.DB.prepare("SELECT 1 FROM store_items WHERE id = ?").bind(f.id).first()) return err(409, "An item with that id already exists");
+  if (f.collection_id && !(await env.DB.prepare("SELECT 1 FROM collections WHERE id = ?").bind(f.collection_id).first())) return err(404, "Collection not found");
   const t = now();
   await env.DB.prepare(
-    `INSERT INTO store_items (id, type, name, name_es, visual, price, level, reward_level, active, sort_order, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).bind(f.id, f.type, f.name, f.name_es, visual, f.price, f.level, f.reward_level, f.active, f.sort_order, t, t).run();
+    `INSERT INTO store_items (id, type, name, name_es, visual, price, level, reward_level, active, sort_order, collection_id, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(f.id, f.type, f.name, f.name_es, visual, f.price, f.level, f.reward_level, f.active, f.sort_order, f.collection_id, t, t).run();
   return json({ id: f.id }, 201);
 }

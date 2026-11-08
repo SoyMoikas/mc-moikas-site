@@ -12,10 +12,11 @@ export async function onRequestPatch({ request, env, params }) {
   if (b instanceof Response) return b;
   const f = itemFields(b);
   const visual = JSON.stringify(visualFields(item.type, b.visual || {}));
+  if (f.collection_id && !(await env.DB.prepare("SELECT 1 FROM collections WHERE id = ?").bind(f.collection_id).first())) return err(404, "Collection not found");
   await env.DB.prepare(
-    `UPDATE store_items SET name = ?, name_es = ?, visual = ?, price = ?, level = ?, reward_level = ?, active = ?, sort_order = ?, updated_at = ?
+    `UPDATE store_items SET name = ?, name_es = ?, visual = ?, price = ?, level = ?, reward_level = ?, active = ?, sort_order = ?, collection_id = ?, updated_at = ?
       WHERE id = ?`
-  ).bind(f.name, f.name_es, visual, f.price, f.level, f.reward_level, f.active, f.sort_order, now(), params.id).run();
+  ).bind(f.name, f.name_es, visual, f.price, f.level, f.reward_level, f.active, f.sort_order, f.collection_id, now(), params.id).run();
   return json({ ok: true });
 }
 

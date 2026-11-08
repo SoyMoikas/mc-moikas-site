@@ -81,7 +81,7 @@ The site picks Spanish for anyone whose browser is in Spanish; everyone can swit
 UI text lives in `public/app/i18n.js`. Each server has optional Spanish description and join steps (Admin → Edit).
 Announcements, tasks and comments are shown as written.
 
-Database updates for existing installs: run each `migrations-00X-*.sql` file you haven't run yet, once, in the D1 console (001 = Spanish fields, 002 = chat, 003 = levels & quests, 004 = store, 005 = coin economy + editable items, 006 = sub-admins, 007 = games + feed, 008 = banners + wallpapers).
+Database updates for existing installs: run each `migrations-00X-*.sql` file you haven't run yet, once, in the D1 console (001 = Spanish fields, 002 = chat, 003 = levels & quests, 004 = store, 005 = coin economy + editable items, 006 = sub-admins, 007 = games + feed, 008 = banners + wallpapers, 009 = collections).
 
 ## Levels & quests
 - XP = 1 per minute played on any server (from each world's `stats/<uuid>.json`) + quest XP. Level L needs 30·L² XP.

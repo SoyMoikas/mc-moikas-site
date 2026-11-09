@@ -1,6 +1,7 @@
 import { mountChat } from "./chat.js";
+import { mountModeration } from "./moderation.js";
 import {
-  api, esc, rich, can, t, initPage, SITE, gameLabel, statusBadge, renderPost, postForm, bindPostActions,
+  api, esc, rich, can, perm, t, initPage, SITE, gameLabel, statusBadge, renderPost, postForm, bindPostActions,
   onSubmit, toast, toISO, ago, fmtDate, loginHint, roleLabel, taskLabel, localized, levelBadge, avatarHTML, nameHTML, livePosts,
 } from "./common.js";
 
@@ -10,6 +11,7 @@ const main = document.getElementById("main");
 let data = null;
 const openTasks = new Set(); // keep expanded tasks open across reloads
 let chatEl = null;
+let modEl = null; // whitelist & bans panel, kept across re-renders
 let mapEl = null; // the embedded live map is created once, so re-rendering the page doesn't reload it
 
 const STATUSES = ["open", "in_progress", "done"];
@@ -70,6 +72,12 @@ function render() {
       <div id="map-slot"></div>
     </section>` : ""}
 
+    ${perm(user, "moderation") && s.linked ? `
+    <section id="moderation">
+      <div class="section-head"><h2>🛡️ ${t("mod.title")}</h2></div>
+      <div id="mod-slot"></div>
+    </section>` : ""}
+
     <section>
       <div class="section-head">
         <h2>${t("sp.announcements")}</h2>
@@ -107,6 +115,12 @@ function render() {
       mapEl.innerHTML = `<iframe src="${esc(s.map_url)}" title="${esc(t("map.open"))}" loading="lazy" allowfullscreen referrerpolicy="no-referrer"></iframe>`;
     }
     slot.replaceWith(mapEl);
+  }
+
+  const modSlot = main.querySelector("#mod-slot");
+  if (modSlot) {
+    if (!modEl) { modEl = document.createElement("div"); mountModeration(modEl, id); }
+    modSlot.replaceWith(modEl);
   }
 
   wire();

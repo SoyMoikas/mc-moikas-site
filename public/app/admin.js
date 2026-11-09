@@ -325,7 +325,7 @@ async function pteroTab() {
 
 const ROLES = ["pending", "member", "staff", "subadmin", "admin"];
 const SUB_MANAGEABLE = ["pending", "member", "staff"];
-const PERMS = ["users", "servers", "store"];
+const PERMS = ["users", "servers", "store", "moderation"];
 
 async function usersTab() {
   tabEl.innerHTML = `<p class="muted">${t("loading")}</p>`;

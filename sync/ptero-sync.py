@@ -7,7 +7,8 @@ pings each Minecraft server for its player count, then sends a small JSON summar
 to the site. Your panel and API key never leave the house. Python 3 stdlib only.
 
 Config: sync.env next to this script (see sync.env.example).
-Every run (cron, every 2 min): server status + sends pending website link codes in-game (/tell).
+Every run (cron, every 2 min): server status + sends pending website link codes in-game (/tell)
++ runs whitelist/ban actions staff queued on the site and sends back each server's whitelist & ban list.
 Every 10 min: player playtime, stats and advancements for levels and quests.
 Every 6 h: a catalog of every stat/advancement players have (so the site can suggest trackable quests).
 
@@ -17,6 +18,7 @@ Usage:  python3 ptero-sync.py          # run once (cron calls this)
         python3 ptero-sync.py --scan   # force the stats + quest-ideas catalog scan now
 """
 import json
+import re
 import os
 import time
 import urllib.parse
@@ -232,6 +234,88 @@ def send_link_codes(cfg, servers, codes, dry):
                 print(f"  {x['name']}: couldn't send code ({e})", file=sys.stderr)
 
 
+# ---------- whitelist & bans queued on the website ----------
+JAVA_NAME = re.compile(r"^[A-Za-z0-9_]{3,16}$")
+BEDROCK_NAME = re.compile(r"^[A-Za-z0-9 _]{1,16}$")
+
+
+def mod_command(m):
+    """Turn one queued action into a console command, or None if anything looks off."""
+    action, edition = m.get("action"), m.get("edition")
+    if action == "whitelist_on":
+        return "whitelist on"
+    if action == "whitelist_off":
+        return "whitelist off"
+    name = str(m.get("name") or "")
+    if edition == "bedrock":
+        if not BEDROCK_NAME.match(name):
+            return None
+        tag = name.replace(" ", "_")  # Floodgate uses _ for spaces in gamertags
+    else:
+        if not JAVA_NAME.match(name):
+            return None
+        tag = name
+    reason = re.sub(r"[^\w .,!?¿¡-]", "", str(m.get("reason") or ""))[:100].strip()
+    if action == "whitelist_add":
+        return f"fwhitelist add {tag}" if edition == "bedrock" else f"whitelist add {tag}"
+    if action == "whitelist_remove":
+        return f"fwhitelist remove {tag}" if edition == "bedrock" else f"whitelist remove {tag}"
+    target = "." + tag if edition == "bedrock" else tag  # Floodgate's prefix for Bedrock players
+    if action == "ban":
+        return f"ban {target} {reason}".strip()
+    if action == "unban":
+        return f"pardon {target}"
+    return None
+
+
+def sync_moderation(cfg, servers, actions, dry, site, auth):
+    by_uuid = {x["uuid"]: x for x in servers}
+    done = []
+    for m in actions:
+        x = by_uuid.get(m.get("ptero_uuid"))
+        if not x:
+            done.append({"id": m.get("id"), "result": "server not found"})
+            continue
+        if x["state"] != "running":
+            continue  # try again next run
+        cmd = mod_command(m)
+        if not cmd:
+            done.append({"id": m.get("id"), "result": "rejected"})
+            continue
+        if dry:
+            print(f"  would run on {x['name']}: {cmd}")
+            continue
+        try:
+            ptero_command(cfg, x["identifier"], cmd)
+            done.append({"id": m.get("id"), "result": "sent"})
+            print(f"  {x['name']}: {cmd}")
+        except Exception as e:
+            print(f"  {x['name']}: couldn't run '{cmd}' ({e})", file=sys.stderr)
+    if done:
+        time.sleep(2)  # let the server write whitelist.json / banned-players.json
+
+    lists = {}
+    for x in servers:
+        ident = x["identifier"]
+        props = ptero_text(cfg, ident, "/server.properties")
+        if props is None:
+            continue  # not a Minecraft server
+        try:
+            wl = json.loads(ptero_text(cfg, ident, "/whitelist.json") or "[]")
+            bans = json.loads(ptero_text(cfg, ident, "/banned-players.json") or "[]")
+        except ValueError:
+            continue
+        lists[x["uuid"]] = {
+            "whitelist_on": any(l.strip() == "white-list=true" for l in props.splitlines()),
+            "whitelist": [{"name": e.get("name")} for e in wl if isinstance(e, dict)],
+            "bans": [{"name": e.get("name"), "reason": e.get("reason"), "source": e.get("source")} for e in bans if isinstance(e, dict)],
+        }
+    if dry:
+        print(json.dumps({"done": done, "lists": lists}, indent=2)[:4000])
+        return
+    http_json(site + "/api/sync/moderation", auth, {"done": done, "lists": lists})
+
+
 def stat_value(stats, key):
     cat, _, item = key.partition("/")
     return (stats.get(cat) or {}).get(item, 0)
@@ -337,6 +421,12 @@ def main():
 
     if conf.get("verify"):
         send_link_codes(cfg, servers, conf["verify"], dry)
+
+    try:
+        sync_moderation(cfg, servers, conf.get("moderation") or [], dry, site, auth)
+    except urllib.error.HTTPError as e:
+        if e.code != 404:  # 404 = site doesn't have whitelist/bans yet
+            raise
 
     due, stamp = stats_due(cfg)
     scan_due, scan_stamp = stats_due(cfg, ".last_catalog_scan", 360)

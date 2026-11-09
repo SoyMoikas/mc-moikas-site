@@ -4,7 +4,8 @@ import { loadAutoQuests } from "../../../lib/xp.js";
 
 export const CODE_TTL_MS = 15 * 60 * 1000;
 
-// Tells the NAS script which stats/advancements to collect and which link codes to send in-game.
+// Tells the NAS script which stats/advancements to collect, which link codes to send in-game,
+// and which whitelist/ban actions staff queued on the site.
 export async function onRequestGet({ request, env }) {
   if (!syncAuthorized(request, env)) return err(401, "Bad sync token");
   const quests = await loadAutoQuests(env);
@@ -13,5 +14,8 @@ export async function onRequestGet({ request, env }) {
   const { results: verify } = await env.DB.prepare(
     "SELECT mc_name AS name, code FROM mc_links WHERE created_at > ?"
   ).bind(now() - CODE_TTL_MS).all();
-  return json({ stats, advancements, verify });
+  const { results: moderation } = await env.DB.prepare(
+    "SELECT id, ptero_uuid, action, name, edition, reason FROM mc_moderation WHERE done_at IS NULL ORDER BY id LIMIT 50"
+  ).all();
+  return json({ stats, advancements, verify, moderation });
 }

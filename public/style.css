@@ -1101,3 +1101,10 @@ html.see-through :is(.card, .server-card, .task, .chat, .rank-chip, .game-card, 
 .idea-row > .small { width: 60px; }
 .idea { padding: 4px 10px; border-radius: 999px; font-size: .85rem; }
 #live-map .map-frame { height: min(70vh, 640px); min-height: 380px; }
+
+/* whitelist & bans panel (server page, staff) */
+.mod-list { list-style: none; margin: 0; padding: 0; }
+.mod-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.mod-row:last-child { border-bottom: 0; }
+.mod-row .pill { margin-left: 4px; }
+.mod-form input, .mod-form select { width: auto; min-width: 0; }

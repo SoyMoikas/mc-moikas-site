@@ -165,3 +165,6 @@ CREATE TABLE IF NOT EXISTS uploads ( id TEXT PRIMARY KEY, user_id INTEGER REFERE
 CREATE INDEX IF NOT EXISTS uploads_user ON uploads (user_id, created_at);
 CREATE TABLE IF NOT EXISTS activity_xp ( user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, day TEXT NOT NULL, kind TEXT NOT NULL, amount INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, day, kind) );
 CREATE TABLE IF NOT EXISTS mc_catalog ( ptero_uuid TEXT NOT NULL, kind TEXT NOT NULL, key TEXT NOT NULL, players INTEGER NOT NULL DEFAULT 0, max_value INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL, PRIMARY KEY (ptero_uuid, kind, key) );
+CREATE TABLE IF NOT EXISTS mc_moderation ( id INTEGER PRIMARY KEY AUTOINCREMENT, ptero_uuid TEXT NOT NULL, action TEXT NOT NULL, name TEXT NOT NULL, edition TEXT NOT NULL DEFAULT 'java', reason TEXT, created_by TEXT, created_at INTEGER NOT NULL, done_at INTEGER, result TEXT );
+CREATE INDEX IF NOT EXISTS idx_mc_moderation_pending ON mc_moderation (done_at, ptero_uuid);
+CREATE TABLE IF NOT EXISTS mc_player_lists ( ptero_uuid TEXT PRIMARY KEY, whitelist TEXT, bans TEXT, whitelist_on INTEGER, updated_at INTEGER NOT NULL );

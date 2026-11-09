@@ -1,0 +1,34 @@
+{
+  "ocaso.whisper": {
+    "sounds": [
+      "ocaso/whisper1",
+      "ocaso/whisper2",
+      "ocaso/whisper3",
+      "ocaso/whisper4",
+      "ocaso/whisper5",
+      "ocaso/whisper6",
+      "ocaso/whisper7",
+      "ocaso/whisper8",
+      "ocaso/whisper9"
+    ]
+  },
+  "ocaso.knock": {
+    "sounds": [
+      "ocaso/knock1",
+      "ocaso/knock2"
+    ]
+  },
+  "ocaso.breath": {
+    "sounds": [
+      "ocaso/breath1"
+    ]
+  },
+  "ocaso.drone": {
+    "sounds": [
+      {
+        "name": "ocaso/drone1",
+        "stream": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "model": {
+    "type": "minecraft:range_dispatch",
+    "property": "minecraft:custom_model_data",
+    "index": 0,
+    "fallback": {
+      "type": "minecraft:model",
+      "model": "minecraft:item/netherite_helmet"
+    },
+    "entries": [
+      {
+        "threshold": 5001,
+        "model": {
+          "type": "minecraft:model",
+          "model": "ocaso:item/corona_mictlan"
+        }
+      },
+      {
+        "threshold": 5002,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/netherite_helmet"
+        }
+      }
+    ]
+  }
+}

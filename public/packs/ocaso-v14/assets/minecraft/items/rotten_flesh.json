@@ -1,0 +1,27 @@
+{
+  "model": {
+    "type": "minecraft:range_dispatch",
+    "property": "minecraft:custom_model_data",
+    "index": 0,
+    "fallback": {
+      "type": "minecraft:model",
+      "model": "minecraft:item/rotten_flesh"
+    },
+    "entries": [
+      {
+        "threshold": 2001,
+        "model": {
+          "type": "minecraft:model",
+          "model": "ocaso:item/carne_humana"
+        }
+      },
+      {
+        "threshold": 2002,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/rotten_flesh"
+        }
+      }
+    ]
+  }
+}

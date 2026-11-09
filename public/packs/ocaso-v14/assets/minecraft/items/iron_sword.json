@@ -1,0 +1,62 @@
+{
+  "model": {
+    "type": "minecraft:range_dispatch",
+    "property": "minecraft:custom_model_data",
+    "index": 0,
+    "fallback": {
+      "type": "minecraft:model",
+      "model": "minecraft:item/iron_sword"
+    },
+    "entries": [
+      {
+        "threshold": 4001,
+        "model": {
+          "type": "minecraft:model",
+          "model": "ocaso:item/macuahuitl"
+        }
+      },
+      {
+        "threshold": 4002,
+        "model": {
+          "type": "minecraft:model",
+          "model": "ocaso:item/lanza_tlaloc"
+        }
+      },
+      {
+        "threshold": 4003,
+        "model": {
+          "type": "minecraft:model",
+          "model": "ocaso:item/daga_mictlan"
+        }
+      },
+      {
+        "threshold": 4004,
+        "model": {
+          "type": "minecraft:model",
+          "model": "ocaso:item/espejo_humeante"
+        }
+      },
+      {
+        "threshold": 4005,
+        "model": {
+          "type": "minecraft:model",
+          "model": "ocaso:item/baculo_quetzal"
+        }
+      },
+      {
+        "threshold": 4006,
+        "model": {
+          "type": "minecraft:model",
+          "model": "ocaso:item/machete_abuelo"
+        }
+      },
+      {
+        "threshold": 4007,
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/iron_sword"
+        }
+      }
+    ]
+  }
+}

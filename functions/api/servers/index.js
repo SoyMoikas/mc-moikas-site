@@ -31,7 +31,7 @@ export async function onRequestGet({ request, env }) {
 export async function onRequestPost({ request, env }) {
   const user = await needPerm(env, request, "servers");
   if (user instanceof Response) return user;
-  const b = await body(request);
+  const b = await body(request, 300 * 1024); // room for the markdown guides
   if (b instanceof Response) return b;
 
   const fields = serverFields(b);

@@ -132,6 +132,17 @@ async function editServer(id) {
         <label>${t("ad.stepsEs")}<textarea name="join_steps_es">${steps(raw.join_steps_es)}</textarea></label>
       </div>
       <p class="hint" style="margin:-4px 0 0">${t("ad.esHint")}</p>
+      <details class="guide-edit" ${raw.guide || raw.guide_es ? "open" : ""}>
+        <summary><strong>📖 ${t("ad.guide")}</strong></summary>
+        <p class="hint">${t("ad.guideHint")}</p>
+        <div class="row">
+          <label>${t("ad.guideEn")} <button type="button" class="small-btn" data-md-load="guide">⬆ .md</button>
+            <textarea name="guide" rows="14" style="font-family:monospace">${esc(raw.guide ?? "")}</textarea></label>
+          <label>${t("ad.guideEs")} <button type="button" class="small-btn" data-md-load="guide_es">⬆ .md</button>
+            <textarea name="guide_es" rows="14" style="font-family:monospace">${esc(raw.guide_es ?? "")}</textarea></label>
+        </div>
+        ${id ? `<a class="small" href="/guide?id=${encodeURIComponent(id)}" target="_blank">${t("ad.guidePreview")} ↗</a>` : ""}
+      </details>
       <div class="row">
         <label>${t("ad.sortOrder")}<input name="sort_order" type="number" value="${esc(raw.sort_order ?? 0)}"></label>
         <label class="check"><input type="checkbox" name="hidden" ${raw.hidden === 0 ? "" : "checked"}> ${t("ad.draftCheck")}</label>
@@ -148,6 +159,19 @@ async function editServer(id) {
 
   const form = editor.querySelector("form");
   form.querySelector("[data-cancel]").onclick = () => (editor.innerHTML = "");
+  // load a .md file into a guide box
+  form.querySelectorAll("[data-md-load]").forEach((b) => b.onclick = (ev) => {
+    ev.preventDefault();
+    const pick = document.createElement("input");
+    pick.type = "file"; pick.accept = ".md,.markdown,.txt,text/markdown,text/plain";
+    pick.onchange = async () => {
+      const f = pick.files[0];
+      if (!f) return;
+      if (f.size > 60000) return toast(t("ad.guideTooBig"), true);
+      form.querySelector(`[name="${b.dataset.mdLoad}"]`).value = await f.text();
+    };
+    pick.click();
+  });
   const del = form.querySelector("[data-delete]");
   if (del) del.onclick = async () => {
     if (!confirm(t("ad.confirmDeletePage", { name: raw.name || id }))) return;

@@ -1100,7 +1100,13 @@ html.see-through :is(.card, .server-card, .task, .chat, .rank-chip, .game-card, 
 .idea-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0; }
 .idea-row > .small { width: 60px; }
 .idea { padding: 4px 10px; border-radius: 999px; font-size: .85rem; }
-#live-map .map-frame { height: min(70vh, 640px); min-height: 380px; }
+/* player guide embedded on the server page (where the map used to be) */
+.guide-embed { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+.guide-embed > .muted { padding: 16px; }
+.guide-embed-toc { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 14px; border-bottom: 1px solid var(--line, rgba(255,255,255,.08)); }
+.guide-embed-toc a { font-size: .82rem; color: var(--muted); text-decoration: none; padding: 3px 9px; border-radius: 999px; background: rgba(255,255,255,.05); }
+.guide-embed-toc a:hover { color: var(--accent); }
+.guide-embed-body { position: relative; max-height: min(70vh, 640px); overflow-y: auto; padding: 16px 20px; }
 
 /* whitelist & bans panel (server page, staff) */
 .mod-list { list-style: none; margin: 0; padding: 0; }

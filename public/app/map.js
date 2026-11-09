@@ -15,6 +15,7 @@ function render() {
   }
   main.innerHTML = `
     <section class="map-page">
+      <a class="crumb" href="/server?id=${encodeURIComponent(cur.id)}">← ${esc(cur.name)}</a>
       <div class="section-head">
         <h2>🗺️ ${t("nav.map")}</h2>
         <a class="btn" href="${esc(cur.url)}" target="_blank" rel="noopener">⛶ ${t("map.fullscreen")}</a>

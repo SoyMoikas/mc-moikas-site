@@ -1,5 +1,6 @@
 import { mountChat } from "./chat.js";
 import { mountModeration } from "./moderation.js";
+import { renderMarkdown } from "./markdown.js";
 import {
   api, esc, rich, can, perm, t, initPage, SITE, gameLabel, statusBadge, renderPost, postForm, bindPostActions,
   onSubmit, toast, toISO, ago, fmtDate, loginHint, roleLabel, taskLabel, localized, levelBadge, avatarHTML, nameHTML, livePosts,
@@ -12,7 +13,7 @@ let data = null;
 const openTasks = new Set(); // keep expanded tasks open across reloads
 let chatEl = null;
 let modEl = null; // whitelist & bans panel, kept across re-renders
-let mapEl = null; // the embedded live map is created once, so re-rendering the page doesn't reload it
+let guideEl = null; // the embedded player guide is fetched once, so re-rendering the page doesn't refetch it
 
 const STATUSES = ["open", "in_progress", "done"];
 
@@ -56,21 +57,20 @@ function render() {
           ${spec(t("sp.ram"), s.ram)}
         </div>
         ${s.modpack_url ? `<a class="btn" href="${esc(s.modpack_url)}" target="_blank" rel="noopener">${t("sp.getModpack")}</a>` : ""}
-        ${s.has_guide ? `<a class="btn primary" href="/guide?id=${encodeURIComponent(s.id)}">📖 ${t("guide.open")}</a>` : ""}
-        ${s.map_url ? `<a class="btn" href="#live-map">🗺️ ${t("map.open")}</a>` : ""}
+        ${s.has_guide ? `<a class="btn primary" href="#player-guide">📖 ${t("guide.open")}</a>` : ""}
+        ${s.map_url ? `<a class="btn" href="/map?server=${encodeURIComponent(s.id)}">🗺️ ${t("map.open")}</a>` : ""}
         ${steps.length ? `<ol class="steps">${steps.map((x) => `<li>${rich(x)}</li>`).join("")}</ol>` : ""}
         ${s.synced_at ? `<p class="hint" style="margin:12px 0 0">${esc(t("sp.liveInfo", { ago: ago(s.synced_at) }))}</p>` : ""}
       </div>
     </section>
 
-    ${s.map_url ? `
-    <section id="live-map">
+    ${s.has_guide ? `
+    <section id="player-guide">
       <div class="section-head">
-        <h2>🗺️ ${t("map.open")}</h2>
-        <a class="btn" href="${esc(s.map_url)}" target="_blank" rel="noopener">⛶ ${t("map.fullscreen")}</a>
+        <h2>📖 ${t("guide.open")}</h2>
+        <a class="btn" href="/guide?id=${encodeURIComponent(s.id)}">⛶ ${t("guide.fullPage")}</a>
       </div>
-      <p class="hint">${t("map.hint")}</p>
-      <div id="map-slot"></div>
+      <div id="guide-slot"></div>
     </section>` : ""}
 
     ${perm(user, "moderation") && s.linked ? `
@@ -107,15 +107,10 @@ function render() {
   // Keep one chat instance alive across re-renders so it doesn't reset or double-poll.
   if (!chatEl) { chatEl = document.createElement("div"); mountChat(chatEl, id, user); }
   main.querySelector("#chat-slot").replaceWith(chatEl);
-  const slot = main.querySelector("#map-slot");
+  const slot = main.querySelector("#guide-slot");
   if (slot) {
-    if (!mapEl || mapEl.dataset.url !== s.map_url) {
-      mapEl = document.createElement("div");
-      mapEl.className = "map-frame card";
-      mapEl.dataset.url = s.map_url;
-      mapEl.innerHTML = `<iframe src="${esc(s.map_url)}" title="${esc(t("map.open"))}" loading="lazy" allowfullscreen referrerpolicy="no-referrer"></iframe>`;
-    }
-    slot.replaceWith(mapEl);
+    if (!guideEl) { guideEl = document.createElement("div"); mountGuide(guideEl, s.id); }
+    slot.replaceWith(guideEl);
   }
 
   const modSlot = main.querySelector("#mod-slot");
@@ -278,3 +273,24 @@ function wire() {
 load();
 livePosts(async () => (data.posts = (await api(`/api/servers/${encodeURIComponent(id)}`)).posts),
   (ps) => ps.length ? ps.map((p) => renderPost(p, { user })).join("") : `<p class="muted">${t("sp.noAnnouncements")}</p>`);
+
+// The player guide, embedded where the map used to be: a scrollable card with its own table of contents.
+async function mountGuide(el, sid) {
+  el.className = "guide-embed card";
+  el.innerHTML = `<p class="muted">${t("loading")}</p>`;
+  let g;
+  try { g = await api(`/api/servers/${encodeURIComponent(sid)}/guide`); }
+  catch (e) { el.innerHTML = `<p class="muted">${esc(e.message)}</p>`; return; }
+  const text = localized(g.guide, g.guide_es) || g.guide || g.guide_es;
+  if (!text) { el.innerHTML = `<p class="muted">${t("guide.none")}</p>`; return; }
+  const { html, toc } = renderMarkdown(text);
+  el.innerHTML = `
+    ${toc.length ? `<nav class="guide-embed-toc">${toc.map((x) => `<a href="#${x.id}">${esc(x.text.replace(/\*\*/g, ""))}</a>`).join("")}</nav>` : ""}
+    <article class="guide guide-embed-body">${html}</article>`;
+  const body = el.querySelector(".guide-embed-body");
+  el.querySelectorAll(".guide-embed-toc a").forEach((a) => a.onclick = (ev) => {
+    ev.preventDefault();
+    const target = body.querySelector(`[id="${CSS.escape(a.getAttribute("href").slice(1))}"]`);
+    if (target) body.scrollTo({ top: target.offsetTop - body.offsetTop - 8, behavior: "smooth" });
+  });
+}

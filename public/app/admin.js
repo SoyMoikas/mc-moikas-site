@@ -8,7 +8,7 @@ const user = await initPage();
 const main = document.getElementById("main");
 
 // Admins see every tab; sub-admins only the ones they've been given.
-const TAB_PERM = { servers: "servers", ptero: "servers", users: "users", store: "store", site: "admin" };
+const TAB_PERM = { servers: "servers", ptero: "servers", users: "users", activity: "users", store: "store", site: "admin" };
 const allowed = Object.keys(TAB_PERM).filter((tab) => (TAB_PERM[tab] === "admin" ? user?.role === "admin" : perm(user, TAB_PERM[tab])));
 
 if (!allowed.length) {
@@ -22,7 +22,7 @@ if (!allowed.length) {
 }
 
 const tabEl = main.querySelector("#tab") || document.createElement("section");
-const tabs = { servers: serversTab, ptero: pteroTab, users: usersTab, store: storeTab, site: siteTab };
+const tabs = { servers: serversTab, ptero: pteroTab, users: usersTab, activity: activityTab, store: storeTab, site: siteTab };
 main.querySelectorAll("[data-tab]").forEach((b) => b.onclick = () => {
   main.querySelectorAll("[data-tab]").forEach((x) => x.classList.toggle("active", x === b));
   tabs[b.dataset.tab]().catch((e) => (tabEl.innerHTML = `<p class="muted">${esc(e.message)}</p>`));
@@ -858,4 +858,70 @@ const startTab = allowed.includes(location.hash.slice(1)) ? location.hash.slice(
 if (startTab) {
   main.querySelectorAll("[data-tab]").forEach((x) => x.classList.toggle("active", x.dataset.tab === startTab));
   tabs[startTab]().catch((e) => (tabEl.innerHTML = `<p class="muted">${esc(e.message)}</p>`));
+}
+
+/* ---------------- Activity (site visits) ---------------- */
+
+async function activityTab(days = 7) {
+  tabEl.innerHTML = `<p class="muted">${t("loading")}</p>`;
+  const d = await api(`/api/activity?days=${days}`);
+  const tot = d.totals || {};
+
+  // UTC hour buckets → local days and local hour-of-day
+  const dayMap = new Map(), hourViews = new Array(24).fill(0);
+  for (let i = days - 1; i >= 0; i--) {
+    const dt = new Date(); dt.setHours(0, 0, 0, 0); dt.setDate(dt.getDate() - i);
+    dayMap.set(dt.toDateString(), { label: dt.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }), views: 0 });
+  }
+  for (const r of d.hours) {
+    const dt = new Date(r.h * 3600000);
+    const k = dt.toDateString();
+    if (dayMap.has(k)) dayMap.get(k).views += r.views;
+    hourViews[dt.getHours()] += r.views;
+  }
+  const dayRows = [...dayMap.values()];
+  const maxDay = Math.max(1, ...dayRows.map((x) => x.views));
+  const maxHour = Math.max(1, ...hourViews);
+  const hourLabel = (h) => new Date(2000, 0, 1, h).toLocaleTimeString(undefined, { hour: "numeric" });
+  const who = (r) => r.username ? `<b>${esc(r.username)}</b>` : `<span class="muted">${t("act.anon")} #${esc(r.visitor.slice(2, 6))}</span>`;
+  const flag = (c) => c && c.length === 2 ? String.fromCodePoint(...[...c.toUpperCase()].map((x) => 127397 + x.charCodeAt(0))) : "";
+
+  tabEl.innerHTML = `
+    <div class="section-head"><h2 style="white-space:nowrap">${t("act.title")}</h2>
+      <select id="act-days" style="width:auto">${[1, 7, 30, 90].map((n) => `<option value="${n}" ${n === days ? "selected" : ""}>${t("act.lastDays", { n })}</option>`).join("")}</select></div>
+    <p class="hint">${t("act.hint")}</p>
+    <div class="act-stats">
+      <div class="card"><b>${tot.views || 0}</b><span>${t("act.views")}</span></div>
+      <div class="card"><b>${tot.visitors || 0}</b><span>${t("act.visitors")}</span></div>
+      <div class="card"><b>${tot.members || 0}</b><span>${t("act.members")}</span></div>
+    </div>
+
+    <h3>${t("act.perDay")}</h3>
+    <div class="card act-bars">${dayRows.map((x) => `
+      <div class="act-row"><span>${esc(x.label)}</span><div class="act-bar"><div style="width:${(x.views / maxDay) * 100}%"></div></div><b>${x.views}</b></div>`).join("")}</div>
+
+    <h3>${t("act.perHour")}</h3>
+    <div class="card act-hours">${hourViews.map((v, h) => `
+      <div class="act-col" title="${esc(hourLabel(h))}: ${v}"><div style="height:${(v / maxHour) * 100}%"></div><span>${h % 3 === 0 ? esc(hourLabel(h)) : ""}</span></div>`).join("")}</div>
+
+    <h3>${t("act.people")}</h3>
+    ${d.people.length ? `<div class="card table-wrap"><table>
+      <thead><tr><th>${t("act.user")}</th><th>${t("act.views")}</th><th>${t("act.lastSeen")}</th></tr></thead>
+      <tbody>${d.people.map((p) => `<tr><td class="primary-cell"><a href="/profile?id=${p.id}">${esc(p.username)}</a>${p.mc_name ? `<div class="hint">${esc(p.mc_name)}</div>` : ""}</td>
+        <td>${p.views}</td><td title="${esc(new Date(p.last).toLocaleString())}">${ago(p.last)}</td></tr>`).join("")}</tbody></table></div>`
+      : `<p class="muted">${t("act.nobody")}</p>`}
+
+    <div class="act-two">
+      <div><h3>${t("act.pages")}</h3>
+        <div class="card table-wrap"><table><tbody>${d.pages.map((p) => `<tr><td><code>${esc(p.path)}</code></td><td>${p.views}</td><td class="muted">${t("act.nVisitors", { n: p.visitors })}</td></tr>`).join("") || `<tr><td class="muted">—</td></tr>`}</tbody></table></div></div>
+      <div><h3>${t("act.refs")}</h3>
+        <div class="card table-wrap"><table><tbody>${d.refs.map((r) => `<tr><td>${esc(r.ref)}</td><td>${r.views}</td></tr>`).join("") || `<tr><td class="muted">${t("act.noRefs")}</td></tr>`}</tbody></table></div></div>
+    </div>
+
+    <h3>${t("act.recent")}</h3>
+    <div class="card table-wrap"><table>
+      <thead><tr><th>${t("act.when")}</th><th>${t("act.user")}</th><th>${t("act.page")}</th><th></th></tr></thead>
+      <tbody>${d.recent.map((r) => `<tr><td title="${esc(new Date(r.created_at).toLocaleString())}">${esc(new Date(r.created_at).toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" }))}</td>
+        <td>${who(r)}</td><td><code>${esc(r.path)}</code></td><td>${flag(r.country)} ${r.device === "mobile" ? "📱" : "💻"}</td></tr>`).join("") || `<tr><td class="muted" colspan="4">${t("act.empty")}</td></tr>`}</tbody></table></div>`;
+  tabEl.querySelector("#act-days").onchange = (e) => activityTab(+e.target.value).catch((x) => (tabEl.innerHTML = `<p class="muted">${esc(x.message)}</p>`));
 }

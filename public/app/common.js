@@ -109,6 +109,11 @@ export async function initPage() {
   const [me, site] = await Promise.allSettled([api("/api/me"), api("/api/site"), loadCatalog()]);
   if (me.status === "fulfilled") user = me.value.user;
   if (site.status === "fulfilled") Object.assign(SITE, site.value);
+  // visit log for the admin Activity tab (fire-and-forget; admin pages aren't counted)
+  if (!location.pathname.startsWith("/admin")) {
+    fetch("/api/visit", { method: "POST", credentials: "same-origin", keepalive: true, headers: { "content-type": "application/json" },
+      body: JSON.stringify({ path: location.pathname + (location.pathname === "/server" || location.pathname === "/game" || location.pathname === "/map" ? location.search : ""), ref: document.referrer || null }) }).catch(() => {});
+  }
 
   const bar = document.createElement("header");
   bar.className = "topbar";

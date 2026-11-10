@@ -1135,3 +1135,20 @@ html.see-through :is(.card, .server-card, .task, .chat, .rank-chip, .game-card, 
 .guide th { background: var(--panel-2); }
 .guide-edit { margin: 6px 0; }
 @media (max-width: 800px) { .guide-layout { grid-template-columns: 1fr; } .guide-toc { position: static; } }
+
+/* admin activity tab */
+.act-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 12px 0 8px; }
+.act-stats .card { padding: 14px; text-align: center; }
+.act-stats b { display: block; font-size: 28px; }
+.act-stats span { color: var(--muted, #999); font-size: 13px; }
+.act-bars { padding: 12px; }
+.act-row { display: grid; grid-template-columns: 110px 1fr 40px; gap: 10px; align-items: center; font-size: 13px; padding: 3px 0; }
+.act-row b { text-align: right; }
+.act-bar { height: 12px; background: var(--bg); border: 2px solid var(--border); }
+.act-bar > div { height: 100%; background: var(--accent); }
+.act-hours { display: flex; align-items: flex-end; gap: 3px; height: 150px; padding: 12px 12px 26px; }
+.act-col { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; position: relative; }
+.act-col > div { background: var(--accent); min-height: 1px; }
+.act-col span { position: absolute; bottom: -20px; left: 0; font-size: 10px; white-space: nowrap; color: var(--muted, #999); }
+.act-two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 700px) { .act-two, .act-stats { grid-template-columns: 1fr; } }

@@ -16,6 +16,7 @@ Env:   DISCORD_BOT_TOKEN, SITE_URL (https://play.moikas.cc), SYNC_SECRET (same a
        optional STATUS_CHECKS → the site's /status page, e.g. "Jellyfin=http://192.168.1.239:30013/health; Ocaso=tcp://192.168.1.239:25565"
        optional STATUS_DISK (a path mounted in the container, e.g. /tank) → disk usage on /status and the Espacio tab
        optional RADARR_URL + RADARR_API_KEY → "Limpieza" deletes movies through Radarr (files + import exclusion)
+       optional SONARR_URL + SONARR_API_KEY → "Limpieza" knows which series ended and deletes them through Sonarr
 Discord developer portal → your app → Bot → turn ON "Presence Intent" and "Server Members Intent".
 """
 import asyncio
@@ -46,6 +47,8 @@ SEERR_KEY = os.environ.get("SEERR_API_KEY", "").strip()
 STATUS_DISK = os.environ.get("STATUS_DISK", "")
 RADARR_URL = os.environ.get("RADARR_URL", "").rstrip("/")
 RADARR_KEY = os.environ.get("RADARR_API_KEY", "").strip()
+SONARR_URL = os.environ.get("SONARR_URL", "").rstrip("/")
+SONARR_KEY = os.environ.get("SONARR_API_KEY", "").strip()
 
 
 def status_targets():
@@ -190,7 +193,20 @@ def jellyfin_usage():
                 if ud.get("LastPlayedDate") and ud["LastPlayedDate"] > last.get(k, ""):
                     last[k] = ud["LastPlayedDate"]
                 plays[k] = plays.get(k, 0) + (ud.get("PlayCount") or 0)
-        return [{"id": k, "type": kind[k], "size": size.get(k, 0), "last_played": last.get(k), "plays": plays.get(k, 0)} for k in kind]
+        # series: TVDB id + whether it has ended (Sonarr's status if set up, else Jellyfin's)
+        info = {}
+        for sr in jf_items("Recursive=true&IncludeItemTypes=Series&Fields=ProviderIds&EnableImages=false&Limit=5000"):
+            info[sr["Id"]] = {"tvdb": (sr.get("ProviderIds") or {}).get("Tvdb"), "ended": (sr.get("Status") == "Ended") if sr.get("Status") else None}
+        if SONARR_URL and SONARR_KEY:
+            try:
+                by_tvdb = {str(x.get("tvdbId")): x.get("status") for x in arr(SONARR_URL, SONARR_KEY, "GET", "/api/v3/series") or []}
+                for v in info.values():
+                    if v["tvdb"] and v["tvdb"] in by_tvdb:
+                        v["ended"] = by_tvdb[v["tvdb"]] == "ended"
+            except Exception as e:
+                print("sonarr series:", e, flush=True)
+        return [{"id": k, "type": kind[k], "size": size.get(k, 0), "last_played": last.get(k), "plays": plays.get(k, 0),
+                 **({"tvdb": info.get(k, {}).get("tvdb"), "ended": info.get(k, {}).get("ended")} if kind[k] == "Series" else {})} for k in kind]
     except Exception as e:
         print("jellyfin usage:", e, flush=True)
         return None
@@ -221,25 +237,28 @@ def pool_usage():
         return None
 
 
-def arr(method, path):
-    req = urllib.request.Request(RADARR_URL + path, method=method, headers={"X-Api-Key": RADARR_KEY, "accept": "application/json", "user-agent": "moikas-presence-bot"})
+def arr(base, key, method, path):
+    req = urllib.request.Request(base + path, method=method, headers={"X-Api-Key": key, "accept": "application/json", "user-agent": "moikas-presence-bot"})
     with urllib.request.urlopen(req, timeout=60) as r:
         body = r.read()
         return json.loads(body) if body else None
 
 
 def delete_movie(d):
-    """Limpieza: delete one movie. Radarr first (files + import exclusion so it isn't downloaded again), else straight from Jellyfin."""
+    """Limpieza: delete one movie (Radarr) or ended series (Sonarr) with files + an exclusion so it isn't downloaded again; else straight from Jellyfin."""
     try:
-        if RADARR_URL and RADARR_KEY and d.get("tmdb"):
-            found = arr("GET", f"/api/v3/movie?tmdbId={int(d['tmdb'])}") or []
+        via = None
+        if d.get("type") == "Series":
+            if SONARR_URL and SONARR_KEY and d.get("tvdb"):
+                found = arr(SONARR_URL, SONARR_KEY, "GET", f"/api/v3/series?tvdbId={int(d['tvdb'])}") or []
+                if found:
+                    arr(SONARR_URL, SONARR_KEY, "DELETE", f"/api/v3/series/{found[0]['id']}?deleteFiles=true&addImportListExclusion=true")
+                    via = "sonarr"
+        elif RADARR_URL and RADARR_KEY and d.get("tmdb"):
+            found = arr(RADARR_URL, RADARR_KEY, "GET", f"/api/v3/movie?tmdbId={int(d['tmdb'])}") or []
             if found:
-                arr("DELETE", f"/api/v3/movie/{found[0]['id']}?deleteFiles=true&addImportExclusion=true")
+                arr(RADARR_URL, RADARR_KEY, "DELETE", f"/api/v3/movie/{found[0]['id']}?deleteFiles=true&addImportExclusion=true")
                 via = "radarr"
-            else:
-                via = None
-        else:
-            via = None
         if not via:
             req = urllib.request.Request(f"{JELLYFIN_URL}/Items/{d['jf_id']}", method="DELETE", headers={**JF_HEADERS, "user-agent": "moikas-presence-bot"})
             urllib.request.urlopen(req, timeout=60).read()
@@ -374,7 +393,7 @@ async def media_and_status(n, pending, deleted):
             pending.clear()
             deleted.clear()
             if res.get("cleanup", {}) and res["cleanup"].get("flagged"):
-                print(f"limpieza: {res['cleanup']['flagged']} movies flagged", flush=True)
+                print(f"limpieza: {res['cleanup']['flagged']} titles flagged", flush=True)
             for d in res.get("delete", [])[:3]:
                 r = await asyncio.to_thread(delete_movie, d)
                 deleted.append(r)

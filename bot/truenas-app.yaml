@@ -22,6 +22,8 @@ services:
       # optional: "Limpieza" deletes through Radarr (Radarr → Settings → General → API Key)
       RADARR_URL: "http://192.168.1.239:30025"
       RADARR_API_KEY: ""
+      SONARR_URL: "http://192.168.1.239:PUERTO_DE_SONARR"
+      SONARR_API_KEY: ""
       # optional: what the /status page checks (Jellyfin and Seerr are added automatically)
       STATUS_CHECKS: "Ocaso=tcp://192.168.1.239:25565; Wizarr=http://192.168.1.239:5690; Panel=https://ptero.moikas.cc"   # Ocaso: use its port from Pterodactyl
       STATUS_DISK: "/tank"

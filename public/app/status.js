@@ -68,7 +68,7 @@ async function espacio(el) {
   const card = (i) => `
     <div class="card sp-item ${i.status}">
       ${i.poster ? `<img src="${esc(i.poster)}" alt="" loading="lazy" onerror="this.remove()">` : ""}
-      <div class="sp-info"><b>${esc(i.title)}</b> <span class="small muted">${i.year || ""}</span>
+      <div class="sp-info"><b>${i.type === "Series" ? "📺" : "🎬"} ${esc(i.title)}</b> <span class="small muted">${i.year || ""}${i.type === "Series" ? " · " + t("sp.endedSeries") : ""}</span>
         <div class="small">💾 ${size(i.size)} · 👁 ${t("sp.lastSeen")}: ${since(i.last_played)}</div>
         <div class="small ${i.status === "due" || i.status === "approved" ? "warn" : "muted"}">${{
           pending: `⏳ ${t("sp.st.pending", { when: new Date(i.delete_after).toLocaleDateString(undefined, { month: "short", day: "numeric" }) })}`,
@@ -120,6 +120,7 @@ async function espacio(el) {
           <label>${t("sp.s.keep")}<input type="number" name="keep_days" min="7" max="365" value="${s.keep_days}"></label>
           <label>${t("sp.s.minUsed")}<input type="number" name="min_used_pct" min="0" max="99" value="${s.min_used_pct}"></label>
         </div>
+        <label class="small"><input type="checkbox" name="series" ${s.series ? "checked" : ""}> ${t("sp.s.series")}</label>
         <label class="small"><input type="checkbox" name="auto" ${s.auto ? "checked" : ""}> ${t("sp.s.auto")}</label>
         <button class="primary">${t("acc.save")}</button>
       </form></details>` : ""}`;
@@ -135,7 +136,7 @@ async function espacio(el) {
     const f = e.target;
     if (f.auto.checked && !s.auto && !confirm(t("sp.autoQ"))) return;
     try {
-      await api("/api/storage", { method: "POST", body: { action: "settings", enabled: f.enabled.checked, auto: f.auto.checked, idle_days: +f.idle_days.value, added_days: +f.added_days.value,
+      await api("/api/storage", { method: "POST", body: { action: "settings", enabled: f.enabled.checked, series: f.series.checked, auto: f.auto.checked, idle_days: +f.idle_days.value, added_days: +f.added_days.value,
         grace_days: +f.grace_days.value, keep_days: +f.keep_days.value, min_used_pct: +f.min_used_pct.value } });
       toast("✓"); espacio(el);
     } catch (x) { toast(x.message, true); }

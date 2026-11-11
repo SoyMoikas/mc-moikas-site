@@ -1592,3 +1592,5 @@ a.btn { display: inline-block; padding: 6px 14px; text-decoration: none; }
 .wr-pod.p1 .wr-av { width: 96px; height: 96px; } .wr-pod b { font-size: 1rem; }
 #wr-card { width: 100%; max-width: 360px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, .4); }
 .wr-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; pointer-events: auto; position: relative; z-index: 5; }
+.pf-tabs { margin: 18px 0 6px; }
+.pf-tabs + .home-pane > section:first-child, .home-pane[data-pane] > section:first-child { margin-top: 10px; }

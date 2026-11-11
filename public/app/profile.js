@@ -49,35 +49,46 @@ async function load() {
       </div>
     </section>
 
-    <section id="ocaso-profile"></section>
-    <section id="achievements"></section>
-    <section id="rival"></section>
+    <nav class="home-tabs pf-tabs" role="tablist">
+      <button role="tab" data-pane="posts">📝 ${t("pft.posts")}</button>
+      <button role="tab" data-pane="logros">🏅 ${t("pft.logros")}</button>
+      <button role="tab" data-pane="juegos">🎮 ${t("pft.juegos")}</button>
+      ${own ? `<button role="tab" data-pane="editar">🎨 ${t("pft.editar")}</button>` : ""}
+    </nav>
 
-    ${own ? `<section id="avatar"><div class="section-head"><h2>${t("cz.title")}</h2></div><div id="avatar-editor"></div></section>` : ""}
+    <div class="home-pane" data-pane="posts">
+      <section><div id="user-feed"></div></section>
+    </div>
 
-    ${own ? `<section><div class="section-head"><h2>${t("pf2.mcAccount")}</h2></div><div id="link" class="card"></div></section>` : ""}
+    <div class="home-pane" data-pane="logros" hidden>
+      <section id="trophies" hidden></section>
+      <section id="achievements"></section>
+      <section id="rival"></section>
+      ${user && user.role !== "pending" ? `<p class="small"><a href="/wrapped?user=${p.user.id}">🎁 ${t(own ? "pft.myWrapped" : "pft.theirWrapped", { name: esc(p.user.username) })}</a></p>` : ""}
+    </div>
 
-    <section>
-      <div class="section-head"><h2>${own ? t("feed.myPosts") : t("feed.posts")}</h2></div>
-      <div id="user-feed"></div>
-    </section>
+    <div class="home-pane" data-pane="juegos" hidden>
+      <section id="ocaso-profile"></section>
+      <section>
+        <div class="section-head"><h2>${t("pf2.perServer")}</h2></div>
+        ${p.servers.length ? `<div class="card">${p.servers.map((s) => `
+          <div class="kv"><span>${s.server_id ? `<a href="/server?id=${encodeURIComponent(s.server_id)}">${esc(s.name)}</a>` : esc(s.name)}</span>
+            <b>${fmtHours(s.minutes)} h</b></div>`).join("")}</div>`
+          : `<p class="muted">${p.user.linked ? t("pf2.noPlaytime") : t("pf2.notLinked")}</p>`}
+      </section>
+      <section>
+        <div class="section-head"><h2>${t("pf2.questsDone")}</h2><a class="btn" href="/quests">${t("nav.quests")} →</a></div>
+        ${p.quests.length ? `<div class="card">${p.quests.map((q) => `
+          <div class="kv"><span>✓ ${esc(localized(q.title, q.title_es))}</span><b class="q-xp">+${q.xp} XP</b></div>`).join("")}</div>`
+          : `<p class="muted">${t("pf2.noQuests")}</p>`}
+      </section>
+    </div>
 
-    <section>
-      <div class="section-head"><h2>${t("pf2.perServer")}</h2></div>
-      ${p.servers.length ? `<div class="card">${p.servers.map((s) => `
-        <div class="kv"><span>${s.server_id ? `<a href="/server?id=${encodeURIComponent(s.server_id)}">${esc(s.name)}</a>` : esc(s.name)}</span>
-          <b>${fmtHours(s.minutes)} h</b></div>`).join("")}</div>`
-        : `<p class="muted">${p.user.linked ? t("pf2.noPlaytime") : t("pf2.notLinked")}</p>`}
-    </section>
-
-    <section>
-      <div class="section-head"><h2>${t("pf2.questsDone")}</h2><a class="btn" href="/quests">${t("nav.quests")} →</a></div>
-      ${p.quests.length ? `<div class="card">${p.quests.map((q) => `
-        <div class="kv"><span>✓ ${esc(localized(q.title, q.title_es))}</span><b class="q-xp">+${q.xp} XP</b></div>`).join("")}</div>`
-        : `<p class="muted">${t("pf2.noQuests")}</p>`}
-    </section>
-
-    ${own ? `<p style="margin-top:24px" class="actions"><a class="btn primary" href="/store">🪙 ${t("nav.store")}</a><a class="btn" href="/auth/logout">${t("auth.logout")}</a></p>` : ""}`;
+    ${own ? `<div class="home-pane" data-pane="editar" hidden>
+      <section id="avatar"><div class="section-head"><h2>${t("cz.title")}</h2></div><div id="avatar-editor"></div></section>
+      <section><div class="section-head"><h2>${t("pf2.mcAccount")}</h2></div><div id="link" class="card"></div></section>
+      <p style="margin-top:24px" class="actions"><a class="btn primary" href="/store">🪙 ${t("nav.store")}</a><a class="btn" href="/auth/logout">${t("auth.logout")}</a></p>
+    </div>` : ""}`;
 
   main.querySelector("#tz-edit")?.addEventListener("click", () => openLocalePicker(user));
   mountOcasoProfile(main.querySelector("#ocaso-profile"), p.user.id);
@@ -85,18 +96,17 @@ async function load() {
   if (user && user.role !== "pending") mountRival(main.querySelector("#rival"), p.user, own);
   api(`/api/tournaments?user=${p.user.id}`).then(({ trophies }) => {
     if (!trophies.length) return;
-    const el = document.createElement("section");
+    const el = main.querySelector("#trophies");
+    el.hidden = false;
     el.innerHTML = `<div class="section-head"><h2>🏆 ${t("tr.trophies")}</h2></div><div class="tr-trophies">${trophies.map((x) =>
       `<a class="card tr-trophy" href="/tournaments?id=${x.id}">${x.place === 1 ? "🏆" : "🥈"} <b>${esc(x.title)}</b><span class="small muted">${esc(x.game)} · ${t(x.place === 1 ? "tr.place1" : "tr.place2")}</span></a>`).join("")}</div>`;
-    main.querySelector("#ocaso-profile")?.before(el) || main.querySelector("#user-feed")?.before(el);
   }).catch(() => {});
   mountFeed(main.querySelector("#user-feed"), user, { userId: p.user.id, composer: own, modes: false });
   if (own) {
     renderLink();
-    mountAvatarEditor(main.querySelector("#avatar-editor"), { ...user, ...p.user }).then(() => {
-      if (location.hash === "#avatar") main.querySelector("#avatar").scrollIntoView({ behavior: "smooth" });
-    });
+    mountAvatarEditor(main.querySelector("#avatar-editor"), { ...user, ...p.user });
   }
+  profileTabs();
 }
 
 async function renderLink() {
@@ -216,4 +226,20 @@ async function mountRival(el, them, own) {
   el.innerHTML = `<div class="section-head"><h2>⚔️ ${t("rv.title")}</h2>
     <select id="rv-pick"><option value="">${t("rv.pick")}</option>${others.map((u) => `<option value="${u.id}">${esc(u.username)}</option>`).join("")}</select></div>`;
   el.querySelector("#rv-pick").onchange = (e) => e.target.value && show(user.id, +e.target.value);
+}
+
+/* ---------------- Tabs (switch without reloading; #logros, #juegos, #editar in the URL) ---------------- */
+
+function profileTabs() {
+  const tabs = [...main.querySelectorAll(".pf-tabs [data-pane]")], panes = [...main.querySelectorAll(".home-pane")];
+  const alias = { avatar: "editar", link: "editar", achievements: "logros" };
+  const pick = () => { const h = location.hash.slice(1), n = alias[h] || h; return tabs.some((b) => b.dataset.pane === n) ? n : "posts"; };
+  const show = (name, save) => {
+    tabs.forEach((b) => { const on = b.dataset.pane === name; b.classList.toggle("on", on); b.setAttribute("aria-selected", on); });
+    panes.forEach((p) => (p.hidden = p.dataset.pane !== name));
+    if (save) history.replaceState(null, "", `${location.pathname}${location.search}${name === "posts" ? "" : "#" + name}`);
+  };
+  tabs.forEach((b) => (b.onclick = () => show(b.dataset.pane, true)));
+  addEventListener("hashchange", () => show(pick()));
+  show(pick());
 }

@@ -1,0 +1,5 @@
+-- Storage page + "Limpieza" (movies nobody watches get queued for deletion, with a grace period and keep votes). Run once. No comments below this line.
+CREATE TABLE IF NOT EXISTS storage_days ( day TEXT PRIMARY KEY, total INTEGER, used INTEGER, free INTEGER, movies INTEGER, shows INTEGER, updated_at INTEGER NOT NULL );
+CREATE TABLE IF NOT EXISTS media_usage ( jf_id TEXT PRIMARY KEY, type TEXT NOT NULL, size INTEGER, last_played INTEGER, plays INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL );
+CREATE TABLE IF NOT EXISTS cleanup_items ( jf_id TEXT PRIMARY KEY, title TEXT NOT NULL, year INTEGER, tmdb TEXT, size INTEGER, last_played INTEGER, flagged_at INTEGER NOT NULL, delete_after INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'pending', protected INTEGER NOT NULL DEFAULT 0, kept_until INTEGER, staff_pinged INTEGER NOT NULL DEFAULT 0, detail TEXT, updated_at INTEGER NOT NULL );
+CREATE TABLE IF NOT EXISTS cleanup_votes ( jf_id TEXT NOT NULL, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, created_at INTEGER NOT NULL, PRIMARY KEY (jf_id, user_id) );

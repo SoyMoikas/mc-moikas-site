@@ -2,6 +2,7 @@ import { syncAuthorized } from "../../../lib/sync-auth.js";
 import { json, body, err, now } from "../../../lib/util.js";
 import { norm, settleArrivals } from "../../../lib/media.js";
 import { notify } from "../../../lib/notify.js";
+import { ingest, scan, deleteQueue, deleteResults } from "../../../lib/cleanup.js";
 
 // The NAS bot ↔ site: Jellyfin library + Seerr requests.
 // POST { library?: [{id, type, name, year, tmdb, added}], results?: [{id, status, detail, tmdb}], seerr: bool }
@@ -44,11 +45,20 @@ export async function onRequestPost({ env, request }) {
     arrived = await settleArrivals(env, rows, fresh);
   }
 
-  // 3) What the bot should request next.
+  // 3) Espacio: sizes / last played / pool usage, deletions the bot finished, then flag new candidates.
+  let cleanup = null, del = [];
+  try {
+    if (Array.isArray(b.deleted)) await deleteResults(env, b.deleted);
+    if (Array.isArray(b.usage) || b.storage) await ingest(env, b.usage, b.storage);
+    if (Array.isArray(b.usage)) cleanup = await scan(env);
+    del = await deleteQueue(env);
+  } catch (e) { console.error("cleanup", e.message); }
+
+  // 4) What the bot should request next.
   const queue = (await env.DB.prepare(`SELECT r.id, w.title, w.year, w.kind, w.ext FROM media_requests r JOIN watch_items w ON w.id = r.item_id
     WHERE r.status = 'queued' ORDER BY r.created_at LIMIT 10`).all()).results.map((r) => {
     const m = /^tmdb:(movie|tv):(\d+)$/.exec(r.ext || "");
     return { id: r.id, title: r.title, year: +r.year || null, kind: r.kind === "movie" ? "movie" : "tv", tmdb: m ? +m[2] : null };
   });
-  return json({ ok: true, queue, arrived, fresh: fresh.length });
+  return json({ ok: true, queue, arrived, fresh: fresh.length, delete: del, cleanup });
 }

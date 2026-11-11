@@ -1,10 +1,11 @@
 // "Jugar": game nights (vote), games we all own (Steam), Apex stats, free games, and linking accounts.
-import { api, esc, t, initPage, toast, ago, inputToMs, zonedNow, wallInput } from "./common.js";
+import { api, esc, t, initPage, toast, ago, inputToMs, zonedNow, wallInput, msToInput } from "./common.js";
+import { mountCuando } from "./cuando.js";
 
 const user = await initPage();
 const main = document.getElementById("main");
 const q = new URLSearchParams(location.search);
-const TABS = ["noches", "adivina", "mayor", "ruleta", "apuestas", "frases", "comun", "apex", "gratis", "cuentas"];
+const TABS = ["noches", "cuando", "adivina", "mayor", "ruleta", "apuestas", "frases", "comun", "apex", "gratis", "cuentas"];
 let tab = TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : q.get("night") ? "noches" : "noches";
 const fmt = (ms) => new Date(ms).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 const av = (u) => `<img class="soc-av" src="${esc(u.avatar || "")}" alt="" title="${esc(u.username)}" loading="lazy" onerror="this.style.visibility='hidden'">`;
@@ -27,7 +28,7 @@ function frame() {
     </section>`;
   main.querySelectorAll("[data-tab]").forEach((a) => (a.onclick = (e) => { e.preventDefault(); tab = a.dataset.tab; history.replaceState(null, "", `/play#${tab}`); frame(); }));
   const body = main.querySelector("#play-body");
-  ({ noches: nights, adivina: guess, mayor: hilo, ruleta: dares, apuestas: bets, frases: quotes, comun: common, apex, gratis: free, cuentas: accounts })[tab](body).catch((x) => (body.innerHTML = `<p class="muted">${esc(x.message)}</p>`));
+  ({ noches: nights, cuando: (b) => mountCuando(b, user), adivina: guess, mayor: hilo, ruleta: dares, apuestas: bets, frases: quotes, comun: common, apex, gratis: free, cuentas: accounts })[tab](body).catch((x) => (body.innerHTML = `<p class="muted">${esc(x.message)}</p>`));
 }
 
 /* ---------------- Game nights ---------------- */
@@ -45,6 +46,13 @@ async function nights(el) {
   el.querySelectorAll("[data-lock]").forEach((b) => (b.onclick = () => confirm(t("gn.lockQ")) && nightAct(b.dataset.lock, { action: "lock" }, el)));
   el.querySelectorAll("[data-cancel]").forEach((b) => (b.onclick = () => confirm(t("gn.cancelQ")) && nightAct(b.dataset.cancel, { action: "cancel" }, el)));
   if (focus) el.querySelector(`#gn-${focus}`)?.scrollIntoView({ block: "center" });
+  const pre = +q.get("time");
+  if (pre > Date.now() - 3600000) { // from "¿Cuándo pueden?": open the form with that time
+    nightForm(el.querySelector("#gn-form"));
+    const first = el.querySelector("#gn-times input");
+    if (first) { first.value = msToInput(pre); first.nextElementSibling?.remove(); }
+    history.replaceState(null, "", "/play#noches");
+  }
   el.querySelectorAll("[data-tabgo]").forEach((a) => (a.onclick = (e) => { e.preventDefault(); tab = a.dataset.tabgo; history.replaceState(null, "", `/play#${tab}`); frame(); }));
 }
 

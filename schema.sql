@@ -240,3 +240,7 @@ INSERT OR IGNORE INTO clubs (slug, name, icon, description, created_at) VALUES
   ('gym', 'Gym y deporte', '💪', 'Rutinas, progreso y motivación.', 0),
   ('autos', 'Autos', '🚗', 'Proyectos, fotos y dudas de mecánica.', 0),
   ('tech', 'Tecnología', '💻', 'Homelab, PCs, programación y gadgets.', 0);
+CREATE TABLE IF NOT EXISTS play_log ( user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, game TEXT NOT NULL, month TEXT NOT NULL, seconds INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, game, month) );
+CREATE TABLE IF NOT EXISTS play_hours ( user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, year TEXT NOT NULL, hour INTEGER NOT NULL, seconds INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, year, hour) );
+CREATE TABLE IF NOT EXISTS availability ( user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, tz TEXT NOT NULL, slots TEXT NOT NULL, updated_at INTEGER NOT NULL );
+CREATE TABLE IF NOT EXISTS play_pairs ( a INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, b INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, year TEXT NOT NULL, seconds INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (a, b, year) );

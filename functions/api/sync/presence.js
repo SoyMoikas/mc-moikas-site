@@ -1,5 +1,6 @@
 import { json, err, now } from "../../../lib/util.js";
 import { syncAuthorized } from "../../../lib/sync-auth.js";
+import { laDay, hourIn, zoneOf } from "../../../lib/coins.js";
 
 // From the Discord bot on the NAS: who's playing what right now.
 // Body: { playing: [{ discord_id, game, kind, since }] } — the full current list; anyone missing stopped playing.
@@ -11,9 +12,15 @@ export async function onRequestPost({ request, env }) {
   const list = (Array.isArray(p.playing) ? p.playing : []).slice(0, 500)
     .filter((x) => /^\d{5,25}$/.test(String(x?.discord_id || "")) && typeof x.game === "string" && x.game.trim());
   const users = list.length ? (await env.DB.prepare(
-    `SELECT id, discord_id FROM users WHERE role != 'pending' AND discord_id IN (${list.map(() => "?").join(",")})`
+    `SELECT id, discord_id, tz FROM users WHERE role != 'pending' AND discord_id IN (${list.map(() => "?").join(",")})`
   ).bind(...list.map((x) => String(x.discord_id))).all()).results : [];
   const byDiscord = new Map(users.map((u) => [u.discord_id, u.id]));
+  const tzOf = new Map(users.map((u) => [u.id, zoneOf(u)]));
+  // Playtime for Wrapped: anyone still on the same game since the last report gets the time in between (capped, in case the bot was down).
+  let before = new Map();
+  try { before = new Map((await env.DB.prepare("SELECT user_id, game, updated_at FROM presence").all()).results.map((r) => [r.user_id, r])); } catch { /* */ }
+  const month = laDay(t).slice(0, 7), year = month.slice(0, 4);
+  const playStmts = [], together = new Map(); // game → [[uid, seconds]] (for "duo of the year")
   const stmts = [env.DB.prepare("DELETE FROM presence")];
   for (const x of list) {
     const uid = byDiscord.get(String(x.discord_id));
@@ -21,8 +28,24 @@ export async function onRequestPost({ request, env }) {
     stmts.push(env.DB.prepare("INSERT OR REPLACE INTO presence (user_id, game, kind, since, updated_at) VALUES (?, ?, ?, ?, ?)")
       .bind(uid, x.game.trim().slice(0, 80), ["playing", "streaming", "competing"].includes(x.kind) ? x.kind : "playing",
         Number.isInteger(x.since) ? x.since : null, t));
+    const b0 = before.get(uid), game = x.game.trim().slice(0, 80);
+    if (b0 && b0.game === game) {
+      const sec = Math.round(Math.min(t - b0.updated_at, 180000) / 1000);
+      if (sec > 0) {
+        playStmts.push(env.DB.prepare("INSERT INTO play_log (user_id, game, month, seconds) VALUES (?, ?, ?, ?) ON CONFLICT (user_id, game, month) DO UPDATE SET seconds = seconds + excluded.seconds").bind(uid, game, month, sec));
+        if (!together.has(game)) together.set(game, []);
+        together.get(game).push([uid, sec]);
+        playStmts.push(env.DB.prepare("INSERT INTO play_hours (user_id, year, hour, seconds) VALUES (?, ?, ?, ?) ON CONFLICT (user_id, year, hour) DO UPDATE SET seconds = seconds + excluded.seconds").bind(uid, year, hourIn(tzOf.get(uid), t), sec));
+      }
+    }
   }
   await env.DB.batch(stmts);
+  for (const ps of together.values()) for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length && j < 12; j++) {
+    const [a, b] = ps[i][0] < ps[j][0] ? [ps[i], ps[j]] : [ps[j], ps[i]];
+    playStmts.push(env.DB.prepare("INSERT INTO play_pairs (a, b, year, seconds) VALUES (?, ?, ?, ?) ON CONFLICT (a, b, year) DO UPDATE SET seconds = seconds + excluded.seconds")
+      .bind(a[0], b[0], year, Math.min(a[1], b[1])));
+  }
+  if (playStmts.length) try { await env.DB.batch(playStmts); } catch { /* before migration 032 */ }
   const shown = stmts.length - 1;
 
   // Spotify (from Discord) and Jellyfin (what people are watching on your server)
@@ -47,7 +70,7 @@ export async function onRequestPost({ request, env }) {
     if (!p0 || p0.title !== clip(r.title, 120) || p0.kind !== r.kind) // a new song / show → history (for "top artists this week")
       ls.push(env.DB.prepare("INSERT INTO listen_log (user_id, kind, title, artist, created_at) VALUES (?, ?, ?, ?, ?)").bind(r.uid, r.kind, clip(r.title, 120), clip(r.artist, 120), t));
   }
-  if (Math.random() < 0.01) ls.push(env.DB.prepare("DELETE FROM listen_log WHERE created_at < ?").bind(t - 90 * 86400000));
+  if (Math.random() < 0.01) ls.push(env.DB.prepare("DELETE FROM listen_log WHERE created_at < ?").bind(t - 400 * 86400000));
   await env.DB.batch(ls);
   return json({ ok: true, shown, music: rows.filter((r) => r.kind === "music").length, watching: rows.filter((r) => r.kind === "watch").length });
 }

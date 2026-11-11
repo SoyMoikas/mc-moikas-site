@@ -2,6 +2,7 @@ import { mountChat } from "./chat.js";
 import { mountFeed } from "./feed.js";
 import { mountDaily, mountOcasoHome } from "./ocaso.js";
 import { preguntaCard, recuerdosCard } from "./together.js";
+import { mountCuandoHome } from "./cuando.js";
 import { mountPlaying, mountLfg, mountFreeHome, mountNightHome, mountRecapHome } from "./social.js";
 import { api, esc, can, t, initPage, mountMobileTabs, livePosts, renderPost, postForm, bindPostActions, onSubmit, toast, toISO, gameLabel, localized } from "./common.js";
 
@@ -53,6 +54,14 @@ mountPlaying(document.getElementById("playing-now"), user);
 mountDaily(document.getElementById("daily"), user);
 mountFeed(document.getElementById("feed"), user);
 mountRecapHome(document.getElementById("recap-home"), user);
+// December–January: "your Moikas Wrapped is here"
+{
+  const el = document.getElementById("wrapped-home"), mo = new Date().getMonth();
+  if (user && user.role !== "pending" && (mo === 11 || mo === 0)) {
+    const y = new Date().getFullYear() - (mo === 0 ? 1 : 0);
+    el.innerHTML = `<a class="card wr-banner" href="/wrapped?year=${y}"><span class="wr-b-ico">🎁</span><div><b>${esc(t("wr.banner", { y }))}</b><div class="small">${esc(t("wr.bannerSub"))}</div></div><span class="primary btn">${esc(t("wr.open"))}</span></a>`;
+  } else el.remove();
+}
 if (user && user.role !== "pending") {
   preguntaCard(document.getElementById("qotd-home"), true).catch(() => document.getElementById("qotd-home").remove());
   recuerdosCard(document.getElementById("memories-home"));
@@ -84,6 +93,8 @@ async function homeTabs() {
     if (!data) { tab(name).hidden = true; if (store.get("home.tab", "inicio") === name) show("inicio"); }
     return data;
   };
+  if (user && user.role !== "pending") mountCuandoHome(document.getElementById("cuando-home"));
+  else document.getElementById("cuando-home").remove();
   const [nights, lfg, oc, fg] = await Promise.all([
     mountNightHome(document.getElementById("night-home"), user),
     mountLfg(document.getElementById("lfg-home"), user),

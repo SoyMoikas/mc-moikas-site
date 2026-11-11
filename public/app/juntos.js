@@ -177,13 +177,13 @@ async function musica(el) {
 /* ---------------- Clubs ---------------- */
 
 async function clubs(el) {
-  const { clubs } = await api("/api/juntos/clubs");
+  const { clubs: list } = await api("/api/juntos/clubs");
   const open = q.get("club");
-  if (open && clubs.find((c) => c.slug === open)) return clubPage(el, clubs.find((c) => c.slug === open));
+  if (open && list.find((c) => c.slug === open)) return clubPage(el, list.find((c) => c.slug === open));
   el.innerHTML = `
     <div class="section-head"><p class="muted" style="margin:0">${t("cl.intro")}</p><button class="small-btn" id="cl-new">+ ${t("cl.new")}</button></div>
     <div id="cl-form"></div>
-    <div class="cl-grid">${clubs.map((c) => `
+    <div class="cl-grid">${list.map((c) => `
       <div class="card cl ${c.mine ? "mine" : ""}">
         <a class="cl-top" href="/juntos?club=${encodeURIComponent(c.slug)}#clubs"><span class="cl-ico">${esc(c.icon)}</span><b>${esc(c.name)}</b></a>
         <span class="small muted">${esc(c.description || "")}</span>

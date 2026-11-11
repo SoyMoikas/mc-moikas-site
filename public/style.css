@@ -1599,3 +1599,11 @@ a.btn { display: inline-block; padding: 6px 14px; text-decoration: none; }
 #settings .bp-prefs table { width: 100%; max-width: 520px; }
 #settings .bp-prefs td:not(:first-child), #settings .bp-prefs th { text-align: center; }
 #settings .bp-prefs > button { width: auto; }
+.jf-ask { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; border-color: var(--accent-dim); }
+.jf-ask .btn { text-decoration: none; }
+.jf-staff summary { cursor: pointer; }
+.jf-staff textarea { width: 100%; margin: 6px 0; font-family: monospace; }
+.jf-list { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.jf-row { display: flex; gap: 10px; align-items: center; }
+.jf-row code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%; }
+#acc-jf .jf-ask { margin: 10px 0 0; padding: 10px; }

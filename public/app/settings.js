@@ -1,6 +1,7 @@
 // Profile → ⚙️ Ajustes: linked accounts (Discord, Minecraft, Steam, Apex, Jellyfin), language, time zone, notifications.
 import { api, esc, t, toast, TZ, flag, openLocalePicker, NT_KINDS } from "./common.js";
 import { lang, setLang } from "./i18n.js";
+import { jellyfinInvite } from "./together.js";
 
 export async function mountSettings(el, user, me, renderMinecraft) {
   el.innerHTML = `
@@ -82,7 +83,9 @@ async function jellyfin(box) {
   box.innerHTML = `<h3>🎞️ Jellyfin</h3>
     <p class="muted small">${t("set.jfWhy")}</p>
     <form class="lfg-row" id="jf-f"><input name="n" maxlength="40" placeholder="${esc(t("cn.jfName"))}" value="${esc(j.name || "")}"><button class="primary">${t("acc.save")}</button></form>
-    ${j.url ? `<p class="small"><a href="${esc(j.url)}" target="_blank" rel="noopener">${t("cn.open")} ↗</a></p>` : ""}`;
+    ${j.url ? `<p class="small"><a href="${esc(j.url)}" target="_blank" rel="noopener">${t("cn.open")} ↗</a></p>` : ""}
+    <div id="jf-inv"></div>`;
+  jellyfinInvite(box.querySelector("#jf-inv"), { ...j, staff: null }, () => jellyfin(box));
   box.querySelector("#jf-f").onsubmit = async (e) => {
     e.preventDefault();
     try { await api("/api/juntos/jellyfin", { method: "POST", body: { name: e.target.n.value } }); toast("✓"); } catch (x) { toast(x.message, true); }

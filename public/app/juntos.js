@@ -1,7 +1,7 @@
 // "Juntos": movie nights, watchlist, music, clubs, personal goals, question of the day, calendar, Secret Santa.
 import { api, esc, t, initPage, toast, ago, inputToMs, zonedNow, wallInput, msToInput } from "./common.js";
 import { mountFeed } from "./feed.js";
-import { preguntaCard } from "./together.js";
+import { preguntaCard, jellyfinInvite } from "./together.js";
 
 const user = await initPage();
 const main = document.getElementById("main");
@@ -58,12 +58,14 @@ async function cine(el) {
   const wantList = wl.items.filter((i) => !i.watched_at).slice(0, 12);
   el.innerHTML = `
     <div class="section-head"><p class="muted" style="margin:0">${t("cn.intro")}</p><button class="primary" id="cn-new">+ ${t("cn.new")}</button></div>
-    ${!jf.name ? `<div class="card play-cta">🎞️ ${t("cn.linkJf")} <form id="jf-form" class="lfg-row"><input name="n" placeholder="${esc(t("cn.jfName"))}" required><button class="small-btn">${t("acc.save")}</button></form></div>`
+    ${!jf.name ? `<div class="card play-cta">🎞️ ${t("cn.haveJf")} <form id="jf-form" class="lfg-row"><input name="n" placeholder="${esc(t("cn.jfName"))}" required><button class="small-btn">${t("acc.save")}</button></form></div>`
       : `<p class="small muted">🎞️ Jellyfin: <b>${esc(jf.name)}</b> <button class="link small" id="jf-change">${t("cn.change")}</button>${jf.url ? ` · <a href="${esc(jf.url)}" target="_blank" rel="noopener">${t("cn.open")} ↗</a>` : ""}</p>`}
+    <div id="jf-invite"></div>
     <div id="cn-form"></div>
     <div class="gn-list">${nights.map(card).join("") || `<p class="muted">${t("cn.none")}</p>`}</div>`;
   const back = reload(el, cine);
   el.querySelector("#jf-form")?.addEventListener("submit", async (e) => { e.preventDefault(); try { await api("/api/juntos/jellyfin", { method: "POST", body: { name: e.target.n.value } }); toast("✓"); back(); } catch (x) { toast(x.message, true); } });
+  jellyfinInvite(el.querySelector("#jf-invite"), jf, back);
   el.querySelector("#jf-change")?.addEventListener("click", async () => {
     const n = prompt(t("cn.jfName"), jf.name);
     if (n === null) return;

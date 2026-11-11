@@ -1,6 +1,6 @@
 import { getUser, need, hasRole } from "../../../lib/auth.js";
 import { json, body, str, int, now, err } from "../../../lib/util.js";
-import { loadTournament, publicTournament, startBracket, setMatchWinner, finish, standings, announce } from "../../../lib/tournaments.js";
+import { loadTournament, publicTournament, startBracket, setMatchWinner, finish, standings, announce, tourneyMarket } from "../../../lib/tournaments.js";
 
 export async function onRequestGet({ env, request, params }) {
   const me = await getUser(env, request);
@@ -63,6 +63,7 @@ export async function onRequestPost({ env, request, params }) {
       if (tr.teams.length < 2) return err(409, "Needs at least 2 teams");
       await DB.prepare("UPDATE tournaments SET status = 'running' WHERE id = ?").bind(tr.id).run();
       if (tr.format === "bracket") await startBracket(env, tr);
+      await tourneyMarket(env, tr);
       await announce(env, `▶️ **${tr.title}** empezó con ${tr.teams.length} ${tr.team_size === 1 ? "jugadores" : "equipos"}. ¡Suerte!`, tr.id);
     } else if (a === "report") {
       if (tr.format !== "bracket" || tr.status !== "running") return err(409, "Not a running bracket");

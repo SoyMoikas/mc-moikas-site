@@ -126,7 +126,9 @@ export async function mountOcaso(el, serverId) {
     ${moonBanner(w)}
     <div class="oc-grid">${players.map(playerCard).join("") || `<p class="muted">${t("oc.noPlayers")}</p>`}</div>
     <h3 style="margin-top:18px">☠ ${t("oc.deaths")}</h3>
-    <div class="card">${deathsHTML(d.deaths)}</div>`;
+    <div class="card">${deathsHTML(d.deaths)}</div>
+    <div class="oc-bounties"></div>`;
+  mountBounties(el.querySelector(".oc-bounties"));
   return true;
 }
 
@@ -139,7 +141,9 @@ export async function mountOcasoHome(el) {
   el.innerHTML = `
     <div class="section-head"><h2>🌅 Ocaso</h2>${w.server_id ? `<a class="small" href="/server?id=${encodeURIComponent(w.server_id)}#ocaso">${t("oc.seeAll")}</a>` : ""}</div>
     ${moonBanner(w)}
-    <div class="card">${deathsHTML(d.deaths.slice(0, 8))}</div>`;
+    <div class="card">${deathsHTML(d.deaths.slice(0, 8))}</div>
+    <div class="oc-bounties"></div>`;
+  mountBounties(el.querySelector(".oc-bounties"));
   return d;
 }
 
@@ -152,4 +156,50 @@ export async function mountOcasoProfile(el, userId) {
     <div class="section-head"><h2>🌅 Ocaso</h2></div>
     <div class="oc-grid">${d.players.map(playerCard).join("")}</div>
     ${d.deaths.length ? `<h3 style="margin-top:14px">☠ ${t("oc.lastDeaths")}</h3><div class="card">${deathsHTML(d.deaths, { names: false })}</div>` : ""}`;
+}
+
+
+/* ---------------- Bounties ("Se busca") ---------------- */
+
+export async function mountBounties(el) {
+  let d;
+  try { d = await api("/api/bounties"); } catch { el.remove(); return; }
+  if (!d.targets.length) { el.remove(); return; }
+  const left = (ms) => { const h = Math.max(0, Math.round((ms - Date.now()) / 3600000)); return h >= 24 ? `${Math.round(h / 24)} d` : `${h} h`; };
+  el.innerHTML = `
+    <div class="section-head" style="margin-top:18px"><h3>📜 ${t("bt.title")}</h3><button class="small-btn" id="bt-new">+ ${t("bt.new")}</button></div>
+    <div id="bt-form"></div>
+    <div class="bt-list">${d.open.map((b) => `
+      <div class="card bt">
+        <div class="bt-poster">${t("bt.wanted")}</div>
+        <img class="oc-face" src="https://mc-heads.net/avatar/${encodeURIComponent(b.target_uuid)}/48" alt="" onerror="this.style.visibility='hidden'">
+        <b>${esc(b.target_name)}</b>
+        <span class="bt-coins">🪙 ${b.coins}</span>
+        <span class="small muted">${b.blood_moon_only ? `🩸 ${t("bt.moonOnly")} · ` : ""}${t("bt.by", { name: esc(b.poster) })} · ⏳ ${left(b.expires_at)}</span>
+        ${b.note ? `<span class="small">“${esc(b.note)}”</span>` : ""}
+        ${b.mine ? `<button class="link" data-cancel-bt="${b.id}">${t("bt.cancel")}</button>` : ""}
+      </div>`).join("") || `<p class="muted small">${t("bt.none")}</p>`}</div>
+    ${d.done.length ? `<p class="small muted">${d.done.slice(0, 5).map((b) => `🗡️ ${esc(b.claimed_by_name)} → ${esc(b.target_name)} (🪙 ${b.coins})`).join(" · ")}</p>` : ""}`;
+  el.querySelector("#bt-new").onclick = () => {
+    const box = el.querySelector("#bt-form");
+    if (box.innerHTML) { box.innerHTML = ""; return; }
+    box.innerHTML = `
+      <form class="card lfg-form">
+        <div class="lfg-row"><label>${t("bt.target")}<select name="target" required><option value="">—</option>${d.targets.map((p) => `<option value="${esc(p.uuid)}">${esc(p.name)}</option>`).join("")}</select></label>
+          <label>${t("bt.coins")}<input type="number" name="coins" min="${d.min}" max="${d.max}" value="100"></label></div>
+        <label class="small"><input type="checkbox" name="moon"> 🩸 ${t("bt.moonOnlyQ")}</label>
+        <label>${t("lfg.note")}<input name="note" maxlength="140" placeholder="${esc(t("bt.notePh"))}"></label>
+        <div class="lfg-row"><button class="primary">${t("bt.post")}</button><span class="hint">${t("bt.hint", { days: d.days })}</span></div>
+      </form>`;
+    box.querySelector("form").onsubmit = async (e) => {
+      e.preventDefault();
+      const f = e.target;
+      try { await api("/api/bounties", { method: "POST", body: { target_uuid: f.target.value, coins: +f.coins.value, blood_moon_only: f.moon.checked, note: f.note.value } }); toast(t("bt.posted")); mountBounties(el); }
+      catch (x) { toast(x.message, true); }
+    };
+  };
+  el.querySelectorAll("[data-cancel-bt]").forEach((b) => (b.onclick = async () => {
+    if (!confirm(t("bt.cancelQ"))) return;
+    try { await api(`/api/bounties/${b.dataset.cancelBt}`, { method: "POST" }); mountBounties(el); } catch (x) { toast(x.message, true); }
+  }));
 }

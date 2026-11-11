@@ -51,6 +51,7 @@ export function mountChat(el, channel, user) {
         <div class="chat-main">
           <div class="who">${nameHTML(m, t("deletedUser"))}${m.username ? levelBadge(m.xp) : ""}${staffBadge}
             <span class="when" data-ts="${m.created_at}" title="${esc(new Date(m.created_at).toLocaleString())}">${esc(ago(m.created_at))}</span>
+            ${user && user.role !== "pending" && !STICKER_RE.test(m.body) && !/\/api\/uploads\//.test(m.body) ? `<button class="link chat-quote" data-quote="${m.id}" title="${esc(t("qt.save"))}">⭐</button>` : ""}
             ${m.can_delete ? `<button class="link chat-del" data-del="${m.id}" title="${esc(t("delete"))}">✕</button>` : ""}
           </div>
           ${(() => { const st = m.body.match(STICKER_RE); if (st && catalogItem(st[1])) return `<div class="body">${stickerHTML(st[1])}</div>`; const a = textAttrs(m); return `<div class="body${a.cls}" style="${a.style}">${rich(m.body)}</div>`; })()}
@@ -146,6 +147,12 @@ export function mountChat(el, channel, user) {
   input.addEventListener("input", autosize);
 
   log.addEventListener("click", async (e) => {
+    const qb = e.target.closest("[data-quote]");
+    if (qb) {
+      try { await api("/api/quotes", { method: "POST", body: { message_id: +qb.dataset.quote } }); toast(t("qt.saved")); qb.remove(); }
+      catch (err) { toast(err.message, true); }
+      return;
+    }
     const b = e.target.closest("[data-del]");
     if (!b || !confirm(t("chat.confirmDelete"))) return;
     try { await api(`/api/chat-messages/${b.dataset.del}`, { method: "DELETE" }); b.closest(".chat-msg").remove(); }

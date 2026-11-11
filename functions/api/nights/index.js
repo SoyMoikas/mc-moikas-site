@@ -1,3 +1,4 @@
+import { ensureMarket } from "../../../lib/markets.js";
 import { notify, allMembers } from "../../../lib/notify.js";
 import { getUser, need } from "../../../lib/auth.js";
 import { json, body, str, int, now, err } from "../../../lib/util.js";
@@ -41,6 +42,8 @@ export async function onRequestPost({ env, request, waitUntil }) {
   ]);
   const n = await loadNight(env, id, me);
   await postVoting(env, n);
+  if (games.length >= 2) await ensureMarket(env, { kind: "night", ref: id, title: `${title}: ¿qué juego gana la votación?`,
+    options: games.map((g) => ({ label: g, ref: g })), closes_at: voteUntil });
   waitUntil(allMembers(env, me.id).then((ids) => notify(env, ids, "game", {
     title: `🗳️ ${me.username} armó: ${title}`, body: `Vota qué jugar: ${games.join(", ")}`, url: `/play?night=${id}#noches` })));
   return json({ night: publicNight(n, me) });

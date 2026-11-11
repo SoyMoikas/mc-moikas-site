@@ -1,5 +1,6 @@
 import { json, err, now } from "../../../lib/util.js";
 import { syncAuthorized } from "../../../lib/sync-auth.js";
+import { checkBountyDeath } from "../../../lib/bounties.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const NAME = /^[.\w]{1,20}$/;
@@ -18,7 +19,7 @@ export async function onRequestPost({ request, env }) {
 
   const t = now();
   const stmts = [];
-  const deathStmts = new Set();
+  const deathStmts = new Map(); // statement → {death, ptero, world} so new deaths can settle bounties
   let players = 0;
   for (const s of (p.servers || []).slice(0, 10)) {
     if (typeof s?.ptero_uuid !== "string" || s.ptero_uuid.length > 64) continue;
@@ -56,14 +57,19 @@ export async function onRequestPost({ request, env }) {
         "INSERT OR IGNORE INTO mc_deaths (ptero_uuid, mc_uuid, name, message, created_at) VALUES (?, ?, ?, ?, ?)"
       ).bind(s.ptero_uuid, UUID.test(d.uuid || "") ? d.uuid.toLowerCase() : null, d.name, d.message.slice(0, 200), d.at);
       stmts.push(st);
-      deathStmts.add(st);
+      deathStmts.set(st, { death: { mc_uuid: UUID.test(d.uuid || "") ? d.uuid.toLowerCase() : null, name: d.name, message: d.message }, ptero: s.ptero_uuid, world: w });
     }
   }
   let newDeaths = 0;
   for (let i = 0; i < stmts.length; i += 50) {
     const chunk = stmts.slice(i, i + 50);
     const res = await env.DB.batch(chunk);
-    res.forEach((r, j) => { if (deathStmts.has(chunk[j]) && r.meta?.changes) newDeaths++; });
+    for (const [j, r] of res.entries()) {
+      const info = deathStmts.get(chunk[j]);
+      if (!info || !r.meta?.changes) continue;
+      newDeaths++;
+      try { await checkBountyDeath(env, info.ptero, info.death, info.world); } catch (e) { console.error("bounty", e.message); }
+    }
   }
   // keep the death feed small
   if (Math.random() < 0.05) await env.DB.prepare("DELETE FROM mc_deaths WHERE created_at < ?").bind(t - 60 * 86400000).run();

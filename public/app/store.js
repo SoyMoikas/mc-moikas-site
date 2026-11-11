@@ -161,6 +161,7 @@ function render() {
         </div>`
         : `<div class="notice">${t("st.loginNotice", { href: "/auth/login?next=/store" })}</div>`}
     </section>
+    ${u ? `<section id="crate"></section>` : ""}
     ${cols.length ? `
       <section id="collections">
         <div class="section-head"><h2>${t("st.collections")}</h2></div>
@@ -330,3 +331,45 @@ function wire() {
 }
 
 load();
+
+
+/* ---------------- Mystery crate ---------------- */
+
+const RARITY = { common: ["#9aa3b5", "cr.common"], rare: ["#4fb3e8", "cr.rare"], epic: ["#b48cff", "cr.epic"], legendary: ["#f2b33d", "cr.legendary"] };
+async function mountCrate() {
+  const el = document.getElementById("crate");
+  if (!el || el.dataset.ready) return;
+  el.dataset.ready = "1";
+  let d;
+  try { d = await api("/api/crates"); } catch { el.remove(); return; }
+  const total = d.tiers.filter((x) => x.left).reduce((n, x) => n + x.weight, 0) || 1;
+  el.innerHTML = `
+    <div class="card crate">
+      <div class="crate-box" id="crate-box">🎁</div>
+      <div class="crate-main">
+        <h2>${t("cr.title")}</h2>
+        <p class="muted small">${t("cr.desc", { n: d.left })}</p>
+        <div class="crate-odds">${d.tiers.map((x) => `<span style="border-color:${RARITY[x.key][0]}"><b style="color:${RARITY[x.key][0]}">${t(RARITY[x.key][1])}</b> ${x.left ? Math.round((x.weight / total) * 100) : 0}% · ${x.left}</span>`).join("")}</div>
+        <div class="lfg-row"><button class="primary" id="crate-open" ${d.left ? "" : "disabled"}>${t("cr.open", { n: d.price })}</button><span id="crate-result"></span></div>
+      </div>
+    </div>`;
+  el.querySelector("#crate-open").onclick = async (e) => {
+    const btn = e.currentTarget, box = el.querySelector("#crate-box"), out = el.querySelector("#crate-result");
+    if (!confirm(t("cr.confirm", { n: d.price }))) return;
+    btn.disabled = true; out.innerHTML = ""; box.classList.add("shake");
+    let r;
+    try { r = await api("/api/crates", { method: "POST" }); }
+    catch (x) { toast(x.message, true); btn.disabled = false; box.classList.remove("shake"); return; }
+    await new Promise((ok) => setTimeout(ok, 1400));
+    box.classList.remove("shake");
+    const [col, key] = RARITY[r.rarity];
+    box.textContent = r.rarity === "legendary" ? "🌟" : r.rarity === "epic" ? "💜" : r.rarity === "rare" ? "💙" : "✨";
+    box.style.borderColor = col;
+    out.innerHTML = `<b style="color:${col}">${t(key)}:</b> ${esc(itemName(r.item) || r.item.id)} <span class="small muted">· ${t("cr.equip")}</span>`;
+    toast(`${t(key)}: ${itemName(r.item) || r.item.id}`);
+    setTimeout(() => load(), 2500);
+  };
+}
+const _render = render;
+render = function () { _render(); mountCrate(); };
+mountCrate();

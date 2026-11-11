@@ -49,6 +49,8 @@ async function load() {
     </section>
 
     <section id="ocaso-profile"></section>
+    <section id="achievements"></section>
+    <section id="rival"></section>
 
     ${own ? `<section id="avatar"><div class="section-head"><h2>${t("cz.title")}</h2></div><div id="avatar-editor"></div></section>` : ""}
 
@@ -77,6 +79,8 @@ async function load() {
     ${own ? `<p style="margin-top:24px" class="actions"><a class="btn primary" href="/store">🪙 ${t("nav.store")}</a><a class="btn" href="/auth/logout">${t("auth.logout")}</a></p>` : ""}`;
 
   mountOcasoProfile(main.querySelector("#ocaso-profile"), p.user.id);
+  mountAchievements(main.querySelector("#achievements"), p.user.id, own);
+  if (user && user.role !== "pending") mountRival(main.querySelector("#rival"), p.user, own);
   api(`/api/tournaments?user=${p.user.id}`).then(({ trophies }) => {
     if (!trophies.length) return;
     const el = document.createElement("section");
@@ -143,3 +147,71 @@ function startForm(box) {
 }
 
 load();
+
+
+/* ---------------- Achievements + birthday ---------------- */
+
+async function mountAchievements(el, uid, own) {
+  let d;
+  try { d = await api(`/api/achievements?user=${uid}`); } catch { el.remove(); return; }
+  const got = d.achievements.filter((a) => a.unlocked_at).length;
+  el.innerHTML = `
+    <div class="section-head"><h2>🏅 ${t("ach.title")} <span class="muted small">${got}/${d.achievements.length}</span></h2>${own ? `<span id="bday-box"></span>` : ""}</div>
+    <div class="ach-grid">${d.achievements.map((a) => `
+      <div class="ach ${a.unlocked_at ? "on" : ""} ${a.secret && !a.unlocked_at ? "secret" : ""}" title="${esc(a.desc)}${a.unlocked_at ? ` · ${esc(new Date(a.unlocked_at).toLocaleDateString())}` : ""}">
+        <span class="ach-i">${a.icon}</span><b>${esc(a.name)}</b><span class="small muted">${esc(a.desc)}</span>
+        <span class="small muted">${t("ach.holders", { n: a.holders })}</span></div>`).join("")}</div>`;
+  if (own) {
+    const box = el.querySelector("#bday-box");
+    const { birthday } = await api("/api/birthday").catch(() => ({ birthday: null }));
+    const months = Array.from({ length: 12 }, (_, i) => new Date(2000, i, 1).toLocaleDateString(undefined, { month: "short" }));
+    const [mm, dd] = (birthday || "-").split("-");
+    box.innerHTML = `<span class="small">🎂 ${t("bd.label")}</span>
+      <select id="bd-m"><option value="">—</option>${months.map((m, i) => `<option value="${String(i + 1).padStart(2, "0")}" ${mm === String(i + 1).padStart(2, "0") ? "selected" : ""}>${m}</option>`).join("")}</select>
+      <select id="bd-d"><option value="">—</option>${Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, "0")).map((x) => `<option ${dd === x ? "selected" : ""}>${x}</option>`).join("")}</select>`;
+    const save = async () => {
+      const m = box.querySelector("#bd-m").value, dday = box.querySelector("#bd-d").value;
+      if (!!m !== !!dday) return;
+      try { await api("/api/birthday", { method: "POST", body: { birthday: m ? `${m}-${dday}` : null } }); toast(t("bd.saved")); } catch (x) { toast(x.message, true); }
+    };
+    box.querySelectorAll("select").forEach((s) => (s.onchange = save));
+  }
+}
+
+/* ---------------- Rivalries ---------------- */
+
+async function mountRival(el, them, own) {
+  const ROWS = [["hours", "⏱️"], ["hours_week", "📅"], ["xp", "⭐"], ["apex_rp", "🎯"], ["apex_week", "📈"], ["deaths", "💀", true], ["trophies", "🏆"],
+    ["nights", "🎉"], ["quests", "🗺️"], ["streak", "🔥"], ["guesses", "🧩"], ["bets_won", "🤑"], ["achievements", "🏅"]];
+  const show = async (a, b) => {
+    el.innerHTML = `<p class="muted">${t("loading")}</p>`;
+    let d;
+    try { d = await api(`/api/rivals?a=${a}&b=${b}`); } catch (x) { el.innerHTML = `<p class="muted">${esc(x.message)}</p>`; return; }
+    let wa = 0, wb = 0;
+    const rows = ROWS.map(([k, ico, lowWins]) => {
+      const x = d.a.stats[k], y = d.b.stats[k];
+      if (x == null && y == null) return "";
+      let win = 0;
+      if (x != null && y != null && x !== y) win = (lowWins ? x < y : x > y) ? 1 : 2;
+      if (win === 1) wa++; else if (win === 2) wb++;
+      const fmtv = (v) => (v == null ? "—" : k === "apex_week" && v > 0 ? `+${v}` : v);
+      return `<tr><td class="${win === 1 ? "rv-win" : ""}">${fmtv(x)}</td><td>${ico} ${t("rv." + k)}</td><td class="${win === 2 ? "rv-win" : ""}">${fmtv(y)}</td></tr>`;
+    }).join("");
+    el.innerHTML = `
+      <div class="section-head"><h2>⚔️ ${t("rv.title")}</h2>${own ? "" : ""}</div>
+      <div class="card rv">
+        <div class="rv-head"><div>${avatarHTML(d.a, 40)}<b>${esc(d.a.username)}</b><span class="rv-score">${wa}</span></div><span class="muted">vs</span>
+          <div><span class="rv-score">${wb}</span><b>${esc(d.b.username)}</b>${avatarHTML(d.b, 40)}</div></div>
+        <table class="rv-table"><tbody>${rows}</tbody></table>
+        <p class="hint" style="text-align:center">${wa === wb ? t("rv.tie") : t("rv.leads", { name: esc(wa > wb ? d.a.username : d.b.username) })}</p>
+      </div>`;
+  };
+  if (!own) { show(user.id, them.id); return; }
+  // your own profile: pick someone to compare with
+  const { players } = await api("/api/leaderboard").catch(() => ({ players: [] }));
+  const others = (players || []).filter((u) => u.id !== user.id);
+  if (!others.length) { el.remove(); return; }
+  el.innerHTML = `<div class="section-head"><h2>⚔️ ${t("rv.title")}</h2>
+    <select id="rv-pick"><option value="">${t("rv.pick")}</option>${others.map((u) => `<option value="${u.id}">${esc(u.username)}</option>`).join("")}</select></div>`;
+  el.querySelector("#rv-pick").onchange = (e) => e.target.value && show(user.id, +e.target.value);
+}

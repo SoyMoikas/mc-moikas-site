@@ -4,7 +4,7 @@ import { api, esc, t, initPage, toast, ago } from "./common.js";
 const user = await initPage();
 const main = document.getElementById("main");
 const q = new URLSearchParams(location.search);
-const TABS = ["noches", "comun", "apex", "gratis", "cuentas"];
+const TABS = ["noches", "adivina", "apuestas", "frases", "comun", "apex", "gratis", "cuentas"];
 let tab = TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : q.get("night") ? "noches" : "noches";
 const fmt = (ms) => new Date(ms).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 const av = (u) => `<img class="soc-av" src="${esc(u.avatar || "")}" alt="" title="${esc(u.username)}" loading="lazy" onerror="this.style.visibility='hidden'">`;
@@ -27,7 +27,7 @@ function frame() {
     </section>`;
   main.querySelectorAll("[data-tab]").forEach((a) => (a.onclick = (e) => { e.preventDefault(); tab = a.dataset.tab; history.replaceState(null, "", `/play#${tab}`); frame(); }));
   const body = main.querySelector("#play-body");
-  ({ noches: nights, comun: common, apex, gratis: free, cuentas: accounts })[tab](body).catch((x) => (body.innerHTML = `<p class="muted">${esc(x.message)}</p>`));
+  ({ noches: nights, adivina: guess, apuestas: bets, frases: quotes, comun: common, apex, gratis: free, cuentas: accounts })[tab](body).catch((x) => (body.innerHTML = `<p class="muted">${esc(x.message)}</p>`));
 }
 
 /* ---------------- Game nights ---------------- */
@@ -45,6 +45,7 @@ async function nights(el) {
   el.querySelectorAll("[data-lock]").forEach((b) => (b.onclick = () => confirm(t("gn.lockQ")) && nightAct(b.dataset.lock, { action: "lock" }, el)));
   el.querySelectorAll("[data-cancel]").forEach((b) => (b.onclick = () => confirm(t("gn.cancelQ")) && nightAct(b.dataset.cancel, { action: "cancel" }, el)));
   if (focus) el.querySelector(`#gn-${focus}`)?.scrollIntoView({ block: "center" });
+  el.querySelectorAll("[data-tabgo]").forEach((a) => (a.onclick = (e) => { e.preventDefault(); tab = a.dataset.tabgo; history.replaceState(null, "", `/play#${tab}`); frame(); }));
 }
 
 async function nightAct(id, body, el) {
@@ -71,7 +72,7 @@ function nightCard(n, focus) {
       ${n.status === "voting" ? `
         <div class="gn-cols"><div><div class="small muted">${t("gn.whatGame")}</div>${games.map((o) => opt(o, esc(o.label))).join("")}</div>
           <div><div class="small muted">${t("gn.when")}</div>${times.map((o) => opt(o, esc(fmt(o.value)))).join("")}</div></div>
-        <p class="hint">${t("gn.voteHint")}</p>` : ""}
+        <p class="hint">${t("gn.voteHint")} · <a href="#apuestas" data-tabgo="apuestas">🪙 ${t("mk.betOnIt")}</a></p>` : ""}
       ${n.status === "locked" ? `
         <div class="gn-rsvp">
           ${["yes", "maybe", "no"].map((s) => `<button class="${n.my_rsvp === s ? "primary" : "small-btn"}" data-rsvp="${s}" data-n="${n.id}">${t("gn.rsvp." + s)}</button>`).join("")}
@@ -128,29 +129,29 @@ async function common(el) {
   const pick = new Set(linked.map((p) => p.user_id));
   el.innerHTML = `
     ${!d.me ? `<div class="card play-cta">🔗 ${t("play.linkSteamCta")} <a class="primary btn" href="/api/steam/link">${t("play.linkSteam")}</a></div>` : ""}
-    <p class="muted">${t("st.intro")}</p>
+    <p class="muted">${t("sg.intro")}</p>
     <div class="st-people">${d.people.map((p) => `
-      <label class="st-person ${p.public ? "" : "off"}" title="${p.public ? "" : esc(t("st.private"))}">
+      <label class="st-person ${p.public ? "" : "off"}" title="${p.public ? "" : esc(t("sg.private"))}">
         <input type="checkbox" value="${p.user_id}" ${p.public ? "checked" : "disabled"}> ${av(p)} ${esc(p.username)}
-        <span class="small muted">${p.public ? t("st.nGames", { n: p.game_count }) : "🔒"}</span></label>`).join("") || `<p class="muted">${t("st.nobody")}</p>`}</div>
-    <label class="small"><input type="checkbox" id="st-mp" checked> ${t("st.onlyMp")}</label>
+        <span class="small muted">${p.public ? t("sg.nGames", { n: p.game_count }) : "🔒"}</span></label>`).join("") || `<p class="muted">${t("sg.nobody")}</p>`}</div>
+    <label class="small"><input type="checkbox" id="st-mp" checked> ${t("sg.onlyMp")}</label>
     <div id="st-games"></div>
-    ${d.people.some((p) => p.recent.length) ? `<h3>${t("st.recent")}</h3><div class="st-recent">${d.people.filter((p) => p.recent.length).map((p) => `
-      <div class="card st-r"><div>${av(p)} <b>${esc(p.username)}</b></div>${p.recent.map((g) => `<div class="small">🎮 ${esc(g.name || g.appid)} <span class="muted">· ${hrs(g.playtime_2w)} ${t("st.last2w")}</span></div>`).join("")}</div>`).join("")}</div>` : ""}`;
+    ${d.people.some((p) => p.recent.length) ? `<h3>${t("sg.recent")}</h3><div class="st-recent">${d.people.filter((p) => p.recent.length).map((p) => `
+      <div class="card st-r"><div>${av(p)} <b>${esc(p.username)}</b></div>${p.recent.map((g) => `<div class="small">🎮 ${esc(g.name || g.appid)} <span class="muted">· ${hrs(g.playtime_2w)} ${t("sg.last2w")}</span></div>`).join("")}</div>`).join("")}</div>` : ""}`;
   const run = async () => {
     const ids = [...el.querySelectorAll(".st-person input:checked")].map((i) => i.value);
     const box = el.querySelector("#st-games");
-    if (ids.length < 2) { box.innerHTML = `<p class="hint">${t("st.pick2")}</p>`; return; }
+    if (ids.length < 2) { box.innerHTML = `<p class="hint">${t("sg.pick2")}</p>`; return; }
     box.innerHTML = `<p class="muted">${t("loading")}</p>`;
     const r = await api(`/api/steam?common=${ids.join(",")}`);
     const only = el.querySelector("#st-mp").checked;
     const games = r.games.filter((g) => !only || g.multiplayer !== 0);
-    box.innerHTML = `<h3>${t("st.allOwn", { n: games.length, p: ids.length })}</h3>
+    box.innerHTML = `<h3>${t("sg.allOwn", { n: games.length, p: ids.length })}</h3>
       <div class="st-grid">${games.map((g) => `
         <a class="card st-game" href="https://store.steampowered.com/app/${g.appid}" target="_blank" rel="noopener">
           <img src="${esc(g.img)}" alt="" loading="lazy" onerror="this.style.display='none'">
-          <div><b>${esc(g.name || g.appid)}</b><div class="small muted">${t("st.together", { h: hrs(g.total) })}${g.recent ? ` · 🔥 ${hrs(g.recent)} ${t("st.last2w")}` : ""}${g.multiplayer === 1 ? " · 👥" : ""}</div></div>
-        </a>`).join("") || `<p class="muted">${t("st.none")}</p>`}</div>`;
+          <div><b>${esc(g.name || g.appid)}</b><div class="small muted">${t("sg.together", { h: hrs(g.total) })}${g.recent ? ` · 🔥 ${hrs(g.recent)} ${t("sg.last2w")}` : ""}${g.multiplayer === 1 ? " · 👥" : ""}</div></div>
+        </a>`).join("") || `<p class="muted">${t("sg.none")}</p>`}</div>`;
   };
   el.querySelectorAll(".st-person input, #st-mp").forEach((i) => (i.onchange = run));
   void pick;
@@ -212,8 +213,8 @@ async function accounts(el) {
     <div class="acc-grid">
       <div class="card acc"><h3>🟦 Steam</h3>
         ${!s.configured ? `<p class="muted">${t("play.noSteamKey")}</p>` : s.me ? `
-          <p>${s.me.steam_avatar ? `<img class="soc-av" src="${esc(s.me.steam_avatar)}" alt="">` : ""} <b>${esc(s.me.persona || "Steam")}</b> · ${t("st.nGames", { n: s.me.game_count })}</p>
-          ${s.me.public ? "" : `<p class="hint">⚠ ${t("st.privateHelp")}</p>`}
+          <p>${s.me.steam_avatar ? `<img class="soc-av" src="${esc(s.me.steam_avatar)}" alt="">` : ""} <b>${esc(s.me.persona || "Steam")}</b> · ${t("sg.nGames", { n: s.me.game_count })}</p>
+          ${s.me.public ? "" : `<p class="hint">⚠ ${t("sg.privateHelp")}</p>`}
           <div class="lfg-row"><button class="small-btn" data-st="refresh">${t("acc.refresh")}</button><button class="small-btn danger" data-st="unlink">${t("acc.unlink")}</button></div>`
         : `<p class="muted">${t("acc.steamWhy")}</p><a class="primary btn" href="/api/steam/link">${t("play.linkSteam")}</a><p class="hint">${t("acc.steamSafe")}</p>`}
       </div>
@@ -242,4 +243,120 @@ async function accounts(el) {
     try { await api("/api/apex", { method: "POST", body: { action: "link", name: f.name.value.trim(), platform: f.platform.value } }); toast(t("acc.apexOk")); await accounts(el); }
     catch (x) { toast(x.message, true); btn.disabled = false; }
   };
+}
+
+
+/* ---------------- Adivina el juego ---------------- */
+
+async function guess(el) {
+  const render = (d) => {
+    const n = d.guesses.length;
+    const step = d.done ? 6 : n; // 0..6 → blur and zoom shrink with every guess
+    const blur = [26, 18, 12, 8, 5, 2, 0][step], zoom = [3.2, 2.6, 2.1, 1.7, 1.4, 1.15, 1][step];
+    const cells = Array.from({ length: d.max }, (_, i) => {
+      const g = d.guesses[i];
+      if (g == null) return `<span class="gg-cell"></span>`;
+      const ok = d.solved && i === n - 1;
+      return `<span class="gg-cell ${ok ? "ok" : "bad"}" title="${esc(g)}">${ok ? "🟩" : g === "—" ? "⬛" : "🟥"}</span>`;
+    }).join("");
+    const share = `🎮 Adivina el juego ${d.day}: ${d.solved ? n : "X"}/${d.max}\n${d.guesses.map((g, i) => (d.solved && i === n - 1 ? "🟩" : g === "—" ? "⬛" : "🟥")).join("")}\nplay.moikas.cc/play#adivina`;
+    el.innerHTML = `
+      <p class="muted">${t("gg.intro", { max: d.max })}</p>
+      <div class="gg-wrap">
+        <div class="gg-frame"><img src="/api/guess/img?d=${d.day}" alt="" style="filter: blur(${blur}px); transform: scale(${zoom})"></div>
+        <div class="gg-side">
+          <div class="gg-cells">${cells}</div>
+          ${d.done ? `
+            <div class="card gg-result ${d.solved ? "win" : ""}">
+              <b>${d.solved ? t("gg.win", { n, coins: d.coins }) : t("gg.lose")}</b>
+              <div>${t("gg.answer")}: <a href="https://store.steampowered.com/app/${d.answer.appid}" target="_blank" rel="noopener">${esc(d.answer.name)}</a></div>
+              <button class="small-btn" id="gg-share">📋 ${t("gg.share")}</button>
+              <div class="hint">${t("gg.tomorrow")}</div>
+            </div>` : `
+            <form id="gg-form" class="lfg-row">
+              <input name="g" list="gg-names" autocomplete="off" placeholder="${esc(t("gg.ph"))}" required>
+              <datalist id="gg-names">${d.names.map((x) => `<option value="${esc(x)}">`).join("")}</datalist>
+              <button class="primary">${t("gg.try")}</button>
+              <button type="button" class="small-btn" id="gg-skip">${t("gg.skip")}</button>
+            </form>
+            <div class="hint">${t("gg.reward", { coins: d.rewards[n] })}</div>
+            ${d.guesses.filter((g) => g !== "—").length ? `<div class="small muted">${t("gg.tried")}: ${d.guesses.filter((g) => g !== "—").map(esc).join(", ")}</div>` : ""}`}
+          ${d.board.length ? `<h3>${t("gg.today")}</h3><ol class="gg-board">${d.board.map((b) => `<li>${av(b)} ${esc(b.username)} <span class="muted">${b.solved ? `${b.n}/${d.max}` : "X"}</span></li>`).join("")}</ol>` : ""}
+        </div>
+      </div>`;
+    const f = el.querySelector("#gg-form");
+    const send = async (payload) => {
+      try { const r = await api("/api/guess", { method: "POST", body: payload }); if (!r.right && !r.done && payload.guess) toast(t("gg.nope"), true); if (r.right) toast(t("gg.win", { n: r.guesses.length, coins: r.coins })); render(r); }
+      catch (x) { toast(x.message, true); }
+    };
+    if (f) { f.onsubmit = (e) => { e.preventDefault(); send({ guess: f.g.value }); }; f.g.focus(); }
+    el.querySelector("#gg-skip")?.addEventListener("click", () => send({ skip: true }));
+    el.querySelector("#gg-share")?.addEventListener("click", () => { navigator.clipboard?.writeText(share); toast(t("gg.copied")); });
+  };
+  render(await api("/api/guess"));
+}
+
+/* ---------------- Apuestas (predictions) ---------------- */
+
+async function bets(el) {
+  const { markets } = await api("/api/markets");
+  const staff = ["staff", "subadmin", "admin"].includes(user.role);
+  const card = (m) => {
+    const win = m.options.find((o) => o.id === m.winner_option);
+    return `
+    <div class="card mk ${m.open ? "" : "closed"}">
+      <div class="mk-head"><b>${esc(m.title)}</b><span class="small muted">🪙 ${m.pot} ${t("mk.pot")} · ${m.status === "settled" ? `🏁 ${t("mk.won")}: ${esc(win?.label || "?")}` : m.status === "void" ? t("mk.void") : m.open ? (m.closes_at ? t("mk.closes", { when: fmt(m.closes_at) }) : t("mk.open")) : t("mk.closed")}</span></div>
+      <div class="mk-opts">${m.options.map((o) => `
+        <div class="mk-opt ${m.my_bet?.option_id === o.id ? "mine" : ""} ${win?.id === o.id ? "win" : ""}">
+          <span class="mk-lbl">${esc(o.label)}</span>
+          <span class="small muted">🪙 ${o.stake}${o.payout ? ` · x${o.payout}` : ""}</span>
+          <span class="gn-avs">${o.bettors.slice(0, 5).map(av).join("")}</span>
+          ${m.open && !m.my_bet ? `<button class="small-btn" data-bet="${m.id}" data-opt="${o.id}">${t("mk.bet")}</button>` : ""}
+          ${staff && m.kind === "custom" && ["open", "closed"].includes(m.status) ? `<button class="small-btn" data-settle="${m.id}" data-opt="${o.id}">🏁</button>` : ""}
+        </div>`).join("")}</div>
+      ${m.my_bet ? `<div class="hint">${t("mk.yourBet", { coins: m.my_bet.coins, opt: esc(m.options.find((o) => o.id === m.my_bet.option_id)?.label || "") })}</div>` : ""}
+    </div>`;
+  };
+  el.innerHTML = `
+    <div class="section-head"><p class="muted" style="margin:0">${t("mk.intro")}</p>${staff ? `<button class="small-btn" id="mk-new">+ ${t("mk.new")}</button>` : ""}</div>
+    <div id="mk-form"></div>
+    <div class="mk-list">${markets.map(card).join("") || `<p class="muted">${t("mk.none")}</p>`}</div>`;
+  el.querySelectorAll("[data-bet]").forEach((b) => (b.onclick = async () => {
+    const coins = parseInt(prompt(t("mk.howMuch"), "20"));
+    if (!coins) return;
+    try { await api(`/api/markets/${b.dataset.bet}`, { method: "POST", body: { action: "bet", option_id: +b.dataset.opt, coins } }); toast(t("mk.placed")); bets(el); }
+    catch (x) { toast(x.message, true); }
+  }));
+  el.querySelectorAll("[data-settle]").forEach((b) => (b.onclick = async () => {
+    if (!confirm(t("mk.settleQ"))) return;
+    try { await api(`/api/markets/${b.dataset.settle}`, { method: "POST", body: { action: "settle", option_id: +b.dataset.opt } }); bets(el); } catch (x) { toast(x.message, true); }
+  }));
+  el.querySelector("#mk-new")?.addEventListener("click", () => {
+    const box = el.querySelector("#mk-form");
+    box.innerHTML = `<form class="card lfg-form"><label>${t("mk.question")}<input name="title" maxlength="120" required placeholder="${esc(t("mk.questionPh"))}"></label>
+      <label>${t("mk.options")}<input name="opts" required placeholder="Moikas, Jhex, Doggo"></label><button class="primary">${t("mk.create")}</button></form>`;
+    box.querySelector("form").onsubmit = async (e) => {
+      e.preventDefault();
+      try { await api("/api/markets", { method: "POST", body: { title: e.target.title.value, options: e.target.opts.value.split(",") } }); bets(el); } catch (x) { toast(x.message, true); }
+    };
+  });
+}
+
+/* ---------------- Frases célebres ---------------- */
+
+async function quotes(el, sort = "top") {
+  const { quotes } = await api(`/api/quotes?sort=${sort}`);
+  el.innerHTML = `
+    <div class="section-head"><p class="muted" style="margin:0">${t("qt.intro")}</p>
+      <span><button class="small-btn ${sort === "top" ? "primary" : ""}" data-sort="top">${t("qt.top")}</button> <button class="small-btn ${sort === "new" ? "primary" : ""}" data-sort="new">${t("qt.new")}</button></span></div>
+    <div class="qt-list">${quotes.map((q) => `
+      <figure class="card qt">
+        <blockquote>“${esc(q.body)}”</blockquote>
+        <figcaption>${q.author ? `${av({ username: q.author, avatar: q.author_avatar })} <b>${esc(q.author)}</b>` : "?"} <span class="small muted">· ${esc(new Date(q.said_at).toLocaleDateString())}${q.saved_by ? ` · ${t("qt.savedBy", { name: esc(q.saved_by) })}` : ""}</span></figcaption>
+        <button class="qt-vote ${q.mine ? "on" : ""}" data-vote="${q.id}">⭐ ${q.votes}</button>
+      </figure>`).join("") || `<p class="muted">${t("qt.none")}</p>`}</div>`;
+  el.querySelectorAll("[data-sort]").forEach((b) => (b.onclick = () => quotes(el, b.dataset.sort)));
+  el.querySelectorAll("[data-vote]").forEach((b) => (b.onclick = async () => {
+    try { await api(`/api/quotes/${b.dataset.vote}`, { method: "POST", body: { action: "vote" } }); quotes(el, sort); } catch (x) { toast(x.message, true); }
+  }));
 }

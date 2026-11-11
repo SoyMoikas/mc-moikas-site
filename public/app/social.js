@@ -157,3 +157,20 @@ export async function mountNightHome(el, user) {
     </a>`;
   return d.nights;
 }
+
+
+/* ---------------- Home: birthdays + weekly recap ---------------- */
+
+export async function mountRecapHome(el, user) {
+  if (!user || user.role === "pending") { el.remove(); return; }
+  let d;
+  try { d = await api("/api/recap"); } catch { el.remove(); return; }
+  const bday = d.birthdays.length ? `<div class="card bday">🎂 ${t("bd.today", { names: d.birthdays.map((b) => esc(b.username)).join(", ") })} 🥳</div>` : "";
+  const r = d.recap;
+  const fresh = r && Date.now() - r.to < 7 * 86400000;
+  el.innerHTML = bday + (fresh ? `
+    <details class="card recap" ${Date.now() - r.to < 2 * 86400000 ? "open" : ""}>
+      <summary><b>📰 ${t("rc.title")}</b> <span class="small muted">${esc(new Date(r.from).toLocaleDateString(undefined, { month: "short", day: "numeric" }))} – ${esc(new Date(r.to - 1).toLocaleDateString(undefined, { month: "short", day: "numeric" }))}</span></summary>
+      <ul class="recap-list">${r.items.map((i) => `<li><span class="recap-i">${i.icon}</span><span><span class="small muted">${esc(i.title)}</span><br><b>${esc(i.who)}</b>${i.detail ? ` <span class="muted">— ${esc(i.detail)}</span>` : ""}</span></li>`).join("")}</ul>
+    </details>` : "");
+}

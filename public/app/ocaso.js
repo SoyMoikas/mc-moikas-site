@@ -7,7 +7,12 @@ export async function mountDaily(el, user) {
   if (!user || user.role === "pending") { el.remove(); return; }
   let st;
   try { st = await api("/api/daily"); } catch { el.remove(); return; }
-  const render = () => {
+  const render = (fresh = false) => {
+    if (st.claimed && !fresh) {
+      el.innerHTML = `<div class="soc-bar daily-mini"><span>🔥 <b>${t("daily.streak", { n: st.streak })}</b></span>
+        <span class="daily-ok">✓ ${t("daily.claimed")}</span><span class="muted">· ${t("daily.comeBack", { n: st.reward })}</span></div>`;
+      return;
+    }
     const pos = st.claimed ? ((st.streak - 1) % 7) : (st.streak % 7); // today's slot in the 7-day row
     el.innerHTML = `
       <div class="card daily ${st.claimed ? "done" : ""}">
@@ -24,7 +29,7 @@ export async function mountDaily(el, user) {
     const b = el.querySelector("#daily-claim");
     if (b) b.onclick = async () => {
       b.disabled = true;
-      try { st = await api("/api/daily", { method: "POST" }); toast(t("daily.got", { n: st.gained })); render(); }
+      try { st = await api("/api/daily", { method: "POST" }); toast(t("daily.got", { n: st.gained })); render(true); setTimeout(() => render(), 2500); }
       catch (e) { toast(e.message, true); b.disabled = false; }
     };
   };
@@ -134,7 +139,8 @@ export async function mountOcasoHome(el) {
   el.innerHTML = `
     <div class="section-head"><h2>🌅 Ocaso</h2>${w.server_id ? `<a class="small" href="/server?id=${encodeURIComponent(w.server_id)}#ocaso">${t("oc.seeAll")}</a>` : ""}</div>
     ${moonBanner(w)}
-    <div class="card">${deathsHTML(d.deaths.slice(0, 4))}</div>`;
+    <div class="card">${deathsHTML(d.deaths.slice(0, 8))}</div>`;
+  return d;
 }
 
 // Profile: that person's Ocaso card(s) and deaths.

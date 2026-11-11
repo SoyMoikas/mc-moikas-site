@@ -1319,3 +1319,11 @@ a.btn { display: inline-block; padding: 6px 14px; text-decoration: none; }
 .acc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
 .acc { padding: 14px; display: grid; gap: 10px; align-content: start; }
 .acc h3 { margin: 0; }
+
+/* home tabs */
+.home-tabs { display: flex; gap: 6px; margin: 4px 0 14px; border-bottom: 2px solid var(--border); flex-wrap: wrap; }
+.home-tabs button { position: relative; background: transparent; border: 0; border-bottom: 3px solid transparent; margin-bottom: -2px; padding: 8px 12px; color: var(--muted, #999); font-weight: 600; cursor: pointer; }
+.home-tabs button.on { color: var(--accent); border-bottom-color: var(--accent); }
+.home-tabs button.has-new::after { content: ""; position: absolute; top: 6px; right: 2px; width: 8px; height: 8px; border-radius: 50%; background: #e5534b; }
+.home-pane[hidden] { display: none; }
+.daily-mini { font-size: 13px; }

@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Silkscreen&family=Rubik:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=30">
+  <link rel="stylesheet" href="/style.css?v=31">
 </head>
 <body>
   <main class="wrap">
@@ -16,13 +16,23 @@
       <section class="col-main">
         <div id="playing-now"></div>
         <div id="daily"></div>
-        <div id="night-home"></div>
-        <section id="lfg-home"></section>
-        <section id="free-home"></section>
-        <section id="ocaso-home"></section>
-        <div id="games" class="game-strip"></div>
-        <div class="section-head"><h2 data-i18n="feed.title">For you</h2></div>
-        <div id="feed"></div>
+        <nav class="home-tabs" role="tablist">
+          <button role="tab" data-pane="inicio" data-i18n="ht.inicio">Home</button>
+          <button role="tab" data-pane="jugar" data-i18n="ht.jugar">Play</button>
+          <button role="tab" data-pane="ocaso" data-i18n="ht.ocaso">Ocaso</button>
+          <button role="tab" data-pane="gratis" data-i18n="ht.gratis">Free</button>
+        </nav>
+        <div class="home-pane" data-pane="inicio">
+          <div id="games" class="game-strip"></div>
+          <div class="section-head"><h2 data-i18n="feed.title">For you</h2></div>
+          <div id="feed"></div>
+        </div>
+        <div class="home-pane" data-pane="jugar" hidden>
+          <div id="night-home"></div>
+          <section id="lfg-home"></section>
+        </div>
+        <div class="home-pane" data-pane="ocaso" hidden><section id="ocaso-home"></section></div>
+        <div class="home-pane" data-pane="gratis" hidden><section id="free-home"></section></div>
       </section>
       <aside class="col-side">
         <section class="side-block">

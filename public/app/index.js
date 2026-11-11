@@ -50,11 +50,53 @@ livePosts(async () => (posts = (await api("/api/posts?scope=site&limit=5")).post
 
 mountPlaying(document.getElementById("playing-now"), user);
 mountDaily(document.getElementById("daily"), user);
-mountNightHome(document.getElementById("night-home"), user);
-mountLfg(document.getElementById("lfg-home"), user);
-mountFreeHome(document.getElementById("free-home"));
-mountOcasoHome(document.getElementById("ocaso-home"));
 mountFeed(document.getElementById("feed"), user);
+homeTabs();
+
+/* ---------------- Home tabs (switch without reloading) ---------------- */
+
+async function homeTabs() {
+  const tabs = [...document.querySelectorAll(".home-tabs [data-pane]")];
+  const panes = [...document.querySelectorAll(".home-pane")];
+  const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
+                  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+  const seen = store.get("home.seen", { ocaso: 0, gratis: [] });
+  let free = null;
+  const show = (name) => {
+    tabs.forEach((b) => { const on = b.dataset.pane === name; b.classList.toggle("on", on); b.setAttribute("aria-selected", on); if (on) b.classList.remove("has-new"); });
+    panes.forEach((p) => (p.hidden = p.dataset.pane !== name));
+    store.set("home.tab", name);
+    if (name === "ocaso") { seen.ocaso = Date.now(); store.set("home.seen", seen); }
+    if (name === "gratis" && free) { seen.gratis = free.map((g) => g.id); store.set("home.seen", seen); }
+  };
+  tabs.forEach((b) => (b.onclick = () => show(b.dataset.pane)));
+  const tab = (n) => tabs.find((b) => b.dataset.pane === n);
+  show(store.get("home.tab", "inicio"));
+
+  // fill the other panes in the background; hide a tab as soon as we know it has nothing
+  const hideIfEmpty = (name) => (data) => {
+    if (!data) { tab(name).hidden = true; if (store.get("home.tab", "inicio") === name) show("inicio"); }
+    return data;
+  };
+  const [nights, lfg, oc, fg] = await Promise.all([
+    mountNightHome(document.getElementById("night-home"), user),
+    mountLfg(document.getElementById("lfg-home"), user),
+    mountOcasoHome(document.getElementById("ocaso-home")).then(hideIfEmpty("ocaso")),
+    mountFreeHome(document.getElementById("free-home")).then(hideIfEmpty("gratis")),
+  ]);
+  free = fg;
+  const member = user && user.role !== "pending";
+  const newPlay = member && (
+    (lfg || []).some((p) => p.open && !p.full && !p.joined) ||
+    (nights || []).some((n) => (n.status === "voting" && !n.options.some((o) => o.mine)) || (n.status === "locked" && !n.my_rsvp)));
+  const newOcaso = oc && (oc.servers[0]?.lunasangre || oc.servers[0]?.faltan === 1 || (oc.deaths[0]?.created_at || 0) > (seen.ocaso || 0));
+  const newFree = fg && fg.some((g) => !g.upcoming && !(seen.gratis || []).includes(g.id));
+  const current = store.get("home.tab", "inicio");
+  for (const [n, flag] of [["jugar", newPlay], ["ocaso", newOcaso], ["gratis", newFree]]) if (flag && n !== current) tab(n).classList.add("has-new");
+  if (current === "gratis" && fg) { seen.gratis = fg.map((g) => g.id); store.set("home.seen", seen); }
+  // someone's looking for players or a vote is open → open "Jugar" so nobody misses it
+  if (newPlay && current !== "jugar") show("jugar");
+}
 mountChat(document.getElementById("chat"), "general", user);
 mountMobileTabs();
 loadGames();

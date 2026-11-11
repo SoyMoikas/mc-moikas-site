@@ -1,5 +1,6 @@
 import { json } from "../../../lib/util.js";
 import { loadPost, setMember, messageFor, pingIfFull, site as siteOf } from "../../../lib/lfg.js";
+import { loadNight, lockedMessage } from "../../../lib/nights.js";
 
 // Discord calls this when someone clicks "Me apunto" / "Ya no puedo" on a post in the channel.
 // Set it as the app's "Interactions Endpoint URL": https://play.moikas.cc/api/discord/interactions
@@ -40,6 +41,20 @@ export async function onRequestPost({ request, env, waitUntil }) {
     const fresh = await loadPost(env, p.id);
     waitUntil(pingIfFull(env, fresh));
     return json({ type: 7, data: messageFor(env, fresh) }); // update the message in place
+  }
+  // game night RSVP buttons: gn:yes:<id> / gn:no:<id>
+  if (i.type === 3 && typeof i.data?.custom_id === "string" && i.data.custom_id.startsWith("gn:")) {
+    const [, status, id] = i.data.custom_id.split(":");
+    const discordId = i.member?.user?.id || i.user?.id;
+    const user = await env.DB.prepare("SELECT id, role FROM users WHERE discord_id = ?").bind(discordId).first();
+    if (!user) return ephemeral(`Primero entra a ${siteOf(env)} con tu Discord (una vez) y luego ya puedes confirmar desde aquí.`);
+    if (user.role === "pending") return ephemeral("Tu cuenta todavía no está aprobada en la página. Pídele a un admin que te acepte.");
+    const n = await loadNight(env, parseInt(id) || 0);
+    if (!n || n.status !== "locked") return ephemeral("Esa noche de juego ya no está abierta.");
+    await env.DB.prepare(
+      `INSERT INTO game_night_rsvp (night_id, user_id, status) VALUES (?, ?, ?)
+       ON CONFLICT(night_id, user_id) DO UPDATE SET status = excluded.status`).bind(n.id, user.id, status === "yes" ? "yes" : "no").run();
+    return json({ type: 7, data: lockedMessage(env, await loadNight(env, n.id)) });
   }
   return ephemeral("?");
 }

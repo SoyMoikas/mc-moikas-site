@@ -120,3 +120,37 @@ export async function mountLfg(el, user) {
   try { await load(); } catch { el.remove(); return; }
   setInterval(() => { if (!document.hidden && !el.querySelector("#lfg-form:not(.hidden)")) load().catch(() => {}); }, 30000);
 }
+
+/* ---------------- Home: free games + next game night ---------------- */
+
+const when2 = (ms) => new Date(ms).toLocaleString(undefined, { weekday: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+
+export async function mountFreeHome(el) {
+  let d;
+  try { d = await api("/api/freegames"); } catch { el.remove(); return; }
+  const games = d.games.filter((g) => !g.upcoming).slice(0, 4);
+  if (!games.length) { el.remove(); return; }
+  el.innerHTML = `
+    <div class="section-head"><h2>🎁 ${t("fg.title")}</h2><a class="small" href="/play#gratis">${t("oc.seeAll")}</a></div>
+    <div class="fg-strip">${games.map((g) => `
+      <a class="card fg small-fg" href="${esc(g.url)}" target="_blank" rel="noopener">
+        ${g.img ? `<img src="${esc(g.img)}" alt="" loading="lazy">` : ""}
+        <div class="fg-info"><b>${esc(g.title)}</b><div class="small"><span class="fg-store">${esc(g.store)}</span>${g.ends ? ` · ${t("fg.until", { when: when2(g.ends) })}` : ""}</div></div>
+      </a>`).join("")}</div>`;
+}
+
+export async function mountNightHome(el, user) {
+  if (!user || user.role === "pending") { el.remove(); return; }
+  let d;
+  try { d = await api("/api/nights"); } catch { el.remove(); return; }
+  const n = d.nights.find((x) => x.status === "locked") || d.nights.find((x) => x.status === "voting");
+  if (!n) { el.innerHTML = `<div class="card gn-home quiet">🗳️ ${t("gn.homeNone")} <a href="/play#noches">${t("gn.new")} →</a></div>`; return; }
+  const yes = n.rsvp.filter((r) => r.status === "yes");
+  el.innerHTML = `
+    <a class="card gn-home" href="/play?night=${n.id}#noches">
+      <span class="gn-home-ico">${n.status === "locked" ? "🎉" : "🗳️"}</span>
+      <div><b>${esc(n.title)}${n.status === "locked" ? `: ${esc(n.game)}` : ""}</b>
+        <div class="small">${n.status === "locked" ? `${when2(n.starts_at)} · ${t("gn.going", { n: yes.length })}` : t("gn.voteNow")}</div></div>
+      <span class="gn-home-cta">${n.status === "locked" ? (n.my_rsvp === "yes" ? "✅" : t("gn.rsvp.yes")) : t("gn.vote")} →</span>
+    </a>`;
+}

@@ -1,7 +1,7 @@
 import { mountChat } from "./chat.js";
 import { mountFeed } from "./feed.js";
 import { mountDaily, mountOcasoHome } from "./ocaso.js";
-import { mountPlaying, mountLfg } from "./social.js";
+import { mountPlaying, mountLfg, mountFreeHome, mountNightHome } from "./social.js";
 import { api, esc, can, t, initPage, mountMobileTabs, livePosts, renderPost, postForm, bindPostActions, onSubmit, toast, toISO, gameLabel, localized } from "./common.js";
 
 const user = await initPage();
@@ -50,7 +50,9 @@ livePosts(async () => (posts = (await api("/api/posts?scope=site&limit=5")).post
 
 mountPlaying(document.getElementById("playing-now"), user);
 mountDaily(document.getElementById("daily"), user);
+mountNightHome(document.getElementById("night-home"), user);
 mountLfg(document.getElementById("lfg-home"), user);
+mountFreeHome(document.getElementById("free-home"));
 mountOcasoHome(document.getElementById("ocaso-home"));
 mountFeed(document.getElementById("feed"), user);
 mountChat(document.getElementById("chat"), "general", user);

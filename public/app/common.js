@@ -137,6 +137,7 @@ export async function initPage() {
         ${gamesMenu}
         ${navLink("/quests", "nav.quests")}
         ${navLink("/ranking", "nav.ranking")}
+        ${navLink("/play", "nav.play")}
         ${navLink("/tournaments", "nav.tournaments")}
         ${navLink("/store", "nav.store")}
         ${["users", "servers", "store"].some((p) => perm(user, p)) ? navLink("/admin", "nav.admin") : ""}
@@ -185,6 +186,7 @@ export async function initPage() {
         ${railLink("/", "🏠", "nav.home")}
         ${railLink("/quests", "🎯", "nav.quests")}
         ${railLink("/ranking", "🏆", "nav.ranking")}
+        ${railLink("/play", "🎮", "nav.play")}
         ${railLink("/tournaments", "⚔️", "nav.tournaments")}
         ${railLink("/store", "🪙", "nav.store")}
         ${isAdmin ? railLink("/admin", "⚙️", "nav.admin") : ""}

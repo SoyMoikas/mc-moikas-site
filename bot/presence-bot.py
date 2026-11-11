@@ -6,6 +6,9 @@ Watches your Discord server for what members are playing (their Discord status) 
 to the site every 30 seconds, for the "Jugando ahora" bar. Only people who have logged into the site
 are shown there; everyone else is ignored by the site.
 
+It also "ticks" the site every 30 s so it can do its background chores: lock game-night votes, send the
+1-hour reminder, give coins to people who show up, announce free games, and refresh Steam/Apex stats.
+
 Needs: pip install discord.py   (the TrueNAS app below installs it for you)
 Env:   DISCORD_BOT_TOKEN, SITE_URL (https://play.moikas.cc), SYNC_SECRET (same as the site's)
 Discord developer portal → your app → Bot → turn ON "Presence Intent" and "Server Members Intent".
@@ -49,12 +52,16 @@ def collect():
     return list(seen.values())
 
 
-def push(playing):
-    req = urllib.request.Request(SITE + "/api/sync/presence", data=json.dumps({"playing": playing}).encode(),
+def post(path, payload):
+    req = urllib.request.Request(SITE + path, data=json.dumps(payload).encode(),
                                  headers={"content-type": "application/json", "authorization": f"Bearer {SECRET}",
                                           "user-agent": "moikas-presence-bot"}, method="POST")
-    with urllib.request.urlopen(req, timeout=20) as r:
+    with urllib.request.urlopen(req, timeout=25) as r:
         return json.loads(r.read() or b"{}")
+
+
+def push(playing):
+    return post("/api/sync/presence", {"playing": playing})
 
 
 async def loop():
@@ -74,6 +81,13 @@ async def loop():
                 last = playing
             except Exception as e:
                 print("push failed:", e, flush=True)
+        try:
+            t = await asyncio.to_thread(post, "/api/sync/tick", {})
+            news = {k: v for k, v in t.items() if k != "ok" and v not in (None, 0, "ok")}
+            if news:
+                print("tick:", news, flush=True)
+        except Exception as e:
+            print("tick failed:", e, flush=True)
         await asyncio.sleep(EVERY)
 
 

@@ -11,11 +11,13 @@ export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
   const mode = url.searchParams.get("mode") === "recent" ? "recent" : "foryou";
   const game = url.searchParams.get("game");
+  const club = url.searchParams.get("club");
   const userId = Number(url.searchParams.get("user")) || null;
   const limit = 15;
 
   const where = ["p.deleted = 0"], binds = [];
   if (game) { where.push("p.game_id = ?"); binds.push(game); }
+  if (club) { where.push("p.club = ?"); binds.push(club); }
   if (userId) { where.push("p.user_id = ?"); binds.push(userId); }
 
   let rows, more;
@@ -54,13 +56,14 @@ export async function onRequestPost({ request, env, waitUntil }) {
   if (b instanceof Response) return b;
   const f = postInput(b);
   if (f.game_id && !(await env.DB.prepare("SELECT 1 FROM games WHERE id = ? AND active = 1").bind(f.game_id).first())) return err(404, "Game not found");
+  if (f.club && !(await env.DB.prepare("SELECT 1 FROM clubs WHERE slug = ?").bind(f.club).first())) return err(404, "Club not found");
 
   const recent = await env.DB.prepare("SELECT COUNT(*) AS n FROM social_posts WHERE user_id = ? AND created_at > ?").bind(viewer.id, now() - 10 * 60_000).first();
   if (recent.n >= 8) return err(429, "Slow down a little");
 
   const look = await postLook(env, viewer, b);
-  const res = await env.DB.prepare("INSERT INTO social_posts (user_id, body, image, game_id, style, bg, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
-    .bind(viewer.id, f.body, f.image, f.game_id, look.style, look.bg, now()).run();
+  const res = await env.DB.prepare("INSERT INTO social_posts (user_id, body, image, game_id, style, bg, created_at, club) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+    .bind(viewer.id, f.body, f.image, f.game_id, look.style, look.bg, now(), f.club).run();
   waitUntil(awardActivity(env, viewer, "post"));
   return json({ id: res.meta.last_row_id }, 201);
 }

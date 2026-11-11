@@ -20,6 +20,8 @@ export async function mountPlaying(el, user) {
         <span class="soc-avs">${ps.slice(0, 4).map(mini).join("")}</span>
         <span><b>${esc(ps.length === 1 ? ps[0].username : t("soc.nPeople", { n: ps.length }))}</b> ${ps.some((p) => p.kind === "streaming") ? "🔴 " : ""}${icon(game)} ${esc(game)}</span>
       </div>`);
+    for (const l of d.listening || []) chips.push(`<a class="soc-chip" href="/juntos#${l.kind === "watch" ? "cine" : "musica"}" title="${esc(l.artist ? `${l.title} — ${l.artist}` : l.title)}">
+        <span class="soc-avs">${mini(l)}</span><span><b>${esc(l.username)}</b> ${l.kind === "watch" ? "🎬" : "🎵"} ${esc(l.kind === "watch" && l.artist ? l.artist : l.title)}</span></a>`);
     for (const s of d.servers) chips.push(`<a class="soc-chip" href="/server?id=${encodeURIComponent(s.id)}"><span>⛏️ <b>${t("soc.nOn", { n: s.players_online })}</b> ${esc(s.name)}</span></a>`);
     el.innerHTML = chips.length
       ? `<div class="soc-bar"><span class="soc-live">🟢 ${t("soc.playingNow")}</span>${chips.join("")}</div>`

@@ -150,7 +150,7 @@ export function mountFeed(el, user, opts = {}) {
     form.body.addEventListener("input", showPreview);
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const d = { body: form.body.value, image: form.image.value.trim() || null, game_id: form.game_id.value || null, style: look.style, bg: look.bg };
+      const d = { body: form.body.value, image: form.image.value.trim() || null, game_id: form.game_id.value || null, style: look.style, bg: look.bg, club: opts.club || null };
       const btn = form.querySelector("button.primary"); btn.disabled = true;
       try {
         if (postId) await api(`/api/feed/${postId}`, { method: "PATCH", body: d });
@@ -163,7 +163,8 @@ export function mountFeed(el, user, opts = {}) {
 
   function postHTML(p) {
     const look = lookAttrs(p.post_style, p.post_bg); // each post keeps the style/background it was posted with
-    const tag = p.game_id ? `<a class="feed-game" href="/game?id=${encodeURIComponent(p.game_id)}">${esc(p.game_icon || "🎮")} ${esc(lang2(p.game_name, p.game_name_es))}</a>` : "";
+    const tag = (p.game_id ? `<a class="feed-game" href="/game?id=${encodeURIComponent(p.game_id)}">${esc(p.game_icon || "🎮")} ${esc(lang2(p.game_name, p.game_name_es))}</a>` : "")
+      + (p.club && !opts.club ? `<a class="feed-game" href="/juntos?club=${encodeURIComponent(p.club)}#clubs">${esc(p.club_icon || "✨")} ${esc(p.club_name || p.club)}</a>` : "");
     const staffBadge = p.role === "staff" || p.role === "admin" || p.role === "subadmin" ? `<span class="role ${esc(p.role)}">${esc(roleLabel(p.role))}</span>` : "";
     return `
       <article class="card fpost ${look.art}" data-id="${p.id}" style="${look.artStyle}">
@@ -194,6 +195,7 @@ export function mountFeed(el, user, opts = {}) {
   async function load(reset = true) {
     const q = new URLSearchParams({ mode });
     if (opts.game) q.set("game", opts.game);
+    if (opts.club) q.set("club", opts.club);
     if (opts.userId) q.set("user", opts.userId);
     if (!reset && cursor) q.set(mode === "recent" || opts.userId ? "before" : "offset", cursor);
     try {
@@ -312,6 +314,7 @@ export function mountFeed(el, user, opts = {}) {
     checking = true;
     const q = new URLSearchParams({ mode: "recent" });
     if (opts.game) q.set("game", opts.game);
+    if (opts.club) q.set("club", opts.club);
     if (opts.userId) q.set("user", opts.userId);
     try {
       const r = await api(`/api/feed?${q}`);

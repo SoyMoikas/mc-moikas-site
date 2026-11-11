@@ -1,0 +1,5 @@
+-- "Mayor o menor" and "Ruleta de castigos". Run in the D1 console before pushing.
+CREATE TABLE IF NOT EXISTS hl_runs ( id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, mode TEXT NOT NULL, a_key TEXT NOT NULL, b_key TEXT NOT NULL, seen TEXT NOT NULL DEFAULT '[]', streak INTEGER NOT NULL DEFAULT 0, done INTEGER NOT NULL DEFAULT 0, coins INTEGER NOT NULL DEFAULT 0, day TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL );
+CREATE INDEX IF NOT EXISTS idx_hl_runs_user ON hl_runs (user_id, done);
+CREATE TABLE IF NOT EXISTS dares ( id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, game TEXT NOT NULL, text TEXT NOT NULL, level INTEGER NOT NULL, status TEXT NOT NULL, confirmed_by INTEGER, coins INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, updated_at INTEGER NOT NULL );
+CREATE INDEX IF NOT EXISTS idx_dares_status ON dares (status, created_at);

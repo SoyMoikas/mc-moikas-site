@@ -5,7 +5,8 @@ import { mountCuando } from "./cuando.js";
 const user = await initPage();
 const main = document.getElementById("main");
 const q = new URLSearchParams(location.search);
-const TABS = ["noches", "cuando", "adivina", "mayor", "ruleta", "apuestas", "frases", "comun", "apex", "gratis", "cuentas"];
+const TABS = ["noches", "cuando", "adivina", "mayor", "ruleta", "apuestas", "frases", "comun", "apex", "gratis"];
+if (location.hash === "#cuentas") location.replace("/profile#ajustes"); // linked accounts moved to the profile settings
 let tab = TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : q.get("night") ? "noches" : "noches";
 const fmt = (ms) => new Date(ms).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 const av = (u) => `<img class="soc-av" src="${esc(u.avatar || "")}" alt="" title="${esc(u.username)}" loading="lazy" onerror="this.style.visibility='hidden'">`;
@@ -14,7 +15,6 @@ const hrs = (min) => (min >= 60 ? `${Math.round(min / 6) / 10} h` : `${min} min`
 if (!user || user.role === "pending") {
   main.innerHTML = `<section><h1>🎮 ${t("play.title")}</h1><p class="muted">${t("lfg.emptyGuest")}</p></section>`;
 } else {
-  if (q.get("steam")) toast(t("play.steam." + q.get("steam")), q.get("steam") !== "ok");
   frame();
   addEventListener("hashchange", () => { const h = location.hash.slice(1); if (TABS.includes(h) && h !== tab) { tab = h; frame(); } });
 }
@@ -28,7 +28,7 @@ function frame() {
     </section>`;
   main.querySelectorAll("[data-tab]").forEach((a) => (a.onclick = (e) => { e.preventDefault(); tab = a.dataset.tab; history.replaceState(null, "", `/play#${tab}`); frame(); }));
   const body = main.querySelector("#play-body");
-  ({ noches: nights, cuando: (b) => mountCuando(b, user), adivina: guess, mayor: hilo, ruleta: dares, apuestas: bets, frases: quotes, comun: common, apex, gratis: free, cuentas: accounts })[tab](body).catch((x) => (body.innerHTML = `<p class="muted">${esc(x.message)}</p>`));
+  ({ noches: nights, cuando: (b) => mountCuando(b, user), adivina: guess, mayor: hilo, ruleta: dares, apuestas: bets, frases: quotes, comun: common, apex, gratis: free })[tab](body).catch((x) => (body.innerHTML = `<p class="muted">${esc(x.message)}</p>`));
 }
 
 /* ---------------- Game nights ---------------- */
@@ -175,7 +175,7 @@ async function apex(el) {
   const mine = d.players.find((p) => p.mine);
   const weekly = [...d.players].filter((p) => p.week_rp != null).sort((a, b) => b.week_rp - a.week_rp);
   el.innerHTML = `
-    ${!mine ? `<div class="card play-cta">🎯 ${t("ap.linkCta")} <a class="primary btn" href="#cuentas" data-go="cuentas">${t("ap.link")}</a></div>` : ""}
+    ${!mine ? `<div class="card play-cta">🎯 ${t("ap.linkCta")} <a class="primary btn" href="/profile#ajustes">${t("ap.link")}</a></div>` : ""}
     <div class="ap-grid">${d.players.map((p, i) => `
       <div class="card ap-card ${p.mine ? "mine" : ""}">
         <div class="ap-top"><span class="ap-pos">#${i + 1}</span>
@@ -193,7 +193,6 @@ async function apex(el) {
         ${p.error ? `<div class="hint">⚠ ${esc(p.error)}</div>` : `<div class="hint">${t("ap.updated", { ago: ago(p.updated_at) })}</div>`}
       </div>`).join("") || `<p class="muted">${t("ap.none")}</p>`}</div>
     ${weekly.length > 1 ? `<h3>📈 ${t("ap.weekBoard")}</h3><div class="card"><ol class="ap-week">${weekly.map((p) => `<li>${av(p)} <b>${esc(p.username)}</b> <span class="${p.week_rp >= 0 ? "lfg-ok" : "bad"}">${p.week_rp >= 0 ? "+" : ""}${p.week_rp} RP</span></li>`).join("")}</ol></div>` : ""}`;
-  el.querySelector("[data-go]")?.addEventListener("click", (e) => { e.preventDefault(); tab = "cuentas"; history.replaceState(null, "", "/play#cuentas"); frame(); });
 }
 
 /* ---------------- Free games ---------------- */
@@ -215,44 +214,6 @@ async function free(el) {
 
 /* ---------------- Accounts ---------------- */
 
-async function accounts(el) {
-  const [s, a] = await Promise.all([api("/api/steam"), api("/api/apex")]);
-  const ap = a.players.find((p) => p.mine);
-  el.innerHTML = `
-    <div class="acc-grid">
-      <div class="card acc"><h3>🟦 Steam</h3>
-        ${!s.configured ? `<p class="muted">${t("play.noSteamKey")}</p>` : s.me ? `
-          <p>${s.me.steam_avatar ? `<img class="soc-av" src="${esc(s.me.steam_avatar)}" alt="">` : ""} <b>${esc(s.me.persona || "Steam")}</b> · ${t("sg.nGames", { n: s.me.game_count })}</p>
-          ${s.me.public ? "" : `<p class="hint">⚠ ${t("sg.privateHelp")}</p>`}
-          <div class="lfg-row"><button class="small-btn" data-st="refresh">${t("acc.refresh")}</button><button class="small-btn danger" data-st="unlink">${t("acc.unlink")}</button></div>`
-        : `<p class="muted">${t("acc.steamWhy")}</p><a class="primary btn" href="/api/steam/link">${t("play.linkSteam")}</a><p class="hint">${t("acc.steamSafe")}</p>`}
-      </div>
-      <div class="card acc"><h3>🎯 Apex Legends</h3>
-        ${!a.configured ? `<p class="muted">${t("play.noApexKey")}</p>` : `
-          ${ap ? `<p><b>${esc(ap.apex_name)}</b> · ${esc(ap.platform)} ${ap.rank?.name ? `· ${esc(ap.rank.name)} ${ap.rank.div || ""}` : ""}</p>` : `<p class="muted">${t("acc.apexWhy")}</p>`}
-          <form class="lfg-row" id="ap-form"><input name="name" maxlength="40" placeholder="${esc(t("acc.apexName"))}" value="${esc(ap?.apex_name || "")}" required>
-            <select name="platform">${["PC", "PS4", "X1", "SWITCH"].map((p) => `<option value="${p}" ${ap?.platform === p ? "selected" : ""}>${{ PC: "PC (EA/Steam)", PS4: "PlayStation", X1: "Xbox", SWITCH: "Switch" }[p]}</option>`).join("")}</select>
-            <button class="primary">${ap ? t("acc.save") : t("ap.link")}</button></form>
-          <p class="hint">${t("acc.apexHint")}</p>
-          ${ap ? `<div class="lfg-row"><button class="small-btn" data-ap="refresh">${t("acc.refresh")}</button><button class="small-btn danger" data-ap="unlink">${t("acc.unlink")}</button></div>` : ""}`}
-      </div>
-    </div>`;
-  el.querySelectorAll("[data-st]").forEach((b) => (b.onclick = async () => {
-    if (b.dataset.st === "unlink" && !confirm(t("acc.unlinkQ"))) return;
-    try { await api("/api/steam", { method: "POST", body: { action: b.dataset.st } }); toast("✓"); await accounts(el); } catch (x) { toast(x.message, true); }
-  }));
-  el.querySelectorAll("[data-ap]").forEach((b) => (b.onclick = async () => {
-    if (b.dataset.ap === "unlink" && !confirm(t("acc.unlinkQ"))) return;
-    try { await api("/api/apex", { method: "POST", body: { action: b.dataset.ap } }); toast("✓"); await accounts(el); } catch (x) { toast(x.message, true); }
-  }));
-  const f = el.querySelector("#ap-form");
-  if (f) f.onsubmit = async (e) => {
-    e.preventDefault();
-    const btn = f.querySelector("button"); btn.disabled = true;
-    try { await api("/api/apex", { method: "POST", body: { action: "link", name: f.name.value.trim(), platform: f.platform.value } }); toast(t("acc.apexOk")); await accounts(el); }
-    catch (x) { toast(x.message, true); btn.disabled = false; }
-  };
-}
 
 
 /* ---------------- Adivina el juego ---------------- */

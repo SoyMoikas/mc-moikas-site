@@ -446,7 +446,7 @@ export function livePosts(fetchPosts, renderList, ms = 60_000) {
 
 /* ---------------- Notifications bell ---------------- */
 
-const NT_KINDS = ["reply", "announce", "game", "night", "free", "quest"];
+export const NT_KINDS = ["reply", "announce", "game", "night", "free", "quest", "achieve", "fun"];
 
 function mountBell(wrap) {
   const btn = wrap.querySelector(".bell"), badge = wrap.querySelector(".bell-n"), panel = wrap.querySelector(".bell-panel");

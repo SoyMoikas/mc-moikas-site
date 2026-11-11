@@ -1594,3 +1594,8 @@ a.btn { display: inline-block; padding: 6px 14px; text-decoration: none; }
 .wr-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; pointer-events: auto; position: relative; z-index: 5; }
 .pf-tabs { margin: 18px 0 6px; }
 .pf-tabs + .home-pane > section:first-child, .home-pane[data-pane] > section:first-child { margin-top: 10px; }
+.set-rows { display: flex; flex-direction: column; gap: 14px; }
+.set-row { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+#settings .bp-prefs table { width: 100%; max-width: 520px; }
+#settings .bp-prefs td:not(:first-child), #settings .bp-prefs th { text-align: center; }
+#settings .bp-prefs > button { width: auto; }

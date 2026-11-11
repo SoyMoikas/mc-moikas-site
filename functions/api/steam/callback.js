@@ -5,7 +5,7 @@ import { verifySteamLogin, refreshSteam } from "../../../lib/steam.js";
 // Steam sends the person back here after they log in on steamcommunity.com.
 export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
-  const back = (q) => new Response(null, { status: 302, headers: { location: `/play?${q}#cuentas` } });
+  const back = (q) => new Response(null, { status: 302, headers: { location: `/profile?${q}#ajustes` } });
   const me = await getUser(env, request);
   if (!me || me.role === "pending") return back("steam=login");
   const steamId = await verifySteamLogin(url);

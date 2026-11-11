@@ -4,6 +4,7 @@ import { itemName } from "./cosmetics.js";
 import { mountFeed } from "./feed.js";
 import { mountOcasoProfile } from "./ocaso.js";
 import { mountAvatarEditor } from "./avatar-editor.js";
+import { mountSettings } from "./settings.js";
 
 const user = await initPage();
 const main = document.getElementById("main");
@@ -53,7 +54,7 @@ async function load() {
       <button role="tab" data-pane="posts">📝 ${t("pft.posts")}</button>
       <button role="tab" data-pane="logros">🏅 ${t("pft.logros")}</button>
       <button role="tab" data-pane="juegos">🎮 ${t("pft.juegos")}</button>
-      ${own ? `<button role="tab" data-pane="editar">🎨 ${t("pft.editar")}</button>` : ""}
+      ${own ? `<button role="tab" data-pane="editar">🎨 ${t("pft.editar")}</button><button role="tab" data-pane="ajustes">⚙️ ${t("pft.ajustes")}</button>` : ""}
     </nav>
 
     <div class="home-pane" data-pane="posts">
@@ -86,9 +87,9 @@ async function load() {
 
     ${own ? `<div class="home-pane" data-pane="editar" hidden>
       <section id="avatar"><div class="section-head"><h2>${t("cz.title")}</h2></div><div id="avatar-editor"></div></section>
-      <section><div class="section-head"><h2>${t("pf2.mcAccount")}</h2></div><div id="link" class="card"></div></section>
-      <p style="margin-top:24px" class="actions"><a class="btn primary" href="/store">🪙 ${t("nav.store")}</a><a class="btn" href="/auth/logout">${t("auth.logout")}</a></p>
-    </div>` : ""}`;
+      <p style="margin-top:24px" class="actions"><a class="btn primary" href="/store">🪙 ${t("nav.store")}</a></p>
+    </div>
+    <div class="home-pane" data-pane="ajustes" hidden id="settings"></div>` : ""}`;
 
   main.querySelector("#tz-edit")?.addEventListener("click", () => openLocalePicker(user));
   mountOcasoProfile(main.querySelector("#ocaso-profile"), p.user.id);
@@ -103,7 +104,9 @@ async function load() {
   }).catch(() => {});
   mountFeed(main.querySelector("#user-feed"), user, { userId: p.user.id, composer: own, modes: false });
   if (own) {
-    renderLink();
+    mountSettings(main.querySelector("#settings"), user, p.user, renderLink);
+    const sq = new URLSearchParams(location.search).get("steam");
+    if (sq) { toast(t("play.steam." + sq), sq !== "ok"); history.replaceState(null, "", `${location.pathname}#ajustes`); }
     mountAvatarEditor(main.querySelector("#avatar-editor"), { ...user, ...p.user });
   }
   profileTabs();
@@ -232,7 +235,7 @@ async function mountRival(el, them, own) {
 
 function profileTabs() {
   const tabs = [...main.querySelectorAll(".pf-tabs [data-pane]")], panes = [...main.querySelectorAll(".home-pane")];
-  const alias = { avatar: "editar", link: "editar", achievements: "logros" };
+  const alias = { avatar: "editar", link: "ajustes", cuentas: "ajustes", settings: "ajustes", achievements: "logros" };
   const pick = () => { const h = location.hash.slice(1), n = alias[h] || h; return tabs.some((b) => b.dataset.pane === n) ? n : "posts"; };
   const show = (name, save) => {
     tabs.forEach((b) => { const on = b.dataset.pane === name; b.classList.toggle("on", on); b.setAttribute("aria-selected", on); });

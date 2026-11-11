@@ -4,7 +4,7 @@ import { getSettings, levelOf, rewardForLevel } from "../../../lib/catalog.js";
 // Public profile: level info, hours per server, completed quests.
 export async function onRequestGet({ env, params }) {
   const u = await env.DB.prepare(
-    "SELECT id, username, avatar, role, mc_uuid, mc_name, xp, play_minutes, created_at, eq_frame, eq_hat, hat_fit, avatar_build, acc_extra, eq_color, eq_banner, eq_font FROM users WHERE id = ?"
+    "SELECT id, username, avatar, role, mc_uuid, mc_name, xp, play_minutes, created_at, eq_frame, eq_hat, hat_fit, avatar_build, acc_extra, eq_color, eq_banner, eq_font, country, tz FROM users WHERE id = ?"
   ).bind(params.id).first();
   if (!u) return err(404, "User not found");
 

@@ -1,5 +1,5 @@
 // "Jugar": game nights (vote), games we all own (Steam), Apex stats, free games, and linking accounts.
-import { api, esc, t, initPage, toast, ago } from "./common.js";
+import { api, esc, t, initPage, toast, ago, inputToMs, zonedNow, wallInput } from "./common.js";
 
 const user = await initPage();
 const main = document.getElementById("main");
@@ -85,9 +85,10 @@ function nightCard(n, focus) {
 
 function nightForm(box) {
   if (box.innerHTML) { box.innerHTML = ""; return; }
-  const local = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-  const fri = new Date(); fri.setDate(fri.getDate() + ((5 - fri.getDay() + 7) % 7 || 7)); fri.setHours(21, 0, 0, 0);
-  const sat = new Date(fri); sat.setDate(fri.getDate() + 1);
+  // defaults: next Friday and Saturday 9 pm in your time zone
+  const n = zonedNow(), ahead = (5 - n.dow + 7) % 7 || 7;
+  const fri = wallInput(n.y, n.mo, n.d + ahead, 21), sat = wallInput(n.y, n.mo, n.d + ahead + 1, 21);
+  const local = (x) => x;
   const PRESETS = ["Apex Legends", "League of Legends", "Sons of the Forest", "Minecraft (Ocaso)", "Fortnite", "Marvel Rivals", "Valorant"];
   box.innerHTML = `
     <form class="card lfg-form">
@@ -112,7 +113,7 @@ function nightForm(box) {
   box.querySelector("form").onsubmit = async (e) => {
     e.preventDefault();
     const f = e.target;
-    const times = [...box.querySelectorAll("#gn-times input")].map((i) => (i.value ? new Date(i.value).getTime() : null)).filter(Boolean);
+    const times = [...box.querySelectorAll("#gn-times input")].map((i) => (i.value ? inputToMs(i.value) : null)).filter((x) => x && !isNaN(x));
     try {
       await api("/api/nights", { method: "POST", body: { title: f.title.value, note: f.note.value, games: [...chosen], times } });
       toast(t("gn.created")); box.innerHTML = ""; await nights(box.closest("#play-body"));

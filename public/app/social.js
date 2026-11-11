@@ -1,5 +1,5 @@
 // Home: "Jugando ahora" bar (Discord presence) + "¿Quién se apunta?" (looking for group).
-import { api, esc, t, ago, toast, avatarHTML } from "./common.js";
+import { api, esc, t, ago, toast, avatarHTML, inputToMs } from "./common.js";
 
 const GAME_ICONS = [[/apex/i, "🎯"], [/league|lol\b/i, "⚔️"], [/forest/i, "🌲"], [/minecraft|ocaso/i, "⛏️"], [/valheim/i, "🪓"],
   [/valorant/i, "🔫"], [/fortnite/i, "🏗️"], [/rocket/i, "🚗"], [/fifa|fc ?2\d/i, "⚽"], [/call of duty|warzone/i, "🪖"]];
@@ -103,7 +103,7 @@ export async function mountLfg(el, user) {
       f.when.onchange = () => f.querySelector(".lfg-at").classList.toggle("hidden", f.when.value !== "at");
       f.onsubmit = async (e) => {
         e.preventDefault();
-        const starts = f.when.value === "at" && f.at.value ? new Date(f.at.value).getTime() : null;
+        const starts = f.when.value === "at" && f.at.value ? inputToMs(f.at.value) : null;
         try {
           await api("/api/lfg", { method: "POST", body: { game: f.game.value.trim(), note: f.note.value.trim(), slots: +f.slots.value, starts_at: starts } });
           toast(t("lfg.posted")); form.innerHTML = ""; await load();

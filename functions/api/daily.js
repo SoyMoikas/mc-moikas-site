@@ -1,6 +1,7 @@
 import { need } from "../../lib/auth.js";
 import { json, now, err } from "../../lib/util.js";
 import { dailyState, rewardFor } from "../../lib/daily.js";
+import { zoneOf } from "../../lib/coins.js";
 import { recomputeXP } from "../../lib/xp.js";
 
 // GET  /api/daily → today's state (streak, whether it's claimed, the reward)
@@ -8,13 +9,13 @@ import { recomputeXP } from "../../lib/xp.js";
 export async function onRequestGet({ env, request }) {
   const user = await need(env, request, "member");
   if (user instanceof Response) return user;
-  return json(await dailyState(env, user.id));
+  return json(await dailyState(env, user.id, zoneOf(user)));
 }
 
 export async function onRequestPost({ env, request }) {
   const user = await need(env, request, "member");
   if (user instanceof Response) return user;
-  const st = await dailyState(env, user.id);
+  const st = await dailyState(env, user.id, zoneOf(user));
   if (st.claimed) return err(409, "Already claimed today");
   const streak = st.streak + 1;
   const coins = rewardFor(streak);
@@ -22,5 +23,5 @@ export async function onRequestPost({ env, request }) {
     .bind(user.id, st.today, streak, coins, now()).run();
   if (!r.meta.changes) return err(409, "Already claimed today");
   await recomputeXP(env, user.id);
-  return json({ ...(await dailyState(env, user.id)), gained: coins });
+  return json({ ...(await dailyState(env, user.id, zoneOf(user))), gained: coins });
 }

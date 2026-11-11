@@ -1,7 +1,7 @@
 import { need } from "../../../lib/auth.js";
 import { json, body, err } from "../../../lib/util.js";
 import { today, isRight, MAX_GUESSES, REWARD } from "../../../lib/guess.js";
-import { award, laDay } from "../../../lib/coins.js";
+import { award, dayIn, zoneOf } from "../../../lib/coins.js";
 
 const state = async (env, uid, g) => {
   const p = await env.DB.prepare("SELECT * FROM guess_plays WHERE day = ? AND user_id = ?").bind(g.day, uid).first();
@@ -18,7 +18,7 @@ const state = async (env, uid, g) => {
 export async function onRequestGet({ env, request }) {
   const me = await need(env, request, "member");
   if (me instanceof Response) return me;
-  return json(await state(env, me.id, await today(env)));
+  return json(await state(env, me.id, await today(env, dayIn(zoneOf(me)))));
 }
 
 // POST /api/guess {guess} (or {skip: true} to use a guess and see more of the picture)
@@ -27,7 +27,7 @@ export async function onRequestPost({ env, request }) {
   if (me instanceof Response) return me;
   const b = await body(request);
   if (b instanceof Response) return b;
-  const g = await today(env);
+  const g = await today(env, dayIn(zoneOf(me)));
   const p = await env.DB.prepare("SELECT * FROM guess_plays WHERE day = ? AND user_id = ?").bind(g.day, me.id).first();
   if (p?.done) return err(409, "You already played today");
   const guesses = p ? JSON.parse(p.guesses) : [];

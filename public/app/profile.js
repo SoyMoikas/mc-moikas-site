@@ -1,4 +1,4 @@
-import { api, esc, t, initPage, onSubmit, toast, fmtDate, roleLabel, localized, avatarHTML, nameHTML, bgStyle, bgAnimated } from "./common.js";
+import { api, esc, t, initPage, onSubmit, toast, fmtDate, roleLabel, localized, avatarHTML, nameHTML, bgStyle, bgAnimated, flag, openLocalePicker } from "./common.js";
 import { levelInfo, fmtHours } from "./levels.js";
 import { itemName } from "./cosmetics.js";
 import { mountFeed } from "./feed.js";
@@ -29,7 +29,8 @@ async function load() {
         <div class="pc-head">
           ${avatarHTML(p.user, 64)}
           <div>
-            <h2 style="margin:0">${nameHTML(p.user)}</h2>
+            <h2 style="margin:0">${nameHTML(p.user)} ${p.user.country ? `<span title="${esc(p.user.country)}">${flag(p.user.country)}</span>` : ""}</h2>
+            ${p.user.tz ? `<div class="small muted">🕒 ${esc(new Date().toLocaleTimeString(undefined, { timeZone: p.user.tz, hour: "numeric", minute: "2-digit" }))} ${t("tz.theirTime")}${own ? ` · <button class="link" id="tz-edit">${t("tz.change")}</button>` : ""}</div>` : own ? `<div class="small"><button class="link" id="tz-edit">🌎 ${t("tz.set")}</button></div>` : ""}
             <div class="small muted">${p.user.mc_name ? `⛏ ${esc(p.user.mc_name)} · ` : ""}<span class="role ${esc(p.user.role)}">${esc(roleLabel(p.user.role))}</span></div>
           </div>
           <div class="pc-level"><span class="big">${l.level}</span><span class="small">${t("lvl.level")}</span></div>
@@ -78,6 +79,7 @@ async function load() {
 
     ${own ? `<p style="margin-top:24px" class="actions"><a class="btn primary" href="/store">🪙 ${t("nav.store")}</a><a class="btn" href="/auth/logout">${t("auth.logout")}</a></p>` : ""}`;
 
+  main.querySelector("#tz-edit")?.addEventListener("click", () => openLocalePicker(user));
   mountOcasoProfile(main.querySelector("#ocaso-profile"), p.user.id);
   mountAchievements(main.querySelector("#achievements"), p.user.id, own);
   if (user && user.role !== "pending") mountRival(main.querySelector("#rival"), p.user, own);

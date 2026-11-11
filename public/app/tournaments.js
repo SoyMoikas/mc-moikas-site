@@ -1,4 +1,4 @@
-import { api, esc, t, initPage, toast, ago } from "./common.js";
+import { api, esc, t, initPage, toast, ago, inputToMs, zonedNow, wallInput } from "./common.js";
 import { renderMarkdown } from "./markdown.js";
 
 const user = await initPage();
@@ -42,8 +42,8 @@ async function list() {
 function newForm() {
   const box = main.querySelector("#tr-form");
   if (box.innerHTML) { box.innerHTML = ""; return; }
-  const d = new Date(Date.now() + 2 * 86400000); d.setHours(20, 0, 0, 0);
-  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  const n = zonedNow();
+  const local = wallInput(n.y, n.mo, n.d + 2, 20); // two days from now, 8 pm your time
   box.innerHTML = `
     <form class="card lfg-form">
       <div class="lfg-row"><label>${t("tr.fTitle")}<input name="title" required maxlength="80" placeholder="Copa Apex de Noviembre"></label>
@@ -73,7 +73,7 @@ function newForm() {
     try {
       const r = await api("/api/tournaments", { method: "POST", body: {
         title: f.title.value, game: f.game.value, format: f.format.value, team_size: +f.team_size.value, max_teams: +f.max_teams.value,
-        starts_at: new Date(f.starts_at.value).getTime(), prize_coins: +f.prize_coins.value, rules: f.rules.value,
+        starts_at: inputToMs(f.starts_at.value), prize_coins: +f.prize_coins.value, rules: f.rules.value,
         points: { placement: f.placement.value, kill: +f.kill.value } } });
       location.href = `/tournaments?id=${r.id}`;
     } catch (x) { toast(x.message, true); }

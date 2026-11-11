@@ -108,6 +108,8 @@ export async function initPage() {
   let user = null;
   const [me, site] = await Promise.allSettled([api("/api/me"), api("/api/site"), loadCatalog()]);
   if (me.status === "fulfilled") user = me.value.user;
+  if (user?.tz && validTz(user.tz)) TZ = user.tz;
+  if (user && user.role !== "pending" && !user.tz) setTimeout(() => localeBanner(user), 800);
   if (site.status === "fulfilled") Object.assign(SITE, site.value);
   // visit log for the admin Activity tab (fire-and-forget; admin pages aren't counted)
   if (!location.pathname.startsWith("/admin")) {
@@ -329,14 +331,13 @@ export function onSubmit(form, fn) {
   });
 }
 
-// datetime-local inputs have no timezone; store ISO (UTC) so everyone sees their own local time.
-export const toISO = (v) => (v ? new Date(v).toISOString() : null);
+// datetime-local inputs have no timezone: they're read and written in YOUR chosen time zone (TZ),
+// and stored as an exact moment, so everyone else sees it in theirs.
+export const toISO = (v) => (v ? new Date(inputToMs(v)).toISOString() : null);
 export function toLocalInput(v) {
   if (!v) return "";
-  const d = new Date(v);
-  if (isNaN(d)) return "";
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const ms = typeof v === "number" ? v : Date.parse(v);
+  return isNaN(ms) ? "" : msToInput(ms);
 }
 
 export const POST_TAGS = ["Announcement", "Event", "Update", "Maintenance", "Goal"];
@@ -493,4 +494,118 @@ function mountBell(wrap) {
     if (!e.target.isConnected || wrap.contains(e.target)) return; // (clicks that re-render the panel detach their target)
     panel.classList.add("hidden");
   });
+}
+
+
+/* ---------------- Time zone ---------------- */
+// Every date on the site shows in TZ: your saved zone, or your device's until you pick one.
+
+export const DEVICE_TZ = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch { return "UTC"; } })();
+export let TZ = DEVICE_TZ;
+export function validTz(tz) { try { new Intl.DateTimeFormat("en-US", { timeZone: tz }); return !!tz; } catch { return false; } }
+
+// Make toLocaleString/DateString/TimeString and Intl.DateTimeFormat use TZ unless a zone is given.
+(() => {
+  const P = Date.prototype;
+  for (const m of ["toLocaleString", "toLocaleDateString", "toLocaleTimeString"]) {
+    const orig = P[m];
+    P[m] = function (loc, opts) { return orig.call(this, loc, opts && opts.timeZone ? opts : { ...(opts || {}), timeZone: TZ }); };
+  }
+  const Orig = Intl.DateTimeFormat;
+  const Wrapped = function (loc, opts) { return new Orig(loc, opts && opts.timeZone ? opts : { ...(opts || {}), timeZone: TZ }); };
+  Wrapped.prototype = Orig.prototype;
+  Wrapped.supportedLocalesOf = Orig.supportedLocalesOf;
+  Intl.DateTimeFormat = Wrapped;
+})();
+
+// Wall-clock parts of a moment in a zone, and the zone's offset from UTC at that moment (minutes).
+function parts(ms, tz) {
+  const o = {};
+  for (const p of new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }).formatToParts(new Date(ms))) o[p.type] = p.value;
+  return o;
+}
+const offsetMin = (ms, tz) => { const o = parts(ms, tz); return (Date.UTC(+o.year, +o.month - 1, +o.day, +o.hour % 24, +o.minute, +o.second) - Math.floor(ms / 1000) * 1000) / 60000; };
+export function inputToMs(v, tz = TZ) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(v || "");
+  if (!m) return NaN;
+  const wall = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+  let ms = wall - offsetMin(wall, tz) * 60000;
+  ms = wall - offsetMin(ms, tz) * 60000; // second pass settles DST edges
+  return ms;
+}
+export function msToInput(ms, tz = TZ) {
+  const o = parts(ms, tz);
+  return `${o.year}-${o.month}-${o.day}T${String(+o.hour % 24).padStart(2, "0")}:${o.minute}`;
+}
+// "Friday 9 pm" style helpers: a Date-like set of fields in TZ (for building default times)
+export function zonedNow(tz = TZ) { const o = parts(Date.now(), tz); return { y: +o.year, mo: +o.month, d: +o.day, h: +o.hour % 24, mi: +o.minute, dow: new Date(Date.UTC(+o.year, +o.month - 1, +o.day)).getUTCDay() }; }
+export const wallInput = (y, mo, d, h = 0, mi = 0) => { const x = new Date(Date.UTC(y, mo - 1, d, h, mi)); return x.toISOString().slice(0, 16); };
+
+export const flag = (cc) => (cc && /^[A-Z]{2}$/.test(cc) ? String.fromCodePoint(...[...cc].map((c) => 127397 + c.charCodeAt(0))) : "");
+const COUNTRIES = "MX US GT SV HN NI CR PA CU DO PR CO VE EC PE BO CL AR UY PY BR ES CA GB FR DE IT PT NL BE CH AT IE SE NO DK FI PL CZ RO GR TR RU UA JP KR CN TW HK PH VN TH ID MY SG IN PK AU NZ ZA EG MA NG KE IL SA AE".split(" ");
+const PREFERRED_TZ = ["America/Mexico_City", "America/Monterrey", "America/Tijuana", "America/Hermosillo", "America/Chihuahua", "America/Mazatlan", "America/Cancun",
+  "America/Los_Angeles", "America/Denver", "America/Phoenix", "America/Chicago", "America/New_York", "America/Guatemala", "America/Bogota", "America/Lima", "America/Argentina/Buenos_Aires", "Europe/Madrid"];
+
+const zoneLabel = (z) => {
+  const city = z.split("/").pop().replace(/_/g, " ");
+  let now = "";
+  try { now = new Date().toLocaleTimeString(undefined, { timeZone: z, hour: "numeric", minute: "2-digit" }); } catch {}
+  return `${city} — ${now}`;
+};
+
+/** Opens the time zone / country picker. onSaved(tz, country) after saving. */
+export async function openLocalePicker(user, onSaved) {
+  const d = await api("/api/locale").catch(() => ({ detected: {} }));
+  const all = (Intl.supportedValuesOf ? Intl.supportedValuesOf("timeZone") : PREFERRED_TZ).filter((z) => z.includes("/"));
+  const top = [...new Set([user.tz, DEVICE_TZ, d.detected?.tz, ...PREFERRED_TZ].filter((z) => z && validTz(z)))];
+  const names = (() => { try { return new Intl.DisplayNames([lang === "es" ? "es" : "en"], { type: "region" }); } catch { return { of: (c) => c }; } })();
+  const cur = user.country || d.detected?.country || "";
+  const countries = [...new Set([cur, ...COUNTRIES].filter(Boolean))];
+  const wrap = document.createElement("div");
+  wrap.className = "modal-back";
+  wrap.innerHTML = `
+    <form class="card modal locale-modal">
+      <h2>🌎 ${t("tz.title")}</h2>
+      <p class="small muted">${t("tz.explain")}</p>
+      ${d.detected?.city ? `<p class="small">📍 ${t("tz.detected", { place: esc([d.detected.city, d.detected.region, d.detected.country && names.of(d.detected.country)].filter(Boolean).join(", ")) })}</p>` : ""}
+      <label>${t("tz.zone")}
+        <select name="tz">
+          <optgroup label="${esc(t("tz.suggested"))}">${top.map((z) => `<option value="${esc(z)}" ${z === (user.tz || DEVICE_TZ) ? "selected" : ""}>${esc(zoneLabel(z))}${z === DEVICE_TZ ? ` · ${esc(t("tz.device"))}` : ""}</option>`).join("")}</optgroup>
+          <optgroup label="${esc(t("tz.all"))}">${all.filter((z) => !top.includes(z)).map((z) => `<option value="${esc(z)}">${esc(z.replace(/_/g, " "))}</option>`).join("")}</optgroup>
+        </select></label>
+      <label>${t("tz.country")}
+        <select name="country"><option value="">—</option>${countries.map((c) => `<option value="${c}" ${c === cur ? "selected" : ""}>${flag(c)} ${esc(names.of(c) || c)}</option>`).join("")}</select></label>
+      <p class="hint">${t("tz.privacy")}</p>
+      <div class="lfg-row"><button class="primary">${t("acc.save")}</button><button type="button" class="small-btn" data-close>${t("tz.later")}</button></div>
+    </form>`;
+  document.body.append(wrap);
+  const close = () => wrap.remove();
+  wrap.querySelector("[data-close]").onclick = close;
+  wrap.addEventListener("click", (e) => { if (e.target === wrap) close(); });
+  wrap.querySelector("form").onsubmit = async (e) => {
+    e.preventDefault();
+    const tz = e.target.tz.value, country = e.target.country.value || null;
+    try {
+      await api("/api/locale", { method: "POST", body: { tz, country } });
+      user.tz = tz; user.country = country; TZ = tz;
+      close(); toast(t("tz.saved"));
+      onSaved ? onSaved(tz, country) : location.reload();
+    } catch (x) { toast(x.message, true); }
+  };
+}
+
+// First visit without a saved zone: a small bar offering the device's zone (VPN-proof) + the country we see.
+async function localeBanner(user) {
+  if (sessionStorage.getItem("tzBannerClosed")) return;
+  const d = await api("/api/locale").catch(() => ({ detected: {} }));
+  const bar = document.createElement("div");
+  bar.className = "tz-banner";
+  bar.innerHTML = `🌎 ${t("tz.banner", { zone: esc(zoneLabel(DEVICE_TZ)) })}
+    <button class="primary" data-ok>${t("tz.ok")}</button><button class="small-btn" data-change>${t("tz.change")}</button><button class="link" data-x aria-label="close">✕</button>`;
+  document.body.append(bar);
+  bar.querySelector("[data-ok]").onclick = async () => {
+    try { await api("/api/locale", { method: "POST", body: { tz: DEVICE_TZ, country: d.detected?.country || null } }); user.tz = DEVICE_TZ; bar.remove(); toast(t("tz.saved")); } catch (x) { toast(x.message, true); }
+  };
+  bar.querySelector("[data-change]").onclick = () => { bar.remove(); openLocalePicker(user); };
+  bar.querySelector("[data-x]").onclick = () => { sessionStorage.setItem("tzBannerClosed", "1"); bar.remove(); };
 }

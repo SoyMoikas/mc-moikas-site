@@ -1636,3 +1636,74 @@ a.btn { display: inline-block; padding: 6px 14px; text-decoration: none; }
 .stt-bars i { flex: 1; background: #6fcf5a; border-radius: 1px; }
 .stt-bars i.y { background: var(--warn); } .stt-bars i.r { background: var(--bad); } .stt-bars i.na { background: var(--panel-2); }
 code.copy { user-select: all; word-break: break-all; display: inline-block; background: var(--panel-2); padding: 4px 6px; font-size: .75rem; }
+
+/* ---------------- Rol ---------------- */
+.rp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.rp-card { margin: 0; display: flex; flex-direction: column; gap: 6px; color: var(--text); text-decoration: none; }
+.rp-card:hover { border-color: var(--accent); }
+.rp-card.ended { opacity: .6; }
+.rp-card-top { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.rp-chip { font-size: .72rem; padding: 2px 8px; border: 1px solid var(--border); white-space: nowrap; }
+.rp-chip.recruiting { border-color: #6fcf5a; color: #6fcf5a; } .rp-chip.active { border-color: var(--accent); color: var(--accent); }
+.rp-yourturn { background: var(--accent); color: #111; font-weight: bold; padding: 4px 8px; align-self: flex-start; }
+.rp-setting { font-style: italic; }
+.rp-choice { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
+.rp-choice > b { grid-column: 1 / -1; }
+.rp-choice label.card { margin: 0; display: flex; flex-direction: column; gap: 4px; cursor: pointer; }
+.rp-choice label.card:has(input:checked) { border-color: var(--accent); }
+.rp-choice label.off { opacity: .45; }
+.rp-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.rp-head h1 { margin: 0 0 4px; }
+.rp-ai-working { border-color: #a78bfa; animation: rp-pulse 1.6s infinite; }
+@keyframes rp-pulse { 50% { opacity: .6; } }
+.rp-layout { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: start; }
+@media (max-width: 900px) { .rp-layout { grid-template-columns: 1fr; } .rp-party { order: -1; } }
+.rp-story { display: flex; flex-direction: column; gap: 12px; }
+.rp-scene { margin: 0; }
+.rp-scene.open { border-color: var(--accent-dim); }
+.rp-scene-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.rp-scene-head .rp-chip { margin-left: auto; }
+.rp-narr { font-size: 1.02rem; line-height: 1.6; }
+.rp-narr p { margin: .6em 0; }
+.rp-effects { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.rp-eff { font-size: .78rem; padding: 2px 8px; background: var(--panel-2); border: 1px solid var(--border); }
+.rp-eff.bad { border-color: var(--bad); color: var(--bad); } .rp-eff.good { border-color: #6fcf5a; color: #6fcf5a; } .rp-eff.lvl { border-color: var(--accent); color: var(--accent); }
+.rp-actions { border-top: 1px dashed var(--border); margin-top: 10px; padding-top: 10px; display: flex; flex-direction: column; gap: 10px; }
+.rp-act { display: flex; gap: 10px; }
+.rp-ico { font-size: 1.5rem; line-height: 1; }
+.rp-ico.big { font-size: 2.2rem; }
+.rp-roll { display: inline-block; margin: 4px 6px 0 0; font-size: .82rem; padding: 2px 8px; background: var(--panel-2); border: 1px solid var(--border); }
+.rp-roll.crit { border-color: var(--accent); color: var(--accent); } .rp-roll.fumble { border-color: var(--bad); }
+.rp-roll.pending { border-style: dashed; }
+.rp-party { display: flex; flex-direction: column; gap: 10px; position: sticky; top: 70px; }
+.rp-party h3 { margin: 0; }
+.rp-char { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.rp-char.mine { border-color: var(--accent-dim); } .rp-char.dead { opacity: .55; }
+.rp-char-head { display: flex; gap: 10px; align-items: center; }
+.rp-char-head > span:last-child { margin-left: auto; }
+.rp-hp { position: relative; height: 16px; background: var(--panel-2); border: 1px solid var(--border); }
+.rp-hp i { position: absolute; inset: 0 auto 0 0; background: #3c9a45; } .rp-hp i.low { background: var(--bad); }
+.rp-hp span { position: relative; font-size: .72rem; padding-left: 6px; line-height: 14px; }
+.rp-stats { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.rp-stats i { color: var(--muted); font-style: normal; }
+.rp-char textarea { width: 100%; font-size: .85rem; }
+.rp-compose, .rp-dm { margin: 0; display: flex; flex-direction: column; gap: 8px; border-color: var(--accent); }
+.rp-compose textarea, .rp-dm textarea { width: 100%; }
+.rp-dice { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.rp-dm { border-color: #a78bfa; }
+.rp-efftable { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.rp-efftable td, .rp-efftable th { padding: 3px; text-align: left; }
+.rp-efftable input { width: 70px; }
+.rp-efftable td:last-child input { width: 100%; }
+.rp-settings summary { cursor: pointer; }
+.rp-icons { display: flex; flex-wrap: wrap; gap: 4px; }
+.rp-icons label { cursor: pointer; } .rp-icons input { display: none; }
+.rp-icons span { font-size: 1.5rem; padding: 2px 4px; border: 1px solid transparent; display: inline-block; }
+.rp-icons input:checked + span { border-color: var(--accent); background: var(--panel-2); }
+.rp-classes { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 6px; }
+.rp-classes label.card { margin: 0; padding: 8px; display: flex; flex-direction: column; gap: 2px; cursor: pointer; font-size: .9rem; }
+.rp-classes label.card:has(input:checked) { border-color: var(--accent); }
+.rp-assign { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+.rp-assign label { display: flex; flex-direction: column; gap: 2px; }
+.rp-dice select, .rp-dice input:not([type=checkbox]) { width: auto; min-width: 0; }
+.rp-dice select { max-width: 200px; }

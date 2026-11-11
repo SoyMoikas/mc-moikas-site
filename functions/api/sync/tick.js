@@ -9,11 +9,12 @@ import { closeDue } from "../../../lib/markets.js";
 import { checkAchievements } from "../../../lib/achievements.js";
 import { expireBounties } from "../../../lib/bounties.js";
 import { announceWrapped } from "../../../lib/wrapped.js";
+import { rpgTick } from "../../../lib/rpg.js";
 import { weeklyRecap, snapshotWeek, birthdays, steamSales, quoteOfMonth } from "../../../lib/recap.js";
 
 // POST /api/sync/tick — the NAS bot calls this every ~30 s. Does the site's background chores:
 // game-night locking/reminders/attendance coins, free-game announcements, and slowly refreshing Steam + Apex.
-export async function onRequestPost({ request, env }) {
+export async function onRequestPost({ request, env, waitUntil }) {
   if (!syncAuthorized(request, env)) return err(401, "Bad sync token");
   const t = now();
   const done = {};
@@ -32,6 +33,7 @@ export async function onRequestPost({ request, env }) {
   await step("birthdays", () => birthdays(env));
   await step("quote", () => quoteOfMonth(env));
   await step("wrapped", () => announceWrapped(env));
+  await step("rol", () => rpgTick(env, waitUntil));
   if (env.STEAM_API_KEY) await step("sales", () => steamSales(env));
   // achievements every ~10 min (ticks are ~30 s apart)
   if (Math.floor(t / 60000) % 10 === 0) await step("achievements", () => checkAchievements(env));

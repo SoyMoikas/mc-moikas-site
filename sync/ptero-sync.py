@@ -343,12 +343,17 @@ def collect_players(cfg, servers, want_stats, want_adv, catalog=None):
                     players[entry["uuid"].lower()] = entry["name"]
         except ValueError:
             pass
-        files = [f for f in ptero_list(cfg, ident, f"/{world}/stats") if f.endswith(".json")]
+        # Minecraft 26.1+ keeps player files in <world>/players/stats|advancements; older versions in <world>/stats|advancements
+        pdir = f"/{world}/players"
+        files = [f for f in ptero_list(cfg, ident, f"{pdir}/stats") if f.endswith(".json")]
+        if not files:
+            pdir = f"/{world}"
+            files = [f for f in ptero_list(cfg, ident, f"{pdir}/stats") if f.endswith(".json")]
         cat = {"stats": {}, "advancements": {}} if catalog is not None else None
         for f in files:
             uuid = f[:-5].lower()
             try:
-                st = json.loads(ptero_text(cfg, ident, f"/{world}/stats/{f}") or "{}").get("stats", {})
+                st = json.loads(ptero_text(cfg, ident, f"{pdir}/stats/{f}") or "{}").get("stats", {})
             except ValueError:
                 continue
             custom = st.get("minecraft:custom", {})
@@ -356,7 +361,7 @@ def collect_players(cfg, servers, want_stats, want_adv, catalog=None):
             adv_done = []
             if want_adv or cat is not None:
                 try:
-                    adv = json.loads(ptero_text(cfg, ident, f"/{world}/advancements/{f}") or "{}")
+                    adv = json.loads(ptero_text(cfg, ident, f"{pdir}/advancements/{f}") or "{}")
                     adv_done = [k for k in want_adv if isinstance(adv.get(k), dict) and adv[k].get("done")]
                     if cat is not None:
                         for k, v in adv.items():

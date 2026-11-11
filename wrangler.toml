@@ -5,17 +5,22 @@ pages_build_output_dir = "./public"
 [vars]
 # Your Discord user ID (Discord → Settings → Advanced → Developer Mode, then right-click your name → Copy User ID).
 # This account is always admin.
-ADMIN_DISCORD_ID = "260485507882942476"
-# Discord application "Client_id" (public, not secret).
-DISCORD_CLIENT_ID = "1568770697231077420"
+ADMIN_DISCORD_ID = "PUT_YOUR_DISCORD_USER_ID_HERE"
+# Discord application "Client ID" (public, not secret).
+DISCORD_CLIENT_ID = "PUT_DISCORD_CLIENT_ID_HERE"
 # Hostname shown for servers that don't set their own address (non-default ports become play.moikas.cc:PORT).
-PUBLIC_HOST = "games.moikas.cc"
+PUBLIC_HOST = "play.moikas.cc"
 
 # Secrets are NOT stored here. Add them in Cloudflare → your Pages project → Settings → Variables and Secrets:
 #   DISCORD_CLIENT_SECRET   (from the Discord app's OAuth2 page)
 #   SYNC_SECRET             (a long random string; the same value goes in sync/sync.env on the NAS)
+#   DISCORD_BOT_TOKEN       (Discord app → Bot → Reset Token) — posts "¿Quién se apunta?" and tournaments to Discord
+# Plain variables (same page, type "Text"):
+#   DISCORD_PUBLIC_KEY      (Discord app → General Information → Public Key) — verifies the "Me apunto" button clicks
+#   DISCORD_LFG_CHANNEL     (right-click the channel → Copy Channel ID) — where game posts go
+#   DISCORD_TOURNEY_CHANNEL (optional) — tournament announcements; defaults to DISCORD_LFG_CHANNEL
 
 [[d1_databases]]
 binding = "DB"
 database_name = "moikas-mc"
-database_id = "439c5c05-9111-44e9-baa1-f2e803b4b682"
+database_id = "PUT_D1_DATABASE_ID_HERE"

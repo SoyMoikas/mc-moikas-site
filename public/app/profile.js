@@ -77,6 +77,13 @@ async function load() {
     ${own ? `<p style="margin-top:24px" class="actions"><a class="btn primary" href="/store">🪙 ${t("nav.store")}</a><a class="btn" href="/auth/logout">${t("auth.logout")}</a></p>` : ""}`;
 
   mountOcasoProfile(main.querySelector("#ocaso-profile"), p.user.id);
+  api(`/api/tournaments?user=${p.user.id}`).then(({ trophies }) => {
+    if (!trophies.length) return;
+    const el = document.createElement("section");
+    el.innerHTML = `<div class="section-head"><h2>🏆 ${t("tr.trophies")}</h2></div><div class="tr-trophies">${trophies.map((x) =>
+      `<a class="card tr-trophy" href="/tournaments?id=${x.id}">${x.place === 1 ? "🏆" : "🥈"} <b>${esc(x.title)}</b><span class="small muted">${esc(x.game)} · ${t(x.place === 1 ? "tr.place1" : "tr.place2")}</span></a>`).join("")}</div>`;
+    main.querySelector("#ocaso-profile")?.before(el) || main.querySelector("#user-feed")?.before(el);
+  }).catch(() => {});
   mountFeed(main.querySelector("#user-feed"), user, { userId: p.user.id, composer: own, modes: false });
   if (own) {
     renderLink();

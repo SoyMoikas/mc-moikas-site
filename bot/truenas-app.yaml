@@ -1,0 +1,16 @@
+# TrueNAS → Apps → Discover Apps → ⋮ → Install via YAML. Name it "moikas-bot".
+# Put presence-bot.py in /mnt/tank/scripts/moikas-bot/ first (change the path if yours differs),
+# and fill in the three values below.
+services:
+  bot:
+    image: python:3.12-slim
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - /mnt/tank/scripts/moikas-bot:/app
+    environment:
+      DISCORD_BOT_TOKEN: "PEGA_AQUI_EL_TOKEN_DEL_BOT"
+      SYNC_SECRET: "EL_MISMO_SYNC_SECRET_DE_LA_PAGINA"
+      SITE_URL: "https://play.moikas.cc"
+      PYTHONUNBUFFERED: "1"
+    command: sh -c "pip install --quiet --no-cache-dir discord.py && python presence-bot.py"

@@ -137,6 +137,7 @@ export async function initPage() {
         ${gamesMenu}
         ${navLink("/quests", "nav.quests")}
         ${navLink("/ranking", "nav.ranking")}
+        ${navLink("/tournaments", "nav.tournaments")}
         ${navLink("/store", "nav.store")}
         ${["users", "servers", "store"].some((p) => perm(user, p)) ? navLink("/admin", "nav.admin") : ""}
       </nav>
@@ -184,6 +185,7 @@ export async function initPage() {
         ${railLink("/", "🏠", "nav.home")}
         ${railLink("/quests", "🎯", "nav.quests")}
         ${railLink("/ranking", "🏆", "nav.ranking")}
+        ${railLink("/tournaments", "⚔️", "nav.tournaments")}
         ${railLink("/store", "🪙", "nav.store")}
         ${isAdmin ? railLink("/admin", "⚙️", "nav.admin") : ""}
       </nav>

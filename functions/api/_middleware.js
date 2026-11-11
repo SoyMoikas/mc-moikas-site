@@ -4,8 +4,10 @@ import { err, HttpError } from "../../lib/util.js";
 export async function onRequest({ request, next }) {
   const url = new URL(request.url);
 
-  // CSRF guard: browser writes must come from this site. /api/sync uses a bearer secret instead.
-  if (!["GET", "HEAD", "OPTIONS"].includes(request.method) && !url.pathname.startsWith("/api/sync")) {
+  // CSRF guard: browser writes must come from this site. /api/sync uses a bearer secret instead,
+  // and Discord's button clicks (/api/discord/interactions) are verified by their signature.
+  const exempt = url.pathname.startsWith("/api/sync") || url.pathname === "/api/discord/interactions";
+  if (!["GET", "HEAD", "OPTIONS"].includes(request.method) && !exempt) {
     const origin = request.headers.get("origin");
     if (!origin || origin !== url.origin) return err(403, "Bad origin");
   }

@@ -1,7 +1,7 @@
 import { mountChat } from "./chat.js";
 import { mountFeed } from "./feed.js";
 import { mountDaily, mountOcasoHome } from "./ocaso.js";
-import { preguntaCard, recuerdosCard } from "./together.js";
+import { preguntaCard, recuerdosCard, nuevoStrip } from "./together.js";
 import { mountCuandoHome } from "./cuando.js";
 import { mountPlaying, mountLfg, mountFreeHome, mountNightHome, mountRecapHome } from "./social.js";
 import { api, esc, can, t, initPage, mountMobileTabs, livePosts, renderPost, postForm, bindPostActions, onSubmit, toast, toISO, gameLabel, localized } from "./common.js";
@@ -65,7 +65,8 @@ mountRecapHome(document.getElementById("recap-home"), user);
 if (user && user.role !== "pending") {
   preguntaCard(document.getElementById("qotd-home"), true).catch(() => document.getElementById("qotd-home").remove());
   recuerdosCard(document.getElementById("memories-home"));
-} else { document.getElementById("qotd-home").remove(); document.getElementById("memories-home").remove(); }
+  nuevoStrip(document.getElementById("jfnew-home"));
+} else { document.getElementById("qotd-home").remove(); document.getElementById("memories-home").remove(); document.getElementById("jfnew-home").remove(); }
 homeTabs();
 
 /* ---------------- Home tabs (switch without reloading) ---------------- */

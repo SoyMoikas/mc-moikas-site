@@ -65,3 +65,14 @@ export function jellyfinInvite(el, jf, onChange) {
     onChange();
   }));
 }
+
+// "Nuevo en Jellyfin": posters of the latest additions (removes itself when there's nothing / no public Jellyfin URL).
+export async function nuevoStrip(el) {
+  let d;
+  try { d = await api("/api/juntos/nuevo"); } catch { el.remove(); return; }
+  if (!d.items.length) { el.remove(); return; }
+  el.innerHTML = `<div class="jf-new"><div class="section-head"><b>🎞️ ${t("jfn.title")}</b></div><div class="jf-strip">${d.items.map((i) => `
+    <a class="jf-tile" href="${esc(i.url || "#")}" target="_blank" rel="noopener" title="${esc(i.title)}">
+      <img src="${esc(i.poster)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'jf-noimg',textContent:'${i.type === "Movie" ? "🎬" : "📺"}'}))">
+      <span>${esc(i.title)}</span><span class="small muted">${i.year || ""}${i.added_at && Date.now() - i.added_at < 3 * 86400000 ? ` · <b class="lfg-ok">${t("jfn.new")}</b>` : ""}</span></a>`).join("")}</div></div>`;
+}

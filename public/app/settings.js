@@ -2,8 +2,11 @@
 import { api, esc, t, toast, TZ, flag, openLocalePicker, NT_KINDS } from "./common.js";
 import { lang, setLang } from "./i18n.js";
 import { jellyfinInvite } from "./together.js";
+import { isStandalone, isIOS, canInstall, installApp, pushState, enablePush, disablePush, makeVapidKeys } from "./pwa.js";
 
+let USER_ROLE = "member";
 export async function mountSettings(el, user, me, renderMinecraft) {
+  USER_ROLE = user.role;
   el.innerHTML = `
     <section>
       <div class="section-head"><h2>🔗 ${t("set.linked")}</h2></div>
@@ -28,6 +31,10 @@ export async function mountSettings(el, user, me, renderMinecraft) {
       </div>
     </section>
     <section>
+      <div class="section-head"><h2>📱 ${t("pwa.title")}</h2></div>
+      <div class="card set-rows" id="set-app"><p class="muted small">${t("loading")}</p></div>
+    </section>
+    <section>
       <div class="section-head"><h2>🔔 ${t("set.notifs")}</h2></div>
       <form class="card bp-prefs" id="set-nt"><p class="muted small">${t("loading")}</p></form>
     </section>
@@ -39,6 +46,36 @@ export async function mountSettings(el, user, me, renderMinecraft) {
   apex(el.querySelector("#acc-apex")).catch(fail(el, "#acc-apex"));
   jellyfin(el.querySelector("#acc-jf")).catch(fail(el, "#acc-jf"));
   notifications(el.querySelector("#set-nt")).catch(() => {});
+  appCard(el.querySelector("#set-app"), user).catch(() => {});
+}
+
+async function appCard(box, user) {
+  const [st, cfg] = await Promise.all([pushState(), api("/api/push").catch(() => ({ configured: false, devices: 0 }))]);
+  const installed = isStandalone();
+  const pushTxt = { on: t("pwa.pushOn"), off: t("pwa.pushOff"), denied: t("pwa.pushDenied"), unsupported: t("pwa.pushUnsupported"), "ios-needs-install": t("pwa.pushIOS") }[st];
+  box.innerHTML = `
+    <div class="set-row"><div><b>${t("pwa.install")}</b><div class="small muted">${installed ? "✓ " + t("pwa.installed") : isIOS() ? t("pwa.iosHow") : t("pwa.installWhy")}</div></div>
+      ${!installed && !isIOS() ? `<button class="primary" id="app-install" ${canInstall() ? "" : "disabled"}>${t("pwa.install")}</button>` : ""}</div>
+    <div class="set-row"><div><b>${t("pwa.push")}</b><div class="small muted">${cfg.configured ? pushTxt : t("pwa.notConfigured")}${cfg.devices ? ` · ${t("pwa.devices", { n: cfg.devices })}` : ""}</div></div>
+      <div class="lfg-row">${cfg.configured && st === "off" ? `<button class="primary" id="push-on">🔔 ${t("pwa.enable")}</button>` : ""}
+        ${cfg.configured && st === "on" ? `<button class="small-btn" id="push-test">${t("pwa.test")}</button><button class="link small" id="push-off">${t("pwa.disable")}</button>` : ""}</div></div>
+    ${!cfg.configured && user.role === "admin" ? `<div class="set-row"><div class="small"><b>🛠 ${t("pwa.adminTitle")}</b><div class="muted">${t("pwa.adminHow")}</div><div id="vapid-out"></div></div>
+      <button class="small-btn" id="vapid-gen">${t("pwa.genKeys")}</button></div>` : ""}`;
+  const again = () => appCard(box, user);
+  addEventListener("moikas:installable", again, { once: true });
+  box.querySelector("#app-install")?.addEventListener("click", async () => { if (await installApp()) toast("✓"); again(); });
+  box.querySelector("#push-on")?.addEventListener("click", async () => {
+    try { await enablePush(); toast(t("pwa.enabled")); } catch (x) { toast(x.message === "push-denied" ? t("pwa.pushDenied") : x.message, true); }
+    again();
+  });
+  box.querySelector("#push-off")?.addEventListener("click", async () => { await disablePush(); again(); });
+  box.querySelector("#push-test")?.addEventListener("click", async () => {
+    try { const r = await api("/api/push", { method: "POST", body: { action: "test" } }); toast(r.sent ? t("pwa.testSent") : t("pwa.testNone"), !r.sent); } catch (x) { toast(x.message, true); }
+  });
+  box.querySelector("#vapid-gen")?.addEventListener("click", async () => {
+    const k = await makeVapidKeys();
+    box.querySelector("#vapid-out").innerHTML = `<p>VAPID_PUBLIC_KEY<br><code class="copy">${esc(k.publicKey)}</code></p><p>VAPID_PRIVATE_KEY (${t("pwa.secret")})<br><code class="copy">${esc(k.privateKey)}</code></p>`;
+  });
 }
 const fail = (el, sel) => (x) => { const b = el.querySelector(sel); if (b) b.insertAdjacentHTML("beforeend", `<p class="muted small">${esc(x.message)}</p>`); };
 
@@ -95,15 +132,16 @@ async function jellyfin(box) {
 async function notifications(form) {
   const d = await api("/api/notifications");
   const p = d.prefs || {};
-  form.innerHTML = `<table><thead><tr><th></th><th>${t("nt.onSite")}</th><th>${t("nt.dm")}</th></tr></thead><tbody>
-      ${NT_KINDS.map((k) => `<tr><td>${t("nt.k." + k)}</td>
+  form.innerHTML = `<table><thead><tr><th></th><th>${t("nt.onSite")}</th><th>${t("nt.push")}</th><th>${t("nt.dm")}</th></tr></thead><tbody>
+      ${NT_KINDS.filter((k) => k !== "status" || ["staff", "subadmin", "admin"].includes(USER_ROLE)).map((k) => `<tr><td>${t("nt.k." + k)}</td>
         <td><input type="checkbox" name="${k}.site" ${p[k]?.site ? "checked" : ""}></td>
+        <td><input type="checkbox" name="${k}.push" ${p[k]?.push ? "checked" : ""}></td>
         <td><input type="checkbox" name="${k}.dm" ${p[k]?.dm ? "checked" : ""}></td></tr>`).join("")}
     </tbody></table><p class="hint">${t("nt.dmHint")}</p><button class="primary">${t("acc.save")}</button>`;
   form.onsubmit = async (e) => {
     e.preventDefault();
     const out = {};
-    for (const k of NT_KINDS) out[k] = { site: form[`${k}.site`].checked, dm: form[`${k}.dm`].checked };
+    for (const k of NT_KINDS) if (form[`${k}.site`]) out[k] = { site: form[`${k}.site`].checked, push: form[`${k}.push`].checked, dm: form[`${k}.dm`].checked };
     try { await api("/api/notifications", { method: "POST", body: { action: "prefs", prefs: out } }); toast("✓"); } catch (x) { toast(x.message, true); }
   };
 }

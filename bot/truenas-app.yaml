@@ -8,9 +8,19 @@ services:
     working_dir: /app
     volumes:
       - /mnt/tank/scripts/moikas-bot:/app
+      - /mnt/tank:/tank:ro        # only to show disk usage on /status (read-only)
     environment:
       DISCORD_BOT_TOKEN: "PEGA_AQUI_EL_TOKEN_DEL_BOT"
       SYNC_SECRET: "EL_MISMO_SYNC_SECRET_DE_LA_PAGINA"
       SITE_URL: "https://play.moikas.cc"
+      # optional: what friends are watching on your Jellyfin (Dashboard → API Keys → +)
+      JELLYFIN_URL: "http://192.168.1.239:30013"
+      JELLYFIN_API_KEY: ""
+      # optional: "Pedir" on the watchlist → Seerr (Seerr → Settings → General → API Key)
+      SEERR_URL: "http://192.168.1.239:30357"
+      SEERR_API_KEY: ""
+      # optional: what the /status page checks (Jellyfin and Seerr are added automatically)
+      STATUS_CHECKS: "Ocaso=tcp://192.168.1.239:25565; Wizarr=http://192.168.1.239:5690; Panel=https://ptero.moikas.cc"   # Ocaso: use its port from Pterodactyl
+      STATUS_DISK: "/tank"
       PYTHONUNBUFFERED: "1"
     command: sh -c "pip install --quiet --no-cache-dir discord.py && python presence-bot.py"

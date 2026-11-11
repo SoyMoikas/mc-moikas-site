@@ -1607,3 +1607,32 @@ a.btn { display: inline-block; padding: 6px 14px; text-decoration: none; }
 .jf-row { display: flex; gap: 10px; align-items: center; }
 .jf-row code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%; }
 #acc-jf .jf-ask { margin: 10px 0 0; padding: 10px; }
+
+/* ---------------- App banner, Jellyfin requests, status ---------------- */
+.app-banner { position: fixed; left: 10px; right: 10px; bottom: 10px; z-index: 900; display: flex; gap: 10px; align-items: center; padding: 10px 12px;
+  background: var(--panel); border: 1px solid var(--accent); box-shadow: 0 8px 24px rgba(0, 0, 0, .5); }
+.app-banner img { width: 40px; height: 40px; }
+.app-banner > div { flex: 1; }
+.wl-jf { color: var(--good, #6fcf5a); font-weight: bold; text-decoration: none; }
+.wl-req.failed { color: var(--bad); }
+.jf-new { margin: 10px 0 16px; }
+.jf-strip { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x mandatory; }
+.jf-tile { flex: 0 0 116px; display: flex; flex-direction: column; gap: 2px; color: var(--text); text-decoration: none; scroll-snap-align: start; font-size: .85rem; }
+.jf-tile img, .jf-noimg { width: 116px; height: 174px; object-fit: cover; background: var(--panel-2); display: grid; place-items: center; font-size: 2rem; }
+.jf-tile span:first-of-type { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.stt-sum { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.stt-sum.ok { border-color: #3c7a35; } .stt-sum.bad { border-color: var(--bad); } .stt-sum.warn { border-color: var(--warn); }
+.stt-host { margin-left: auto; display: flex; gap: 14px; }
+.stt-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--muted); flex: none; display: inline-block; }
+.stt-dot.big { width: 22px; height: 22px; }
+.ok > .stt-dot, .ok .stt-top .stt-dot { background: #6fcf5a; box-shadow: 0 0 8px #6fcf5a; }
+.bad > .stt-dot, .bad .stt-top .stt-dot { background: var(--bad); box-shadow: 0 0 8px var(--bad); }
+.warn > .stt-dot { background: var(--warn); }
+.stt-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; }
+.stt { margin: 0; display: flex; flex-direction: column; gap: 6px; color: var(--text); text-decoration: none; }
+.stt-top { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.stt-since { margin-left: auto; }
+.stt-bars { display: flex; gap: 2px; height: 22px; }
+.stt-bars i { flex: 1; background: #6fcf5a; border-radius: 1px; }
+.stt-bars i.y { background: var(--warn); } .stt-bars i.r { background: var(--bad); } .stt-bars i.na { background: var(--panel-2); }
+code.copy { user-select: all; word-break: break-all; display: inline-block; background: var(--panel-2); padding: 4px 6px; font-size: .75rem; }

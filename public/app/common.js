@@ -1,5 +1,6 @@
 // Shared helpers for every page.
 import { t, tErr, lang, locale, setLang, applyStatic } from "./i18n.js";
+import { registerApp, isStandalone, canInstall, installApp, isIOS } from "./pwa.js";
 import { levelBadge, levelInfo } from "./levels.js";
 import { avatarHTML, nameHTML, fromAuthor, loadCatalog, catalogItem, bgCSS, bgStyle, bgAnimated, bgWall, textAttrs } from "./cosmetics.js";
 import { applyTheme, applyCachedTheme } from "./themes.js";
@@ -105,11 +106,13 @@ export const gameLabel = (g) => (g ? (lang === "es" && g.name_es ? g.name_es : g
 // Builds the top bar, translates static text, and returns the logged-in user (or null).
 export async function initPage() {
   applyStatic();
+  registerApp();
   let user = null;
   const [me, site] = await Promise.allSettled([api("/api/me"), api("/api/site"), loadCatalog()]);
   if (me.status === "fulfilled") user = me.value.user;
   if (user?.tz && validTz(user.tz)) TZ = user.tz;
   if (user && user.role !== "pending" && !user.tz) setTimeout(() => localeBanner(user), 800);
+  else if (user && user.role !== "pending") setTimeout(() => appBanner(), 4000);
   if (site.status === "fulfilled") Object.assign(SITE, site.value);
   // visit log for the admin Activity tab (fire-and-forget; admin pages aren't counted)
   if (!location.pathname.startsWith("/admin")) {
@@ -141,7 +144,7 @@ export async function initPage() {
         ${navLink("/ranking", "nav.ranking")}
         ${navLink("/play", "nav.play")}
         ${navLink("/tournaments", "nav.tournaments")}
-        ${user && user.role !== "pending" ? navLink("/juntos", "nav.juntos") : ""}
+        ${user && user.role !== "pending" ? navLink("/juntos", "nav.juntos") + navLink("/status", "nav.status") : ""}
         ${navLink("/store", "nav.store")}
         ${["users", "servers", "store"].some((p) => perm(user, p)) ? navLink("/admin", "nav.admin") : ""}
       </nav>
@@ -193,7 +196,7 @@ export async function initPage() {
         ${railLink("/ranking", "🏆", "nav.ranking")}
         ${railLink("/play", "🎮", "nav.play")}
         ${railLink("/tournaments", "⚔️", "nav.tournaments")}
-        ${user && user.role !== "pending" ? railLink("/juntos", "🫂", "nav.juntos") : ""}
+        ${user && user.role !== "pending" ? railLink("/juntos", "🫂", "nav.juntos") + railLink("/status", "🟢", "nav.status") : ""}
         ${railLink("/store", "🪙", "nav.store")}
         ${isAdmin ? railLink("/admin", "⚙️", "nav.admin") : ""}
       </nav>
@@ -446,7 +449,7 @@ export function livePosts(fetchPosts, renderList, ms = 60_000) {
 
 /* ---------------- Notifications bell ---------------- */
 
-export const NT_KINDS = ["reply", "announce", "game", "night", "free", "quest", "achieve", "fun"];
+export const NT_KINDS = ["reply", "announce", "game", "night", "free", "quest", "achieve", "fun", "status"];
 
 function mountBell(wrap) {
   const btn = wrap.querySelector(".bell"), badge = wrap.querySelector(".bell-n"), panel = wrap.querySelector(".bell-panel");
@@ -474,16 +477,17 @@ function mountBell(wrap) {
   const prefs = (p) => {
     panel.innerHTML = `
       <div class="bp-head"><b>⚙ ${t("nt.settings")}</b><button class="link" data-back>← ${t("nt.back")}</button></div>
-      <form class="bp-prefs"><table><thead><tr><th></th><th>${t("nt.onSite")}</th><th>${t("nt.dm")}</th></tr></thead><tbody>
+      <form class="bp-prefs"><table><thead><tr><th></th><th>${t("nt.onSite")}</th><th>${t("nt.push")}</th><th>${t("nt.dm")}</th></tr></thead><tbody>
         ${NT_KINDS.map((k) => `<tr><td>${t("nt.k." + k)}</td>
           <td><input type="checkbox" name="${k}.site" ${p[k]?.site ? "checked" : ""}></td>
+          <td><input type="checkbox" name="${k}.push" ${p[k]?.push ? "checked" : ""}></td>
           <td><input type="checkbox" name="${k}.dm" ${p[k]?.dm ? "checked" : ""}></td></tr>`).join("")}
       </tbody></table><p class="hint">${t("nt.dmHint")}</p><button class="primary">${t("acc.save")}</button></form>`;
     panel.querySelector("[data-back]").onclick = list;
     panel.querySelector("form").onsubmit = async (e) => {
       e.preventDefault();
       const out = {};
-      for (const k of NT_KINDS) out[k] = { site: e.target[`${k}.site`].checked, dm: e.target[`${k}.dm`].checked };
+      for (const k of NT_KINDS) out[k] = { site: e.target[`${k}.site`].checked, push: e.target[`${k}.push`].checked, dm: e.target[`${k}.dm`].checked };
       try { await api("/api/notifications", { method: "POST", body: { action: "prefs", prefs: out } }); toast("✓"); list(); } catch (x) { toast(x.message, true); }
     };
   };
@@ -610,4 +614,18 @@ async function localeBanner(user) {
   };
   bar.querySelector("[data-change]").onclick = () => { bar.remove(); openLocalePicker(user); };
   bar.querySelector("[data-x]").onclick = () => { sessionStorage.setItem("tzBannerClosed", "1"); bar.remove(); };
+}
+
+// On phones: "install the app" nudge (once every 2 weeks, until it's installed).
+function appBanner() {
+  if (isStandalone() || !matchMedia("(max-width: 760px), (pointer: coarse)").matches) return;
+  try { if (Date.now() - (+localStorage.getItem("appBannerAt") || 0) < 14 * 86400000) return; } catch { return; }
+  const bar = document.createElement("div");
+  bar.className = "app-banner";
+  bar.innerHTML = `<img src="/icons/icon-192.png" alt=""><div><b>${t("pwa.bannerTitle")}</b><div class="small">${t(isIOS() ? "pwa.bannerIOS" : "pwa.bannerSub")}</div></div>
+    ${isIOS() ? "" : `<button class="primary" data-go>${t("pwa.install")}</button>`}<button class="link" data-x aria-label="close">✕</button>`;
+  document.body.append(bar);
+  const done = () => { try { localStorage.setItem("appBannerAt", Date.now()); } catch { /* */ } bar.remove(); };
+  bar.querySelector("[data-x]").onclick = done;
+  bar.querySelector("[data-go]")?.addEventListener("click", async () => { if (canInstall()) await installApp(); else location.href = "/profile#ajustes"; done(); });
 }

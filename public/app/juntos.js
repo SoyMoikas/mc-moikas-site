@@ -1,7 +1,7 @@
 // "Juntos": movie nights, watchlist, music, clubs, personal goals, question of the day, calendar, Secret Santa.
 import { api, esc, t, initPage, toast, ago, inputToMs, zonedNow, wallInput, msToInput } from "./common.js";
 import { mountFeed } from "./feed.js";
-import { preguntaCard, jellyfinInvite } from "./together.js";
+import { preguntaCard, jellyfinInvite, nuevoStrip } from "./together.js";
 
 const user = await initPage();
 const main = document.getElementById("main");
@@ -55,17 +55,19 @@ async function cine(el) {
           <div class="card cn-how small">${t("cn.how", { name: esc(n.title) })} ${jf.url ? `<a class="primary btn" href="${esc(jf.url)}" target="_blank" rel="noopener">▶ ${t("cn.open")}</a>` : ""}</div>` : ""}
       </div>`;
   };
-  const wantList = wl.items.filter((i) => !i.watched_at).slice(0, 12);
+  const wantList = wl.items.filter((i) => !i.watched_at).sort((a, b) => !!b.jf - !!a.jf).slice(0, 14);
   el.innerHTML = `
     <div class="section-head"><p class="muted" style="margin:0">${t("cn.intro")}</p><button class="primary" id="cn-new">+ ${t("cn.new")}</button></div>
     ${!jf.name ? `<div class="card play-cta">🎞️ ${t("cn.haveJf")} <form id="jf-form" class="lfg-row"><input name="n" placeholder="${esc(t("cn.jfName"))}" required><button class="small-btn">${t("acc.save")}</button></form></div>`
       : `<p class="small muted">🎞️ Jellyfin: <b>${esc(jf.name)}</b> <button class="link small" id="jf-change">${t("cn.change")}</button>${jf.url ? ` · <a href="${esc(jf.url)}" target="_blank" rel="noopener">${t("cn.open")} ↗</a>` : ""}</p>`}
     <div id="jf-invite"></div>
+    <div id="jf-new"></div>
     <div id="cn-form"></div>
     <div class="gn-list">${nights.map(card).join("") || `<p class="muted">${t("cn.none")}</p>`}</div>`;
   const back = reload(el, cine);
   el.querySelector("#jf-form")?.addEventListener("submit", async (e) => { e.preventDefault(); try { await api("/api/juntos/jellyfin", { method: "POST", body: { name: e.target.n.value } }); toast("✓"); back(); } catch (x) { toast(x.message, true); } });
   jellyfinInvite(el.querySelector("#jf-invite"), jf, back);
+  nuevoStrip(el.querySelector("#jf-new"));
   el.querySelector("#jf-change")?.addEventListener("click", async () => {
     const n = prompt(t("cn.jfName"), jf.name);
     if (n === null) return;
@@ -82,7 +84,7 @@ async function cine(el) {
       <form class="card lfg-form">
         <label>${t("gn.fTitle")}<input name="title" maxlength="80" value="${esc(t("cn.defaultTitle"))}"></label>
         <div class="small">${t("cn.pick")}</div>
-        <div class="lfg-quick">${wantList.map((i) => `<button type="button" class="chip" data-g="${esc(i.title)}">${esc(i.title)} <span class="muted">· ${i.wants}❤</span></button>`).join("") || `<span class="hint">${t("cn.emptyList")}</span>`}</div>
+        <div class="lfg-quick">${wantList.map((i) => `<button type="button" class="chip" data-g="${esc(i.title)}">${i.jf ? "✅ " : ""}${esc(i.title)} <span class="muted">· ${i.wants}❤</span></button>`).join("") || `<span class="hint">${t("cn.emptyList")}</span>`}</div>
         <div class="gn-chosen" id="cn-chosen"></div>
         <div class="lfg-row"><input id="cn-other" maxlength="60" placeholder="${esc(t("cn.other"))}"><button type="button" class="small-btn" id="cn-add">+</button></div>
         <div class="small">${t("gn.fTimes")}</div>
@@ -108,7 +110,7 @@ async function cine(el) {
 /* ---------------- Lista (group watchlist) ---------------- */
 
 async function lista(el, filter = "want") {
-  const { items } = await api("/api/juntos/watch");
+  const { items, requests_on: reqOn, library_on: libOn } = await api("/api/juntos/watch");
   const shown = items.filter((i) => (filter === "want" ? !i.watched_at : i.watched_at));
   const stars = (n) => "★".repeat(Math.round(n)) + "☆".repeat(5 - Math.round(n));
   el.innerHTML = `
@@ -121,6 +123,10 @@ async function lista(el, filter = "want") {
         <div class="wl-info"><b>${esc(i.title)}</b> <span class="small muted">${esc(i.year || "")} · ${t("wl.kind." + i.kind)}</span>
           ${i.avg ? `<div class="wl-stars" title="${i.n_ratings}">${stars(i.avg)} <span class="small muted">${i.avg}/5 · ${i.n_ratings}</span></div>` : ""}
           ${i.ratings.slice(0, 3).map((r) => `<div class="small">${av(r)} ${esc(r.username)} ${"★".repeat(Math.round(r.stars / 2))}${r.comment ? ` — <span class="muted">${esc(r.comment)}</span>` : ""}</div>`).join("")}
+          ${i.jf ? `<div class="small"><a class="wl-jf" href="${esc(i.jf.url || "#")}" target="_blank" rel="noopener">✅ ${t("wl.onJf")} ↗</a></div>`
+            : i.req ? `<div class="small wl-req ${i.req.status}">${{ queued: "⏳ " + t("wl.req.queued"), requested: "📥 " + t("wl.req.requested"), exists: "📦 " + t("wl.req.exists"), failed: "😕 " + t("wl.req.failed") }[i.req.status] || ""}${i.req.status === "failed" && reqOn ? ` <button class="link small" data-req="${i.id}">${t("wl.retry")}</button>` : ""}</div>`
+            : !i.watched_at && reqOn ? `<div class="small"><button class="small-btn" data-req="${i.id}">📥 ${t("wl.request")}</button></div>`
+            : !i.watched_at && libOn ? `<div class="small muted">${t("wl.notOnJf")}</div>` : ""}
           <div class="lfg-row">
             <button class="small-btn ${i.i_want ? "on" : ""}" data-want="${i.id}">❤ ${i.wants}</button>
             <select data-rate="${i.id}" title="${esc(t("wl.rate"))}"><option value="">⭐ ${t("wl.rate")}</option>${[1, 2, 3, 4, 5].map((n) => `<option value="${n * 2}" ${i.my_stars === n * 2 ? "selected" : ""}>${"★".repeat(n)}</option>`).join("")}</select>
@@ -131,6 +137,11 @@ async function lista(el, filter = "want") {
   el.querySelectorAll("[data-f]").forEach((b) => (b.onclick = () => lista(el, b.dataset.f)));
   el.querySelectorAll("[data-want]").forEach((b) => (b.onclick = () => api("/api/juntos/watch", { method: "POST", body: { action: "want", id: +b.dataset.want } }).then(back)));
   el.querySelectorAll("[data-watched]").forEach((b) => (b.onclick = () => api("/api/juntos/watch", { method: "POST", body: { action: "watched", id: +b.dataset.watched } }).then(back)));
+  el.querySelectorAll("[data-req]").forEach((b) => (b.onclick = async () => {
+    b.disabled = true;
+    try { await api("/api/juntos/watch", { method: "POST", body: { action: "request", id: +b.dataset.req } }); toast(t("wl.requested")); back(); }
+    catch (x) { toast(x.message, true); b.disabled = false; }
+  }));
   el.querySelectorAll("[data-rate]").forEach((s) => (s.onchange = async () => {
     if (!s.value) return;
     const comment = prompt(t("wl.commentQ")) || null;

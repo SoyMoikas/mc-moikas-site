@@ -8,7 +8,12 @@ export async function onRequestGet({ env, request }) {
   const me = await need(env, request, "member");
   if (me instanceof Response) return json({ unread: 0, items: [] });
   const unread = (await env.DB.prepare("SELECT COUNT(*) AS n FROM notifications WHERE user_id = ? AND read_at IS NULL").bind(me.id).first()).n;
-  if (new URL(request.url).searchParams.get("count")) return json({ unread });
+  const sp = new URL(request.url).searchParams;
+  if (sp.get("count")) return json({ unread });
+  if (sp.get("latest")) { // for the phone app's service worker: the newest unread item
+    const n = await env.DB.prepare("SELECT id, title, body, url, created_at FROM notifications WHERE user_id = ? AND read_at IS NULL ORDER BY created_at DESC LIMIT 1").bind(me.id).first();
+    return json({ unread, item: n || null });
+  }
   const items = (await env.DB.prepare("SELECT id, kind, title, body, url, created_at, read_at FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 30")
     .bind(me.id).all()).results;
   const prefs = (await prefsFor(env, [me.id])).get(me.id);
@@ -30,7 +35,7 @@ export async function onRequestPost({ env, request }) {
     const clean = {};
     for (const k of Object.keys(KINDS)) {
       const p = b.prefs?.[k];
-      if (p) clean[k] = { site: !!p.site, dm: !!p.dm };
+      if (p) clean[k] = { site: !!p.site, dm: !!p.dm, ...("push" in p ? { push: !!p.push } : {}) };
     }
     await env.DB.prepare("INSERT OR REPLACE INTO notif_prefs (user_id, data) VALUES (?, ?)").bind(me.id, JSON.stringify(clean)).run();
     return json({ ok: true });

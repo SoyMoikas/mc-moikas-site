@@ -1,5 +1,6 @@
 import { getUser, need, hasRole } from "../../../lib/auth.js";
 import { json, body, str, now, err } from "../../../lib/util.js";
+import { matcher, jfLink } from "../../../lib/media.js";
 
 // Group watchlist. GET → everything with "want" votes and ratings; ?q=… searches movies (iTunes) and series (TVmaze).
 // POST {action: "add", kind, title, year, poster, ext} | {action: "want"|"watched"|"rate"|"delete", id, stars?, comment?}
@@ -45,7 +46,23 @@ export async function onRequestGet({ env, request }) {
   ).bind(me.id, me.id).all()).results;
   const ratings = (await env.DB.prepare(
     `SELECT r.item_id, r.stars, r.comment, u.username, u.avatar FROM watch_ratings r JOIN users u ON u.id = r.user_id ORDER BY r.created_at DESC LIMIT 600`).all()).results;
-  return json({ items: items.map((i) => ({ ...i, ratings: ratings.filter((r) => r.item_id === i.id) })) });
+  // Jellyfin + Seerr (filled by the NAS bot; empty before migration 034 or without the bot)
+  let library = [], reqs = new Map(), bot = null;
+  try {
+    library = (await env.DB.prepare("SELECT jf_id, type, title, norm, year, tmdb FROM jellyfin_library").all()).results;
+    reqs = new Map((await env.DB.prepare("SELECT item_id, status, detail FROM media_requests").all()).results.map((r) => [r.item_id, r]));
+    bot = await env.DB.prepare("SELECT value, updated_at FROM kv_cache WHERE key = 'media_bot'").first();
+  } catch { /* */ }
+  const match = matcher(library);
+  const requestsOn = !!(bot && JSON.parse(bot.value).seerr && Date.now() - bot.updated_at < 15 * 60000);
+  return json({
+    requests_on: requestsOn, library_on: library.length > 0,
+    items: items.map((i) => {
+      const hit = library.length ? match(i) : null, r = reqs.get(i.id);
+      return { ...i, ratings: ratings.filter((x) => x.item_id === i.id), jf: hit ? { id: hit.jf_id, url: jfLink(env, hit.jf_id) } : null,
+        req: r && !hit ? { status: r.status, detail: r.status === "failed" ? r.detail : null } : null };
+    }),
+  });
 }
 
 export async function onRequestPost({ env, request }) {
@@ -54,6 +71,19 @@ export async function onRequestPost({ env, request }) {
   const b = await body(request);
   if (b instanceof Response) return b;
   const t = now();
+  if (b.action === "request") {
+    const it = await env.DB.prepare("SELECT id, title FROM watch_items WHERE id = ?").bind(+b.id || 0).first();
+    if (!it) return err(404, "Not on the list");
+    const ex = await env.DB.prepare("SELECT status FROM media_requests WHERE item_id = ?").bind(it.id).first();
+    if (ex && ex.status !== "failed") return json({ status: ex.status });
+    if (!hasRole(me, "staff")) {
+      const open = (await env.DB.prepare("SELECT COUNT(*) AS n FROM media_requests WHERE user_id = ? AND status IN ('queued', 'requested') AND created_at > ?").bind(me.id, t - 7 * 86400000).first()).n;
+      if (open >= 5) return err(429, "You have 5 requests waiting this week — wait until some arrive");
+    }
+    await env.DB.prepare(`INSERT INTO media_requests (item_id, user_id, status, created_at, updated_at) VALUES (?, ?, 'queued', ?, ?)
+      ON CONFLICT (item_id) DO UPDATE SET user_id = excluded.user_id, status = 'queued', detail = NULL, updated_at = excluded.updated_at`).bind(it.id, me.id, t, t).run();
+    return json({ status: "queued" });
+  }
   if (b.action === "add") {
     const title = str(b.title, 120, "title");
     if (!title) return err(400, "Title?");

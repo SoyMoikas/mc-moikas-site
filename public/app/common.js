@@ -459,7 +459,7 @@ function mountBell(wrap) {
         <span>${d.unread ? `<button class="link" data-all>${t("nt.markAll")}</button>` : ""} <button class="link" data-prefs>⚙ ${t("nt.settings")}</button></span></div>
       <div class="bp-list">${d.items.map((n) => `
         <a class="bp-item ${n.read_at ? "" : "unread"}" href="${esc(n.url || "#")}" data-id="${n.id}">
-          <b>${esc(n.title)}</b>${n.body ? `<span class="small muted">${esc(n.body)}</span>` : ""}<span class="small muted">${esc(ago(n.created_at))}</span></a>`).join("")
+          <b>${esc(n.title)}</b>${n.body ? `<span class="small muted">${esc(n.body).replace(/\{t:(\d{10,14})\}/g, (_, ms) => esc(new Date(+ms).toLocaleString(undefined, { weekday: "long", hour: "numeric", minute: "2-digit" })))}</span>` : ""}<span class="small muted">${esc(ago(n.created_at))}</span></a>`).join("")
         || `<p class="muted small" style="padding:12px">${t("nt.empty")}</p>`}</div>`;
     panel.querySelector("[data-all]")?.addEventListener("click", async () => { await api("/api/notifications", { method: "POST", body: { action: "read" } }); setCount(0); list(); });
     panel.querySelector("[data-prefs]").onclick = () => prefs(d.prefs);

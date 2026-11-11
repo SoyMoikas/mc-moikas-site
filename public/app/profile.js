@@ -2,6 +2,7 @@ import { api, esc, t, initPage, onSubmit, toast, fmtDate, roleLabel, localized, 
 import { levelInfo, fmtHours } from "./levels.js";
 import { itemName } from "./cosmetics.js";
 import { mountFeed } from "./feed.js";
+import { mountOcasoProfile } from "./ocaso.js";
 import { mountAvatarEditor } from "./avatar-editor.js";
 
 const user = await initPage();
@@ -47,6 +48,8 @@ async function load() {
       </div>
     </section>
 
+    <section id="ocaso-profile"></section>
+
     ${own ? `<section id="avatar"><div class="section-head"><h2>${t("cz.title")}</h2></div><div id="avatar-editor"></div></section>` : ""}
 
     ${own ? `<section><div class="section-head"><h2>${t("pf2.mcAccount")}</h2></div><div id="link" class="card"></div></section>` : ""}
@@ -73,6 +76,7 @@ async function load() {
 
     ${own ? `<p style="margin-top:24px" class="actions"><a class="btn primary" href="/store">🪙 ${t("nav.store")}</a><a class="btn" href="/auth/logout">${t("auth.logout")}</a></p>` : ""}`;
 
+  mountOcasoProfile(main.querySelector("#ocaso-profile"), p.user.id);
   mountFeed(main.querySelector("#user-feed"), user, { userId: p.user.id, composer: own, modes: false });
   if (own) {
     renderLink();

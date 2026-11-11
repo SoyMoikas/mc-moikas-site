@@ -10,6 +10,7 @@ Config: sync.env next to this script (see sync.env.example).
 Every run (cron, every 2 min): server status + sends pending website link codes in-game (/tell)
 + runs whitelist/ban actions staff queued on the site and sends back each server's whitelist & ban list.
 Every 10 min: player playtime, stats and advancements for levels and quests.
+Every run: Ocaso data (sanity, gods' favor, orders, Mictlán, Blood Moon, deaths) from Skript's variables.csv and the log.
 Every 6 h: a catalog of every stat/advancement players have (so the site can suggest trackable quests).
 
 Usage:  python3 ptero-sync.py          # run once (cron calls this)
@@ -390,6 +391,146 @@ def collect_players(cfg, servers, want_stats, want_adv, catalog=None):
     return [{"uuid": u, "name": n} for u, n in players.items()], rows
 
 
+# --- Ocaso (Skript) ---------------------------------------------------------------------------
+# Reads plugins/Skript/variables.csv (Skript's saved variables) and logs/latest.log (deaths) and
+# sends a small summary to /api/sync/ocaso. Only servers that have Ocaso's variables are sent.
+
+DIOSES = ["tonatiuh", "tlaloc", "quetzalcoatl", "mictlan", "tezcatlipoca"]
+DEATH_RE = re.compile(
+    r"^\[(\d\d):(\d\d):(\d\d) INFO\]: (?:System chat: |\[Not Secure\] )?([.\w]{2,20}) "
+    r"((?:was|were|fell|drowned|burned|blew|hit|went|walked|tried|died|starved|suffocated|froze|withered|"
+    r"experienced|discovered|didn't|left|got|squashed)\b.*)$")
+
+
+def skript_value(typ, hexval):
+    try:
+        b = bytes.fromhex(hexval.strip())
+    except ValueError:
+        return None
+    if typ == "boolean":
+        return bool(b and b[-1])
+    if typ in ("long", "date", "timespan"):
+        return int.from_bytes(b[-8:], "big", signed=True) if len(b) >= 8 else None
+    if typ == "integer":
+        return int.from_bytes(b[-4:], "big", signed=True) if len(b) >= 4 else None
+    if typ == "short":
+        return int.from_bytes(b[-2:], "big", signed=True) if len(b) >= 2 else None
+    if typ == "byte":
+        return int.from_bytes(b[-1:], "big", signed=True) if b else None
+    if typ == "double":
+        return round(struct.unpack(">d", b[-8:])[0], 2) if len(b) >= 8 else None
+    if typ == "float":
+        return round(struct.unpack(">f", b[-4:])[0], 2) if len(b) >= 4 else None
+    if typ == "string":
+        # Skript may prefix the text with a length; keep the readable part
+        txt = b.decode("utf-8", "ignore")
+        runs = re.findall(r"[\w\- .,áéíóúñÁÉÍÓÚÑ]+", txt)
+        return max(runs, key=len).strip() if runs else ""
+    return None
+
+
+def parse_skript_vars(text):
+    out = {}
+    for line in text.splitlines():
+        if not line or line.startswith("#"):
+            continue
+        parts = [x.strip() for x in line.rsplit(",", 2)]
+        if len(parts) != 3:
+            continue
+        name, typ, val = parts
+        if name.startswith('"') and name.endswith('"'):
+            name = name[1:-1].replace('""', '"')
+        if name.startswith("ocaso::") or name.startswith("sanity::"):
+            v = skript_value(typ, val)
+            if v is not None:
+                out[name] = v
+    return out
+
+
+def ocaso_summary(vars_):
+    pl = {}
+    def P(u):
+        return pl.setdefault(u.lower(), {"fe": {}})
+    for k, v in vars_.items():
+        parts = k.split("::")
+        if parts[0] == "sanity" and len(parts) == 2:
+            P(parts[1])["sanity"] = v
+        elif parts[:2] == ["ocaso", "fe"] and len(parts) == 4 and parts[3] in DIOSES:
+            P(parts[2])["fe"][parts[3]] = v
+        elif parts[:2] == ["ocaso", "orden"] and len(parts) == 3:
+            P(parts[2])["orden"] = v
+        elif parts[:2] == ["ocaso", "clase"] and len(parts) == 3:
+            P(parts[2])["clase"] = v
+        elif parts[:2] == ["ocaso", "bautizado"] and len(parts) == 3:
+            P(parts[2])["bautizado"] = True
+        elif parts[:2] == ["ocaso", "lunas"] and len(parts) == 3:
+            P(parts[2])["lunas"] = v
+        elif parts[:2] == ["ocaso", "llave"] and len(parts) == 3:
+            P(parts[2])["llave"] = True
+        elif parts[:3] == ["ocaso", "mictlan", "nivel"] and len(parts) == 4:
+            P(parts[3])["mictlan"] = v
+        elif parts[:3] == ["ocaso", "mictlan", "senor"] and len(parts) == 4:
+            P(parts[3])["senor"] = True
+    noches = vars_.get("ocaso::noches") or 0
+    world = {"noches": noches, "lunasangre": bool(vars_.get("ocaso::lunasangre")),
+             "xolotl_vivo": bool(vars_.get("ocaso::xolotl::vivo")),
+             "mictlantecuhtli_vivo": bool(vars_.get("ocaso::mictlantecuhtli::vivo")),
+             "llorona_viva": bool(vars_.get("ocaso::llorona::viva"))}
+    # only real player UUIDs
+    players = {u: d for u, d in pl.items() if re.fullmatch(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", u)}
+    return world, players
+
+
+def parse_deaths(log, names):
+    from datetime import datetime, timedelta
+    now = datetime.now()
+    out = []
+    for line in log.splitlines()[-4000:]:
+        m = DEATH_RE.match(line.strip())
+        if not m:
+            continue
+        h, mi, se, name, msg = m.groups()
+        if name.lower() not in names or "advancement" in msg:
+            continue
+        t = now.replace(hour=int(h), minute=int(mi), second=int(se), microsecond=0)
+        if t > now + timedelta(minutes=2):
+            t -= timedelta(days=1)  # the log started yesterday
+        out.append({"name": names[name.lower()][1], "uuid": names[name.lower()][0], "message": msg[:200],
+                    "at": int(t.timestamp() * 1000)})
+    return out[-60:]
+
+
+def sync_ocaso(cfg, servers, dry, site, auth):
+    payload = []
+    for x in servers:
+        if x.get("state") not in ("running", "starting", "stopping", "offline"):
+            continue
+        ident = x["identifier"]
+        text = ptero_text(cfg, ident, "/plugins/Skript/variables.csv")
+        if not text or "ocaso::" not in text:
+            continue
+        world, players = ocaso_summary(parse_skript_vars(text))
+        names = {}
+        try:
+            for e in json.loads(ptero_text(cfg, ident, "/usercache.json") or "[]"):
+                if e.get("uuid") and e.get("name"):
+                    names[e["name"].lower()] = (e["uuid"].lower(), e["name"])
+        except ValueError:
+            pass
+        for u, d in players.items():
+            d["name"] = next((n for (uu, n) in names.values() if uu == u), None)
+        deaths = parse_deaths(ptero_text(cfg, ident, "/logs/latest.log") or "", names)
+        payload.append({"ptero_uuid": x["uuid"], "world": world, "players": players, "deaths": deaths})
+        print(f"  {x['name']}: Ocaso — {len(players)} player(s), {len(deaths)} death(s) in the log, night {world['noches']}")
+    if not payload:
+        return
+    if dry:
+        print(json.dumps({"servers": payload}, indent=2, ensure_ascii=False)[:6000])
+        return
+    res = http_json(site + "/api/sync/ocaso", auth, {"servers": payload})
+    print(f"Synced Ocaso: {res.get('players', 0)} player(s), {res.get('new_deaths', 0)} new death(s)")
+
+
 def stats_due(cfg, name=".last_stats_sync", minutes=None):
     path = os.path.join(HERE, name)
     try:
@@ -427,6 +568,14 @@ def main():
     except urllib.error.HTTPError as e:
         if e.code != 404:  # 404 = site doesn't have whitelist/bans yet
             raise
+
+    try:
+        sync_ocaso(cfg, servers, dry, site, auth)
+    except urllib.error.HTTPError as e:
+        if e.code != 404:  # 404 = site doesn't have the Ocaso panel yet
+            print(f"Ocaso sync failed: HTTP {e.code}", file=sys.stderr)
+    except Exception as e:
+        print(f"Ocaso sync failed: {e}", file=sys.stderr)
 
     due, stamp = stats_due(cfg)
     scan_due, scan_stamp = stats_due(cfg, ".last_catalog_scan", 360)

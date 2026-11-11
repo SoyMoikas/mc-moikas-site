@@ -1,5 +1,6 @@
 import { mountChat } from "./chat.js";
 import { mountModeration } from "./moderation.js";
+import { mountOcaso } from "./ocaso.js";
 import { renderMarkdown } from "./markdown.js";
 import {
   api, esc, rich, can, perm, t, initPage, SITE, gameLabel, statusBadge, renderPost, postForm, bindPostActions,
@@ -12,6 +13,7 @@ const main = document.getElementById("main");
 let data = null;
 const openTasks = new Set(); // keep expanded tasks open across reloads
 let chatEl = null;
+let ocasoEl = null;
 let modEl = null; // whitelist & bans panel, kept across re-renders
 let guideEl = null; // the embedded player guide is fetched once, so re-rendering the page doesn't refetch it
 
@@ -64,6 +66,8 @@ function render() {
       </div>
     </section>
 
+    <section id="ocaso-slot"></section>
+
     ${s.has_guide ? `
     <section id="player-guide">
       <div class="section-head">
@@ -112,6 +116,10 @@ function render() {
     if (!guideEl) { guideEl = document.createElement("div"); mountGuide(guideEl, s.id); }
     slot.replaceWith(guideEl);
   }
+
+  // Ocaso panel (only shows for servers that send Ocaso data); kept alive across re-renders like the chat
+  if (!ocasoEl) { ocasoEl = document.createElement("section"); ocasoEl.id = "ocaso"; mountOcaso(ocasoEl, s.id); }
+  main.querySelector("#ocaso-slot").replaceWith(ocasoEl);
 
   const modSlot = main.querySelector("#mod-slot");
   if (modSlot) {

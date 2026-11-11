@@ -1152,3 +1152,43 @@ html.see-through :is(.card, .server-card, .task, .chat, .rank-chip, .game-card, 
 .act-col span { position: absolute; bottom: -20px; left: 0; font-size: 10px; white-space: nowrap; color: var(--muted, #999); }
 .act-two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 @media (max-width: 700px) { .act-two, .act-stats { grid-template-columns: 1fr; } }
+
+/* daily bonus */
+.daily { padding: 14px; margin-bottom: 14px; border-color: var(--accent); }
+.daily.done { border-color: var(--border); }
+.daily-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.daily-ok { color: #6fcf5a; font-weight: 600; }
+.daily-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 12px; }
+.dw { border: 2px solid var(--border); padding: 6px 4px; text-align: center; font-size: 12px; opacity: .7; }
+.dw span { display: block; color: var(--muted, #999); }
+.dw.got { opacity: 1; border-color: #6fcf5a; background: rgba(111, 207, 90, .08); }
+.dw.next { opacity: 1; border-color: var(--accent); }
+.dw.big b { color: var(--accent); }
+@media (max-width: 520px) { .dw span { font-size: 10px; } .dw b { font-size: 11px; } }
+
+/* Ocaso panel */
+.oc-moon { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 12px; padding: 12px 14px; margin-bottom: 12px; border: 2px solid var(--border); background: rgba(255, 255, 255, .02); }
+.oc-moon span { color: var(--muted, #999); font-size: 13px; }
+.oc-moon.soon { border-color: #b8433b; }
+.oc-moon.red { border-color: #c0392b; background: rgba(192, 57, 43, .15); color: #ff8a80; }
+.oc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.oc-player { padding: 12px; }
+.oc-player.mine { border-color: var(--accent); }
+.oc-p-head { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+.oc-face { width: 40px; height: 40px; image-rendering: pixelated; border: 2px solid var(--border); }
+.oc-sanity { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 10px; }
+.oc-sanity span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 55%; }
+.oc-s-bar { flex: 1; height: 10px; background: var(--bg); border: 2px solid var(--border); }
+.oc-s-bar > div { height: 100%; }
+.oc-gods { display: grid; gap: 4px; }
+.oc-god { display: grid; grid-template-columns: 20px 1fr; align-items: center; gap: 6px; font-size: 13px; }
+.oc-g-bar { position: relative; height: 8px; background: var(--bg); border: 1px solid var(--border); }
+.oc-g-bar::after { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--border); }
+.oc-g-bar > div { position: absolute; top: 0; bottom: 0; }
+.oc-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px; }
+.oc-tags span { border: 1px solid var(--border); padding: 1px 6px; }
+.oc-secret { border-style: dashed !important; }
+.oc-deaths { list-style: none; margin: 0; padding: 0; }
+.oc-deaths li { padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+.oc-deaths li:last-child { border-bottom: 0; }
+.oc-deaths .small { display: inline-block; min-width: 64px; }

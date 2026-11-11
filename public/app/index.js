@@ -81,6 +81,7 @@ async function homeTabs() {
   const show = (name) => {
     tabs.forEach((b) => { const on = b.dataset.pane === name; b.classList.toggle("on", on); b.setAttribute("aria-selected", on); if (on) b.classList.remove("has-new"); });
     panes.forEach((p) => (p.hidden = p.dataset.pane !== name));
+    document.body.dataset.hpane = name;
     store.set("home.tab", name);
     if (name === "ocaso") { seen.ocaso = Date.now(); store.set("home.seen", seen); }
     if (name === "gratis" && free) { seen.gratis = free.map((g) => g.id); store.set("home.seen", seen); }
@@ -116,8 +117,21 @@ async function homeTabs() {
   if (newPlay && current !== "jugar") show("jugar");
 }
 mountChat(document.getElementById("chat"), "general", user);
-mountMobileTabs();
+mountMobileTabs({ mirror: ".home-tabs" });
 loadGames();
+announcementsToggle();
 loadPosts();
 livePosts(async () => (posts = (await api("/api/posts?scope=site&limit=5")).posts),
   (ps) => ps.length ? ps.map((p) => renderPost(p, { user })).join("") : `<p class="muted">${t("home.noAnnouncements")}</p>`);
+
+// Phones: announcements show only the newest one until you tap "ver todos".
+function announcementsToggle() {
+  const block = document.querySelector(".col-side > .side-block:first-child");
+  if (!block) return;
+  block.classList.add("ann-short");
+  const btn = document.createElement("button");
+  btn.className = "link small ann-more";
+  btn.textContent = t("home.annMore");
+  btn.onclick = () => { const short = block.classList.toggle("ann-short"); btn.textContent = t(short ? "home.annMore" : "home.annLess"); };
+  block.append(btn);
+}

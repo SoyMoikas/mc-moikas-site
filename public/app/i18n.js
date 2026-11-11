@@ -1276,9 +1276,17 @@ const STRINGS = {
     "rol.summary": "AI story summary",
     "rol.end": "End campaign",
     "rol.endQ": "End the campaign? Everyone gets coins for playing.",
+    "home.annMore": "See all announcements",
+    "home.annLess": "Show less",
+    "pwa.on": "notifications on",
+    "pwa.off": "notifications off",
   },
 
   es: {
+    "home.annMore": "Ver todos los anuncios",
+    "home.annLess": "Ver menos",
+    "pwa.on": "avisos activados",
+    "pwa.off": "avisos apagados",
     "nav.rol": "Rol",
     "rol.title": "Rol",
     "rol.new": "Nueva campaña",

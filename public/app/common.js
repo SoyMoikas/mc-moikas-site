@@ -271,32 +271,52 @@ export async function initPage() {
   return user;
 }
 
-// Phones: bottom tab bar switching between the feed (announcements + posts) and a full-screen chat.
-export function mountMobileTabs() {
+// Phones: bottom tab bar. On the home page it mirrors the page's own tabs (Inicio / Jugar / Ocaso / Gratis) + Chat;
+// elsewhere it's Feed / Chat. `mirror` = selector of the page's tab row (hidden on phones, kept in sync).
+const MPANE_ICON = { inicio: "🏠", jugar: "🎮", ocaso: "🌅", gratis: "🎁" };
+export function mountMobileTabs({ mirror = null } = {}) {
   if (document.querySelector(".m-tabs")) return;
+  const src = mirror ? [...document.querySelectorAll(`${mirror} [data-pane]`)] : [];
   const bar = document.createElement("nav");
   bar.className = "m-tabs";
-  bar.innerHTML = `
-    <button data-mtab="feed" class="active"><span>📰</span>${t("mtab.feed")}</button>
-    <button data-mtab="chat"><span>💬</span>${t("mtab.chat")}<i class="m-dot hidden"></i></button>`;
+  bar.innerHTML = (src.length
+    ? src.map((b) => `<button data-mtab="feed" data-mpane="${b.dataset.pane}"><span>${MPANE_ICON[b.dataset.pane] || "•"}</span><em>${esc(b.textContent.trim().replace(/^[^\p{L}\p{N}]+/u, ""))}</em><i class="m-dot hidden"></i></button>`).join("")
+    : `<button data-mtab="feed" class="active"><span>📰</span><em>${t("mtab.feed")}</em></button>`)
+    + `<button data-mtab="chat"><span>💬</span><em>${t("mtab.chat")}</em><i class="m-dot hidden" data-chatdot></i></button>`;
+  bar.style.setProperty("--n", bar.children.length);
   document.body.append(bar);
   document.body.classList.add("has-mtabs", "mtab-feed");
-  const dot = bar.querySelector(".m-dot");
+  if (src.length) document.body.classList.add("has-mpanes");
+  const dot = bar.querySelector("[data-chatdot]");
+  const sync = () => {
+    const chat = document.body.classList.contains("mtab-chat");
+    for (const b of bar.querySelectorAll("[data-mpane]")) {
+      const top = src.find((x) => x.dataset.pane === b.dataset.mpane);
+      b.hidden = top.hidden;
+      b.classList.toggle("active", !chat && top.classList.contains("on"));
+      b.querySelector(".m-dot").classList.toggle("hidden", !top.classList.contains("has-new"));
+    }
+    if (!src.length) bar.querySelector('[data-mtab="feed"]').classList.toggle("active", !chat);
+    bar.querySelector('[data-mtab="chat"]').classList.toggle("active", chat);
+  };
+  src.forEach((b) => new MutationObserver(sync).observe(b, { attributes: true, attributeFilter: ["class", "hidden"] }));
   bar.addEventListener("click", (e) => {
     const b = e.target.closest("[data-mtab]");
     if (!b) return;
     const tab = b.dataset.mtab;
     document.body.classList.toggle("mtab-feed", tab === "feed");
     document.body.classList.toggle("mtab-chat", tab === "chat");
-    bar.querySelectorAll("[data-mtab]").forEach((x) => x.classList.toggle("active", x === b));
+    if (b.dataset.mpane) src.find((x) => x.dataset.pane === b.dataset.mpane)?.click();
     if (tab === "chat") {
       dot.classList.add("hidden");
       const log = document.querySelector(".side-chat .chat-log");
       if (log) log.scrollTop = log.scrollHeight;
     }
+    sync();
     window.scrollTo(0, 0);
   });
-  // Show a dot on the Chat tab when new messages arrive while you're on the feed.
+  sync();
+  // Show a dot on the Chat tab when new messages arrive while you're elsewhere.
   const log = document.querySelector(".side-chat .chat-log");
   if (log) new MutationObserver(() => {
     if (document.body.classList.contains("mtab-feed")) dot.classList.remove("hidden");

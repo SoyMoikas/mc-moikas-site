@@ -5,11 +5,18 @@ import { jellyfinInvite } from "./together.js";
 import { isStandalone, isIOS, canInstall, installApp, pushState, enablePush, disablePush, makeVapidKeys } from "./pwa.js";
 
 let USER_ROLE = "member";
+let LINKED = {}, SUM = () => {};
+const ICON = { discord: "💬", minecraft: "⛏️", steam: "🟦", apex: "🎯", jellyfin: "🎞️" };
+function drawLinked() {
+  const n = Object.values(LINKED).filter(Boolean).length;
+  SUM("linked", `${Object.entries(LINKED).map(([k, v]) => `<span class="set-chip ${v ? "on" : v === null ? "wait" : ""}" title="${k}">${ICON[k]}</span>`).join("")}<span>${n}/5</span>`);
+}
 export async function mountSettings(el, user, me, renderMinecraft) {
   USER_ROLE = user.role;
+  const sec = (id, title, body) => `<details class="set-sec" data-sec="${id}"><summary><span class="set-sec-t">${title}</span><span class="set-sec-s" id="sum-${id}"></span><span class="set-chev">▾</span></summary><div class="set-body">${body}</div></details>`;
   el.innerHTML = `
-    <section>
-      <div class="section-head"><h2>🔗 ${t("set.linked")}</h2></div>
+    <div class="set-list">
+    ${sec("linked", `🔗 ${t("set.linked")}`, `
       <p class="muted small">${t("set.linkedWhy")}</p>
       <div class="acc-grid">
         <div class="card acc"><h3>💬 Discord</h3>
@@ -19,26 +26,33 @@ export async function mountSettings(el, user, me, renderMinecraft) {
         <div class="card acc" id="acc-steam"><h3>🟦 Steam</h3><p class="muted small">${t("loading")}</p></div>
         <div class="card acc" id="acc-apex"><h3>🎯 Apex Legends</h3><p class="muted small">${t("loading")}</p></div>
         <div class="card acc" id="acc-jf"><h3>🎞️ Jellyfin</h3><p class="muted small">${t("loading")}</p></div>
-      </div>
-    </section>
-    <section>
-      <div class="section-head"><h2>🌎 ${t("set.prefs")}</h2></div>
+      </div>`)}
+    ${sec("prefs", `🌎 ${t("set.prefs")}`, `
       <div class="card set-rows">
         <div class="set-row"><div><b>${t("set.lang")}</b></div>
           <div class="lfg-row"><button class="${lang === "es" ? "primary" : "small-btn"}" data-lang="es">Español</button><button class="${lang === "en" ? "primary" : "small-btn"}" data-lang="en">English</button></div></div>
         <div class="set-row"><div><b>${t("set.tz")}</b><div class="small muted">${me.country ? `${flag(me.country)} · ` : ""}${esc(TZ)} · ${esc(new Date().toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }))}${me.tz ? "" : ` · ${t("set.tzDevice")}`}</div></div>
           <button class="small-btn" id="set-tz">${t("tz.change")}</button></div>
-      </div>
-    </section>
-    <section>
-      <div class="section-head"><h2>📱 ${t("pwa.title")}</h2></div>
-      <div class="card set-rows" id="set-app"><p class="muted small">${t("loading")}</p></div>
-    </section>
-    <section>
-      <div class="section-head"><h2>🔔 ${t("set.notifs")}</h2></div>
-      <form class="card bp-prefs" id="set-nt"><p class="muted small">${t("loading")}</p></form>
-    </section>
+      </div>`)}
+    ${sec("app", `📱 ${t("pwa.title")}`, `<div class="card set-rows" id="set-app"><p class="muted small">${t("loading")}</p></div>`)}
+    ${sec("notifs", `🔔 ${t("set.notifs")}`, `<form class="card bp-prefs" id="set-nt"><p class="muted small">${t("loading")}</p></form>`)}
+    </div>
     <p class="actions"><a class="btn" href="/auth/logout">${t("auth.logout")}</a></p>`;
+  // collapsed by default; remember which ones you opened
+  let opened = [];
+  try { opened = JSON.parse(localStorage.getItem("set.open") || "[]"); } catch { /* */ }
+  if (new URLSearchParams(location.search).get("steam")) opened.push("linked");
+  el.querySelectorAll(".set-sec").forEach((d) => {
+    d.open = opened.includes(d.dataset.sec);
+    d.addEventListener("toggle", () => {
+      const now = [...el.querySelectorAll(".set-sec[open]")].map((x) => x.dataset.sec);
+      try { localStorage.setItem("set.open", JSON.stringify(now)); } catch { /* */ }
+    });
+  });
+  LINKED = { discord: true, minecraft: !!me.mc_name, steam: null, apex: null, jellyfin: null };
+  SUM = (id, html) => { const x = el.querySelector(`#sum-${id}`); if (x) x.innerHTML = html; };
+  drawLinked();
+  SUM("prefs", `${lang === "es" ? "Español" : "English"} · ${esc(TZ.split("/").pop().replace(/_/g, " "))}`);
   el.querySelectorAll("[data-lang]").forEach((b) => (b.onclick = () => setLang(b.dataset.lang)));
   el.querySelector("#set-tz").onclick = () => openLocalePicker(user, () => location.reload());
   renderMinecraft?.();
@@ -52,6 +66,7 @@ export async function mountSettings(el, user, me, renderMinecraft) {
 async function appCard(box, user) {
   const [st, cfg] = await Promise.all([pushState(), api("/api/push").catch(() => ({ configured: false, devices: 0 }))]);
   const installed = isStandalone();
+  SUM("app", `${installed ? "✓ App" : ""}${installed ? " · " : ""}${st === "on" ? "🔔 " + t("pwa.on") : "🔕 " + t("pwa.off")}`);
   const pushTxt = { on: t("pwa.pushOn"), off: t("pwa.pushOff"), denied: t("pwa.pushDenied"), unsupported: t("pwa.pushUnsupported"), "ios-needs-install": t("pwa.pushIOS") }[st];
   box.innerHTML = `
     <div class="set-row"><div><b>${t("pwa.install")}</b><div class="small muted">${installed ? "✓ " + t("pwa.installed") : isIOS() ? t("pwa.iosHow") : t("pwa.installWhy")}</div></div>
@@ -81,6 +96,7 @@ const fail = (el, sel) => (x) => { const b = el.querySelector(sel); if (b) b.ins
 
 async function steam(box) {
   const s = await api("/api/steam");
+  LINKED.steam = !!s.me; drawLinked();
   box.innerHTML = `<h3>🟦 Steam</h3>${!s.configured ? `<p class="muted">${t("play.noSteamKey")}</p>` : s.me ? `
     <p>${s.me.steam_avatar ? `<img class="soc-av" src="${esc(s.me.steam_avatar)}" alt="">` : ""} <b>${esc(s.me.persona || "Steam")}</b> · ${t("sg.nGames", { n: s.me.game_count })}</p>
     ${s.me.public ? "" : `<p class="hint">⚠ ${t("sg.privateHelp")}</p>`}
@@ -95,6 +111,7 @@ async function steam(box) {
 async function apex(box) {
   const a = await api("/api/apex");
   const ap = a.players.find((p) => p.mine);
+  LINKED.apex = !!ap; drawLinked();
   box.innerHTML = `<h3>🎯 Apex Legends</h3>${!a.configured ? `<p class="muted">${t("play.noApexKey")}</p>` : `
     ${ap ? `<p><b>${esc(ap.apex_name)}</b> · ${esc(ap.platform)} ${ap.rank?.name ? `· ${esc(ap.rank.name)} ${ap.rank.div || ""}` : ""}</p>` : `<p class="muted small">${t("acc.apexWhy")}</p>`}
     <form class="lfg-row" id="ap-form"><input name="name" maxlength="40" placeholder="${esc(t("acc.apexName"))}" value="${esc(ap?.apex_name || "")}" required>
@@ -117,6 +134,7 @@ async function apex(box) {
 
 async function jellyfin(box) {
   const j = await api("/api/juntos/jellyfin");
+  LINKED.jellyfin = !!j.name; drawLinked();
   box.innerHTML = `<h3>🎞️ Jellyfin</h3>
     <p class="muted small">${t("set.jfWhy")}</p>
     <form class="lfg-row" id="jf-f"><input name="n" maxlength="40" placeholder="${esc(t("cn.jfName"))}" value="${esc(j.name || "")}"><button class="primary">${t("acc.save")}</button></form>
@@ -132,6 +150,8 @@ async function jellyfin(box) {
 async function notifications(form) {
   const d = await api("/api/notifications");
   const p = d.prefs || {};
+  const cnt = (ch) => NT_KINDS.filter((k) => p[k]?.[ch]).length;
+  SUM("notifs", `🔔 ${cnt("site")} · 📱 ${cnt("push")} · 💬 ${cnt("dm")}`);
   form.innerHTML = `<table><thead><tr><th></th><th>${t("nt.onSite")}</th><th>${t("nt.push")}</th><th>${t("nt.dm")}</th></tr></thead><tbody>
       ${NT_KINDS.filter((k) => k !== "status" || ["staff", "subadmin", "admin"].includes(USER_ROLE)).map((k) => `<tr><td>${t("nt.k." + k)}</td>
         <td><input type="checkbox" name="${k}.site" ${p[k]?.site ? "checked" : ""}></td>

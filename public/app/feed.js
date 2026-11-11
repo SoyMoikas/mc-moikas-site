@@ -207,6 +207,16 @@ export function mountFeed(el, user, opts = {}) {
       list.insertAdjacentHTML("beforeend", r.posts.map(postHTML).join(""));
       if (!posts.length) list.innerHTML = `<p class="muted">${opts.userId ? t("feed.noPostsUser") : t("feed.empty")}</p>`;
       el.querySelector(".feed-more").innerHTML = more ? `<button data-more>${t("feed.more")}</button>` : "";
+      // opened from a notification (/#post-123): jump to that post and open its replies
+      const m = /^#post-(\d+)$/.exec(location.hash);
+      if (reset && m) {
+        const art = list.querySelector(`.fpost[data-id="${m[1]}"]`);
+        if (art) {
+          art.scrollIntoView({ block: "center" }); art.classList.add("fresh");
+          art.querySelector("[data-replies]")?.click();
+          history.replaceState(null, "", location.pathname + location.search);
+        }
+      }
     } catch (e) { list.innerHTML = `<p class="muted">${esc(e.message)}</p>`; }
   }
 

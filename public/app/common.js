@@ -144,6 +144,7 @@ export async function initPage() {
       </nav>
       <div class="userbox">
         <button class="lang" title="${esc(t("lang.switchTitle"))}" data-lang="${lang === "es" ? "en" : "es"}">${t("lang.switch")}</button>
+        ${user && user.role !== "pending" ? `<div class="bell-wrap"><button class="bell" aria-label="${esc(t("nt.title"))}">🔔<span class="bell-n hidden"></span></button><div class="bell-panel hidden"></div></div>` : ""}
         ${user
           ? `<a class="me" href="/profile" title="${esc(t("nav.profile"))}">${avatarHTML(user, 28)}
                <span class="me-text"><span class="me-top"><span class="uname">${esc(user.username)}</span>${levelBadge(user.xp)}</span>
@@ -155,6 +156,7 @@ export async function initPage() {
     </div>`;
   document.body.prepend(bar);
   bar.querySelector("[data-lang]").onclick = (e) => setLang(e.currentTarget.dataset.lang);
+  if (bar.querySelector(".bell")) mountBell(bar.querySelector(".bell-wrap"));
 
   // Your wallpaper (only you see it).
   const wp = user && catalogItem(user.eq_wallpaper);
@@ -436,4 +438,59 @@ export function livePosts(fetchPosts, renderList, ms = 60_000) {
   };
   onPulse("posts", refresh);
   setInterval(refresh, ms);
+}
+
+
+/* ---------------- Notifications bell ---------------- */
+
+const NT_KINDS = ["reply", "announce", "game", "night", "free", "quest"];
+
+function mountBell(wrap) {
+  const btn = wrap.querySelector(".bell"), badge = wrap.querySelector(".bell-n"), panel = wrap.querySelector(".bell-panel");
+  const setCount = (n) => { badge.textContent = n > 9 ? "9+" : n; badge.classList.toggle("hidden", !n); document.title = document.title.replace(/^\(\d+\+?\) /, "") ; if (n) document.title = `(${n > 9 ? "9+" : n}) ${document.title}`; };
+  const poll = async () => { if (document.hidden) return; try { setCount((await api("/api/notifications?count=1")).unread); } catch {} };
+  poll(); setInterval(poll, 60000);
+  document.addEventListener("visibilitychange", poll);
+
+  const list = async () => {
+    const d = await api("/api/notifications");
+    panel.innerHTML = `
+      <div class="bp-head"><b>${t("nt.title")}</b>
+        <span>${d.unread ? `<button class="link" data-all>${t("nt.markAll")}</button>` : ""} <button class="link" data-prefs>⚙ ${t("nt.settings")}</button></span></div>
+      <div class="bp-list">${d.items.map((n) => `
+        <a class="bp-item ${n.read_at ? "" : "unread"}" href="${esc(n.url || "#")}" data-id="${n.id}">
+          <b>${esc(n.title)}</b>${n.body ? `<span class="small muted">${esc(n.body)}</span>` : ""}<span class="small muted">${esc(ago(n.created_at))}</span></a>`).join("")
+        || `<p class="muted small" style="padding:12px">${t("nt.empty")}</p>`}</div>`;
+    panel.querySelector("[data-all]")?.addEventListener("click", async () => { await api("/api/notifications", { method: "POST", body: { action: "read" } }); setCount(0); list(); });
+    panel.querySelector("[data-prefs]").onclick = () => prefs(d.prefs);
+    panel.querySelectorAll(".bp-item").forEach((a) => a.addEventListener("click", () => {
+      if (a.classList.contains("unread")) fetch("/api/notifications", { method: "POST", keepalive: true, credentials: "same-origin",
+        headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "read", id: +a.dataset.id }) }).catch(() => {});
+    }));
+  };
+  const prefs = (p) => {
+    panel.innerHTML = `
+      <div class="bp-head"><b>⚙ ${t("nt.settings")}</b><button class="link" data-back>← ${t("nt.back")}</button></div>
+      <form class="bp-prefs"><table><thead><tr><th></th><th>${t("nt.onSite")}</th><th>${t("nt.dm")}</th></tr></thead><tbody>
+        ${NT_KINDS.map((k) => `<tr><td>${t("nt.k." + k)}</td>
+          <td><input type="checkbox" name="${k}.site" ${p[k]?.site ? "checked" : ""}></td>
+          <td><input type="checkbox" name="${k}.dm" ${p[k]?.dm ? "checked" : ""}></td></tr>`).join("")}
+      </tbody></table><p class="hint">${t("nt.dmHint")}</p><button class="primary">${t("acc.save")}</button></form>`;
+    panel.querySelector("[data-back]").onclick = list;
+    panel.querySelector("form").onsubmit = async (e) => {
+      e.preventDefault();
+      const out = {};
+      for (const k of NT_KINDS) out[k] = { site: e.target[`${k}.site`].checked, dm: e.target[`${k}.dm`].checked };
+      try { await api("/api/notifications", { method: "POST", body: { action: "prefs", prefs: out } }); toast("✓"); list(); } catch (x) { toast(x.message, true); }
+    };
+  };
+  btn.onclick = (e) => {
+    e.stopPropagation();
+    const open = panel.classList.toggle("hidden") === false;
+    if (open) { panel.innerHTML = `<p class="muted small" style="padding:12px">${t("loading")}</p>`; list().catch(() => {}); }
+  };
+  document.addEventListener("click", (e) => {
+    if (!e.target.isConnected || wrap.contains(e.target)) return; // (clicks that re-render the panel detach their target)
+    panel.classList.add("hidden");
+  });
 }

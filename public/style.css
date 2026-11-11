@@ -1327,3 +1327,17 @@ a.btn { display: inline-block; padding: 6px 14px; text-decoration: none; }
 .home-tabs button.has-new::after { content: ""; position: absolute; top: 6px; right: 2px; width: 8px; height: 8px; border-radius: 50%; background: #e5534b; }
 .home-pane[hidden] { display: none; }
 .daily-mini { font-size: 13px; }
+
+/* notifications bell */
+.bell-wrap { position: relative; }
+.bell { position: relative; background: transparent; border: 2px solid var(--border); padding: 4px 8px; cursor: pointer; font-size: 16px; line-height: 1; }
+.bell-n { position: absolute; top: -7px; right: -7px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: #e5534b; color: #fff; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+.bell-panel { position: absolute; left: 0; top: calc(100% + 8px); width: min(360px, 92vw); max-height: 70vh; overflow: auto; z-index: 60; background: var(--card, #1a1d26); border: 2px solid var(--border); box-shadow: 0 10px 30px rgba(0,0,0,.4); }
+.bp-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: inherit; }
+.bp-item { display: grid; gap: 2px; padding: 10px 12px; border-bottom: 1px solid var(--border); color: inherit; text-decoration: none; }
+.bp-item:hover { background: rgba(255,255,255,.04); }
+.bp-item.unread { border-left: 3px solid var(--accent); background: rgba(242,179,61,.06); }
+.bp-prefs { padding: 12px; display: grid; gap: 10px; }
+.bp-prefs table { width: 100%; font-size: 13px; }
+.bp-prefs td, .bp-prefs th { padding: 4px; text-align: center; }
+.bp-prefs td:first-child { text-align: left; }

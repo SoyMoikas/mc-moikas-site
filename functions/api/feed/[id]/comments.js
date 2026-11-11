@@ -1,3 +1,4 @@
+import { notify } from "../../../../lib/notify.js";
 import { awardActivity } from "../../../../lib/activity.js";
 import { json, err, body, now, str } from "../../../../lib/util.js";
 import { need, hasRole } from "../../../../lib/auth.js";
@@ -21,12 +22,19 @@ export async function onRequestPost({ request, env, params, waitUntil }) {
   if (b instanceof Response) return b;
   const text = str(b.body, 1000, "comment");
   if (!text) return err(400, "Comment can't be empty");
-  const post = await env.DB.prepare("SELECT user_id FROM social_posts WHERE id = ? AND deleted = 0").bind(params.id).first();
+  const post = await env.DB.prepare("SELECT user_id, body FROM social_posts WHERE id = ? AND deleted = 0").bind(params.id).first();
   if (!post) return err(404, "Post not found");
   const recent = await env.DB.prepare("SELECT COUNT(*) AS n FROM social_comments WHERE user_id = ? AND created_at > ?").bind(viewer.id, now() - 60_000).first();
   if (recent.n >= 10) return err(429, "Slow down a little");
   const res = await env.DB.prepare("INSERT INTO social_comments (post_id, user_id, body, created_at) VALUES (?, ?, ?, ?)")
     .bind(params.id, viewer.id, text, now()).run();
   if (post.user_id !== viewer.id) waitUntil(awardActivity(env, viewer, "comment")); // commenting on others' posts
+  // tell the post's author and everyone else in the thread
+  waitUntil((async () => {
+    const others = (await env.DB.prepare("SELECT DISTINCT user_id FROM social_comments WHERE post_id = ? AND user_id IS NOT NULL").bind(params.id).all())
+      .results.map((r) => r.user_id);
+    const to = [post.user_id, ...others].filter((id) => id && id !== viewer.id);
+    await notify(env, to, "reply", { title: `💬 ${viewer.username} respondió`, body: text.slice(0, 200), url: `/#post-${params.id}` });
+  })());
   return json({ id: res.meta.last_row_id }, 201);
 }

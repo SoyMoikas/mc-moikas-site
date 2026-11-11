@@ -1,3 +1,4 @@
+import { notify, allMembers } from "../../../lib/notify.js";
 import { json, err, body, now, str } from "../../../lib/util.js";
 import { need } from "../../../lib/auth.js";
 import { postFields } from "../../../lib/fields.js";
@@ -23,7 +24,7 @@ export async function onRequestGet({ env, request }) {
 }
 
 // Staff: create a post. server_id omitted/null = network-wide announcement.
-export async function onRequestPost({ request, env }) {
+export async function onRequestPost({ request, env, waitUntil }) {
   const user = await need(env, request, "staff");
   if (user instanceof Response) return user;
   const b = await body(request);
@@ -41,5 +42,8 @@ export async function onRequestPost({ request, env }) {
     `INSERT INTO posts (server_id, game_id, title, body, tag, event_at, pinned, author_id, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).bind(serverId, gameId, f.title, f.body, f.tag, f.event_at, f.pinned, user.id, t, t).run();
+  const where = serverId ? `/server?id=${encodeURIComponent(serverId)}` : gameId ? `/game?id=${encodeURIComponent(gameId)}` : "/";
+  waitUntil(allMembers(env, user.id).then((ids) => notify(env, ids, "announce", {
+    title: `📢 ${f.title || "Nuevo anuncio"}`, body: String(f.body || "").replace(/[#*_`>\[\]]/g, "").slice(0, 200), url: where })));
   return json({ id: res.meta.last_row_id }, 201);
 }

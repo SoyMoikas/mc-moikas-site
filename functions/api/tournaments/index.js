@@ -1,3 +1,4 @@
+import { notify, allMembers } from "../../../lib/notify.js";
 import { getUser, need } from "../../../lib/auth.js";
 import { json, body, str, int, now, err } from "../../../lib/util.js";
 import { announce, DEFAULT_POINTS } from "../../../lib/tournaments.js";
@@ -23,7 +24,7 @@ export async function onRequestGet({ env, request }) {
 }
 
 // POST /api/tournaments (staff) {title, game, format, team_size, max_teams, starts_at, rules, prize_coins, points}
-export async function onRequestPost({ env, request }) {
+export async function onRequestPost({ env, request, waitUntil }) {
   const me = await need(env, request, "staff");
   if (me instanceof Response) return me;
   const b = await body(request);
@@ -48,5 +49,7 @@ export async function onRequestPost({ env, request }) {
   const id = r.meta.last_row_id;
   const ts = Math.floor(startsAt / 1000);
   await announce(env, `🏆 **Nuevo torneo: ${title}** — ${game}, <t:${ts}:F>. ¡Inscríbanse!`, id);
+  waitUntil(allMembers(env, me.id).then((ids) => notify(env, ids, "game", {
+    title: `🏆 Nuevo torneo: ${title}`, body: `${game}${b.prize_coins ? ` · premio 🪙 ${b.prize_coins}` : ""} · ¡inscríbete!`, url: `/tournaments?id=${id}` })));
   return json({ id });
 }

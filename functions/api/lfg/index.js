@@ -1,3 +1,4 @@
+import { notify, allMembers } from "../../../lib/notify.js";
 import { getUser, need } from "../../../lib/auth.js";
 import { json, body, str, int, now, err } from "../../../lib/util.js";
 import { loadPost, publicPost, syncDiscord, OPEN_HOURS } from "../../../lib/lfg.js";
@@ -17,7 +18,7 @@ export async function onRequestGet({ env, request }) {
 }
 
 // POST /api/lfg {game, note, starts_at (ms, or null = now), slots}
-export async function onRequestPost({ env, request }) {
+export async function onRequestPost({ env, request, waitUntil }) {
   const me = await need(env, request, "member");
   if (me instanceof Response) return me;
   const b = await body(request);
@@ -37,5 +38,7 @@ export async function onRequestPost({ env, request }) {
   await env.DB.prepare("INSERT INTO lfg_members (post_id, user_id, joined_at) VALUES (?, ?, ?)").bind(id, me.id, t).run();
   const p = await loadPost(env, id);
   await syncDiscord(env, p, { created: true });
+  waitUntil(allMembers(env, me.id).then((ids) => notify(env, ids, "game", {
+    title: `🙋 ${me.username} busca gente para ${game}`, body: [note, `Faltan ${slots - 1}`].filter(Boolean).join(" · "), url: "/#lfg" })));
   return json({ post: publicPost(p, me) });
 }

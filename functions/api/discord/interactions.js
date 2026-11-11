@@ -1,5 +1,5 @@
 import { json } from "../../../lib/util.js";
-import { loadPost, setMember, messageFor, pingIfFull } from "../../../lib/lfg.js";
+import { loadPost, setMember, messageFor, pingIfFull, site as siteOf } from "../../../lib/lfg.js";
 
 // Discord calls this when someone clicks "Me apunto" / "Ya no puedo" on a post in the channel.
 // Set it as the app's "Interactions Endpoint URL": https://play.moikas.cc/api/discord/interactions
@@ -27,7 +27,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
     const [, action, id] = i.data.custom_id.split(":");
     const discordId = i.member?.user?.id || i.user?.id;
     const user = await env.DB.prepare("SELECT id, role FROM users WHERE discord_id = ?").bind(discordId).first();
-    const site = `https://${env.PUBLIC_HOST || "play.moikas.cc"}`;
+    const site = siteOf(env);
     if (!user) return ephemeral(`Primero entra a ${site} con tu Discord (una vez) y luego ya puedes apuntarte desde aquí.`);
     if (user.role === "pending") return ephemeral("Tu cuenta todavía no está aprobada en la página. Pídele a un admin que te acepte.");
     const p = await loadPost(env, parseInt(id) || 0);

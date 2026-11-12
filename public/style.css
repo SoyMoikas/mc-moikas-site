@@ -2070,3 +2070,6 @@ button.danger-fill { background: var(--bad); border-color: var(--bad); color: #f
 .tr-hill { display: flex; align-items: center; gap: 16px; justify-content: center; flex-wrap: wrap; padding: 18px; font-size: 1.15rem; }
 .tr-hill-k b { color: var(--warn); } .tr-vs { font-weight: 800; color: var(--muted); letter-spacing: .1em; }
 .tr-hist { display: grid; gap: 3px; }
+.seg { display: inline-flex; border: 2px solid var(--border); border-radius: 999px; padding: 3px; gap: 3px; margin-bottom: 14px; background: var(--panel); }
+.seg button { border: 0; border-radius: 999px; background: transparent; padding: 6px 16px; font-weight: 600; color: var(--muted); }
+.seg button.on { background: var(--accent); color: #10131c; }

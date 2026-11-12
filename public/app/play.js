@@ -6,11 +6,12 @@ import { mountWheels } from "./wheels.js";
 const user = await initPage();
 const main = document.getElementById("main");
 const q = new URLSearchParams(location.search);
-const TABS = ["noches", "cuando", "adivina", "mayor", "ruleta", "ruedas", "frases", "comun", "gratis"];
+const TABS = ["noches", "cuando", "adivina", "mayor", "ruleta", "frases", "comun", "gratis"];
 if (location.hash === "#apuestas") location.replace("/casino#apuestas"); // bets moved to the Casino
 if (location.hash === "#apex") location.replace("/ranking#apex"); // Apex board moved to Ranking
 if (location.hash === "#cuentas") location.replace("/profile#ajustes"); // linked accounts moved to the profile settings
-let tab = TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : q.get("night") ? "noches" : "noches";
+if (location.hash === "#ruedas") history.replaceState(null, "", "/play#ruleta-ruedas"); // the wheels now live inside Ruleta
+let tab = location.hash.startsWith("#ruleta") ? "ruleta" : TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : q.get("night") ? "noches" : "noches";
 const fmt = (ms) => new Date(ms).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 const av = (u) => `<img class="soc-av" src="${esc(u.avatar || "")}" alt="" title="${esc(u.username)}" loading="lazy" onerror="this.style.visibility='hidden'">`;
 const hrs = (min) => (min >= 60 ? `${Math.round(min / 6) / 10} h` : `${min} min`);
@@ -31,7 +32,7 @@ function frame() {
     </section>`;
   main.querySelectorAll("[data-tab]").forEach((a) => (a.onclick = (e) => { e.preventDefault(); tab = a.dataset.tab; history.replaceState(null, "", `/play#${tab}`); frame(); }));
   const body = main.querySelector("#play-body");
-  ({ noches: nights, cuando: (b) => mountCuando(b, user), adivina: guess, mayor: hilo, ruleta: dares, ruedas: (b) => mountWheels(b, user), frases: quotes, comun: common, gratis: free })[tab](body).catch((x) => (body.innerHTML = `<p class="muted">${esc(x.message)}</p>`));
+  ({ noches: nights, cuando: (b) => mountCuando(b, user), adivina: guess, mayor: hilo, ruleta: ruletaTab, frases: quotes, comun: common, gratis: free })[tab](body).catch((x) => (body.innerHTML = `<p class="muted">${esc(x.message)}</p>`));
 }
 
 /* ---------------- Game nights ---------------- */
@@ -308,6 +309,19 @@ async function hilo(el, mode = null) {
 }
 
 /* ---------------- Ruleta de castigos ---------------- */
+
+// "Ruleta": one tab with two wheels — the dare wheel (castigos) and the picker wheels (ruedas).
+async function ruletaTab(el) {
+  const sub = location.hash === "#ruleta-ruedas" ? "ruedas" : "castigos";
+  el.innerHTML = `<div class="seg rl-seg">${[["castigos", "😈", "rl.sub.dares"], ["ruedas", "🎲", "rl.sub.wheels"]].map(([k, ic, key]) =>
+    `<button class="${k === sub ? "on" : ""}" data-sub="${k}">${ic} ${t(key)}</button>`).join("")}</div><div id="rl-sub"></div>`;
+  el.querySelectorAll("[data-sub]").forEach((b) => (b.onclick = () => {
+    history.replaceState(null, "", b.dataset.sub === "ruedas" ? "/play#ruleta-ruedas" : "/play#ruleta");
+    ruletaTab(el);
+  }));
+  const box = el.querySelector("#rl-sub");
+  return sub === "ruedas" ? mountWheels(box, user) : dares(box);
+}
 
 async function dares(el) {
   const d = await api("/api/dares");

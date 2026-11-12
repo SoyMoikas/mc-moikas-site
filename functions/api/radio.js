@@ -1,26 +1,41 @@
-import { need } from "../../lib/auth.js";
+import { need, hasRole } from "../../lib/auth.js";
 import { json, body, now, err } from "../../lib/util.js";
-import { tick, listeners, advance, report, voteSkip, listIdOf, loadState } from "../../lib/radio.js";
+import { tick, listeners, advance, report, voteSkip, listIdOf, loadState, addRequest, removeItem, vidOf, oembed } from "../../lib/radio.js";
 
 // GET /api/radio?tune=1 → the station (and, with tune=1, counts you as listening). Also moves the station along.
 export async function onRequestGet({ env, request }) {
   const me = await need(env, request, "member");
   if (me instanceof Response) return me;
-  const tune = new URL(request.url).searchParams.get("tune") === "1";
+  const q = new URL(request.url).searchParams;
+  if (q.get("mytracks") === "1") { // your songs for the "add from my playlists" picker; fills in a few missing titles each time
+    const rows = (await env.DB.prepare("SELECT t.vid, t.title, t.author, t.bad, p.title AS list FROM radio_tracks t LEFT JOIN radio_playlists p ON p.user_id = t.user_id AND p.list_id = t.list_id WHERE t.user_id = ? ORDER BY t.title IS NULL, t.title").bind(me.id).all()).results;
+    const missing = rows.filter((r) => !r.title && !r.bad).slice(0, 25);
+    await Promise.all(missing.map(async (r) => {
+      const o = await oembed(env, r.vid);
+      if (o.unplayable) { r.bad = 1; await env.DB.prepare("UPDATE radio_tracks SET bad = 1 WHERE vid = ?").bind(r.vid).run(); }
+      else if (o.title) { Object.assign(r, o); await env.DB.prepare("UPDATE radio_tracks SET title = ?, author = ? WHERE vid = ?").bind(o.title, o.author, r.vid).run(); }
+    }));
+    return json({ tracks: rows.filter((r) => !r.bad), more: rows.some((r) => !r.title && !r.bad) });
+  }
+  const tune = q.get("tune") === "1";
   if (tune) await env.DB.prepare("INSERT INTO radio_listeners (user_id, seen_at) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET seen_at = excluded.seen_at").bind(me.id, now()).run();
   const st = await tick(env);
   const [people, mine] = await Promise.all([
     listeners(env),
     env.DB.prepare("SELECT list_id, url, title, tracks, updated_at FROM radio_playlists WHERE user_id = ? ORDER BY updated_at").bind(me.id).all().then((r) => r.results),
   ]);
-  const owners = await env.DB.prepare("SELECT u.id, u.avatar FROM users u WHERE u.id IN (" + [...new Set((st.history || []).slice(0, 10).map((h) => h.uid).concat(st.uid || 0))].map(() => "?").join(",") + ")")
-    .bind(...new Set((st.history || []).slice(0, 10).map((h) => h.uid).concat(st.uid || 0))).all().then((r) => Object.fromEntries(r.results.map((u) => [u.id, u.avatar])));
+  const ids = [...new Set([...(st.history || []).slice(0, 10), ...(st.queue || [])].map((h) => h.uid).concat(st.uid || 0))];
+  const owners = await env.DB.prepare(`SELECT u.id, u.avatar FROM users u WHERE u.id IN (${ids.map(() => "?").join(",")})`).bind(...ids).all()
+    .then((r) => Object.fromEntries(r.results.map((u) => [u.id, u.avatar])));
+  const staff = hasRole(me, "staff");
   return json({
     now: now(), me: me.id,
-    playing: st.vid ? { vid: st.vid, uid: st.uid, owner: st.owner, avatar: owners[st.uid] || null, title: st.title, author: st.author, dur: st.dur, started: st.started, skips: (st.skips || []).length } : null,
+    playing: st.vid ? { vid: st.vid, uid: st.uid, owner: st.owner, req: !!st.req, avatar: owners[st.uid] || null, title: st.title, author: st.author, dur: st.dur, started: st.started, skips: (st.skips || []).length } : null,
     skipped_by_me: (st.skips || []).includes(me.id),
     listeners: people.map((p) => ({ id: p.id, username: p.username, avatar: p.avatar, tracks: p.tracks })),
     history: (st.history || []).slice(0, 10).map((h) => ({ ...h, avatar: owners[h.uid] || null })),
+    queue: (st.queue || []).map((x) => ({ id: x.id, vid: x.vid, title: x.title, author: x.author, owner: x.owner, uid: x.uid, req: !!x.req, avatar: owners[x.uid] || null,
+      can_remove: staff || x.by === me.id || (!x.req && x.uid === me.id) })),
     mine,
   });
 }
@@ -61,6 +76,16 @@ export async function onRequestPost({ env, request }) {
     await env.DB.batch([env.DB.prepare("DELETE FROM radio_playlists WHERE user_id = ? AND list_id = ?").bind(me.id, id),
       env.DB.prepare("DELETE FROM radio_tracks WHERE user_id = ? AND list_id = ?").bind(me.id, id)]);
     return json({ ok: true });
+  }
+  if (b.action === "add") {
+    const v = vidOf(b.url ?? b.vid);
+    if (!v) return err(400, "Pega el link de un video de YouTube (o YouTube Music)");
+    const r = await addRequest(env, me, v);
+    return r.error ? err(409, r.error) : json(r);
+  }
+  if (b.action === "remove") {
+    const r = await removeItem(env, me, String(b.id || ""), hasRole(me, "staff"));
+    return r.error ? err(403, r.error) : json(r);
   }
   if (b.action === "leave") { await env.DB.prepare("DELETE FROM radio_listeners WHERE user_id = ?").bind(me.id).run(); return json({ ok: true }); }
   if (!okVid) return err(400, "Bad video");

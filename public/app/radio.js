@@ -36,6 +36,9 @@ async function start() {
         </div>
         <div class="rd-side">
           <div class="card"><b>🎧 ${t("rd.listening")}</b><div id="rd-people" class="rd-people"></div></div>
+          <div class="card rd-q"><b>🎶 ${t("rd.upNext")}</b><div id="rd-queue" class="rd-queue"></div>
+            <form class="lfg-row" id="rd-req"><input name="url" required placeholder="${esc(t("rd.reqPh"))}"><button class="primary small-btn">＋</button></form>
+            <button class="small-btn" id="rd-pick">🎵 ${t("rd.fromMine")}</button><div id="rd-picker"></div></div>
           <div class="card"><b>🕘 ${t("rd.history")}</b><div id="rd-hist" class="rd-hist"></div></div>
         </div>
       </div>
@@ -80,6 +83,9 @@ function draw() {
   main.querySelector("#rd-vol")?.addEventListener("input", (e) => { vol = +e.target.value; player?.setVolume?.(vol); try { localStorage.setItem("radio_vol", vol); } catch { /* */ } });
   main.querySelector("#rd-people").innerHTML = d.listeners.map((l) => `<span class="rd-p ${l.tracks ? "" : "none"}" title="${esc(l.tracks ? t("rd.songs", { n: l.tracks }) : t("rd.noList"))}">${av(l)} ${esc(l.username)}${l.tracks ? "" : " 🔇"}</span>`).join("")
     || `<span class="hint">${t("rd.nobody")}</span>`;
+  main.querySelector("#rd-queue").innerHTML = (d.queue || []).slice(0, 12).map((q, i) => `<div class="rd-qi ${q.req ? "req" : ""}">
+      <span class="rd-qn">${i + 1}</span>${av(q)}<span class="rd-qt"><b>${esc(q.title || "…")}</b><span class="small muted">${q.req ? `⭐ ${t("rd.askedBy", { name: esc(q.owner) })}` : t("rd.fromList", { name: esc(q.owner) })}</span></span>
+      ${q.can_remove ? `<button class="link" data-qdel="${esc(q.id)}" title="${esc(t("rd.removeSong"))}">✕</button>` : ""}</div>`).join("") || `<span class="hint">${t("rd.queueEmpty")}</span>`;
   main.querySelector("#rd-hist").innerHTML = d.history.map((h) => `<div class="small rd-h">${av(h)} <span>${esc(h.title || "…")}</span></div>`).join("") || `<span class="hint">—</span>`;
   const mine = main.querySelector("#rd-mine");
   mine.innerHTML = `<b>🎵 ${t("rd.myLists")}</b>
@@ -187,9 +193,42 @@ main.addEventListener("click", async (e) => {
     return poll();
   }
   if (q("[data-refresh]")) return addList(q("[data-refresh]").dataset.refresh);
+  if (q("[data-qdel]")) {
+    try { await api("/api/radio", { method: "POST", body: { action: "remove", id: q("[data-qdel]").dataset.qdel } }); } catch (x) { toast(x.message, true); }
+    return poll();
+  }
+  if (q("#rd-pick")) return picker();
+  if (q("[data-qadd]")) return request(q("[data-qadd]").dataset.qadd, q("[data-qadd]"));
 });
 main.addEventListener("submit", (e) => {
+  if (e.target.id === "rd-req") { e.preventDefault(); request(e.target.url.value.trim()).then((ok) => ok && (e.target.url.value = "")); return; }
   if (e.target.id !== "rd-add") return;
   e.preventDefault();
   addList(e.target.url.value.trim());
 });
+
+// ---------- queue: add a song by link, or from your own playlists ----------
+async function request(urlOrVid, btn) {
+  try {
+    if (btn) btn.disabled = true;
+    const r = await api("/api/radio", { method: "POST", body: { action: "add", url: urlOrVid } });
+    toast(t("rd.queued", { title: r.item?.title || "🎵" }));
+    poll();
+    return true;
+  } catch (x) { toast(x.message, true); if (btn) btn.disabled = false; return false; }
+}
+async function picker() {
+  const box = main.querySelector("#rd-picker");
+  if (box.innerHTML) { box.innerHTML = ""; return; }
+  box.innerHTML = `<p class="hint">${t("loading")}</p>`;
+  let r;
+  try { r = await api("/api/radio?mytracks=1"); } catch (x) { box.innerHTML = `<p class="hint">${esc(x.message)}</p>`; return; }
+  if (!r.tracks.length) { box.innerHTML = `<p class="hint">${t("rd.noneYet")}</p>`; return; }
+  box.innerHTML = `<input class="rd-search" placeholder="${esc(t("rd.search"))}"><div class="rd-pl">${r.tracks.map((x) => `
+    <div class="rd-pi" data-q="${esc(((x.title || "") + " " + (x.author || "")).toLowerCase())}"><span><b>${esc(x.title || x.vid)}</b>${x.author ? ` <span class="small muted">${esc(x.author)}</span>` : ""}</span>
+      <button class="small-btn" data-qadd="${esc(x.vid)}">＋</button></div>`).join("")}</div>${r.more ? `<p class="hint">${t("rd.moreTitles")}</p>` : ""}`;
+  box.querySelector(".rd-search").addEventListener("input", (e) => {
+    const s = e.target.value.toLowerCase();
+    box.querySelectorAll(".rd-pi").forEach((el) => (el.hidden = s && !el.dataset.q.includes(s)));
+  });
+}

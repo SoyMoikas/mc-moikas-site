@@ -2101,3 +2101,13 @@ button.danger-fill { background: var(--bad); border-color: var(--bad); color: #f
 body.popup .topbar, body.popup .rail, body.popup footer, body.popup .m-tabs, body.popup .app-banner { display: none !important; }
 body.popup .shell { display: block; } body.popup main.page { padding: 10px 12px; max-width: none; }
 body.popup .rd-grid { grid-template-columns: 1fr; } body.popup .rd-intro { display: none; }
+.rd-queue { display: grid; gap: 6px; }
+.rd-qi { display: flex; gap: 7px; align-items: center; } .rd-qi .soc-av { width: 22px; height: 22px; flex: none; }
+.rd-qi.req .rd-qt b { color: var(--accent); }
+.rd-qn { width: 16px; text-align: right; font-size: .75rem; color: var(--muted); flex: none; }
+.rd-qt { flex: 1; min-width: 0; display: grid; } .rd-qt b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .9rem; }
+.rd-q form input { flex: 1; min-width: 0; }
+.rd-search { width: 100%; margin: 6px 0; }
+.rd-pl { display: grid; gap: 4px; max-height: 280px; overflow-y: auto; }
+.rd-pi { display: flex; gap: 6px; align-items: center; justify-content: space-between; } .rd-pi > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rd-pi[hidden] { display: none; }

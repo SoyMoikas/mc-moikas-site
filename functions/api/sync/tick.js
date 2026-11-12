@@ -10,6 +10,8 @@ import { checkAchievements } from "../../../lib/achievements.js";
 import { expireBounties } from "../../../lib/bounties.js";
 import { announceWrapped } from "../../../lib/wrapped.js";
 import { rpgTick } from "../../../lib/rpg.js";
+import { drawDueRaffles } from "../../../lib/casino.js";
+import { pokerTick } from "../../../lib/poker.js";
 import { weeklyRecap, snapshotWeek, birthdays, steamSales, quoteOfMonth } from "../../../lib/recap.js";
 
 // POST /api/sync/tick — the NAS bot calls this every ~30 s. Does the site's background chores:
@@ -34,6 +36,8 @@ export async function onRequestPost({ request, env, waitUntil }) {
   await step("quote", () => quoteOfMonth(env));
   await step("wrapped", () => announceWrapped(env));
   await step("rol", () => rpgTick(env, waitUntil));
+  await step("raffles", () => drawDueRaffles(env));
+  await step("poker", () => pokerTick(env));
   if (env.STEAM_API_KEY) await step("sales", () => steamSales(env));
   // achievements every ~10 min (ticks are ~30 s apart)
   if (Math.floor(t / 60000) % 10 === 0) await step("achievements", () => checkAchievements(env));

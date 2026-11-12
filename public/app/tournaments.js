@@ -162,7 +162,7 @@ function bracketHTML() {
     const win = m.winner === tid, lose = m.winner && m.winner !== tid;
     return `<div class="tr-side ${win ? "win" : ""} ${lose ? "lose" : ""} ${tid === tr.my_team_id ? "mine" : ""}"><span>${esc(teamName(tid))}</span><b>${score ?? (win ? "✓" : "")}</b></div>`;
   };
-  return `<div class="section-head"><h2>${t("tr.bracket")}</h2>${tr.status === "running" ? `<a class="small" href="/play#apuestas">🪙 ${t("mk.betOnIt")}</a>` : ""}</div><div class="tr-bracket">${Array.from({ length: rounds }, (_, i) => i + 1).map((r) => `
+  return `<div class="section-head"><h2>${t("tr.bracket")}</h2>${tr.status === "running" ? `<a class="small" href="/casino#apuestas">🪙 ${t("mk.betOnIt")}</a>` : ""}</div><div class="tr-bracket">${Array.from({ length: rounds }, (_, i) => i + 1).map((r) => `
     <div class="tr-round"><div class="small muted tr-r-label">${label(r)}</div>
       ${tr.matches.filter((m) => m.round === r).map((m) => `
         <div class="tr-match">${side(m, m.team_a, m.score_a)}${side(m, m.team_b, m.score_b)}
@@ -191,7 +191,7 @@ function pointsHTML() {
   const games = [...new Set(tr.results.map((r) => r.game_no))];
   const st = tr.standings;
   return `
-    <div class="section-head"><h2>${t("tr.standings")} <span class="small muted">· ${t("tr.gamesPlayed", { n: tr.games_played })}</span></h2>${tr.status === "running" ? `<a class="small" href="/play#apuestas">🪙 ${t("mk.betOnIt")}</a>` : ""}</div>
+    <div class="section-head"><h2>${t("tr.standings")} <span class="small muted">· ${t("tr.gamesPlayed", { n: tr.games_played })}</span></h2>${tr.status === "running" ? `<a class="small" href="/casino#apuestas">🪙 ${t("mk.betOnIt")}</a>` : ""}</div>
     <div class="card table-wrap"><table class="tr-table">
       <thead><tr><th>#</th><th>${tr.team_size === 1 ? t("tr.player") : t("tr.team")}</th><th>${t("tr.pts")}</th><th>${t("tr.wins")}</th><th>${t("tr.kills")}</th>
         ${games.map((g) => `<th class="small">#${g}${staff && tr.status === "running" ? ` <a href="#" data-undo="${g}" title="${esc(t("tr.undo"))}">✕</a>` : ""}</th>`).join("")}</tr></thead>

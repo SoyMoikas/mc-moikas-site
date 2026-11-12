@@ -179,7 +179,7 @@ export async function initPage() {
         ${navLink("/ranking", "nav.ranking")}
         ${navLink("/play", "nav.play")}
         ${navLink("/tournaments", "nav.tournaments")}
-        ${user && user.role !== "pending" ? navLink("/juntos", "nav.juntos") + navLink("/rol", "nav.rol") + navLink("/status", "nav.status") : ""}
+        ${user && user.role !== "pending" ? navLink("/juntos", "nav.juntos") + navLink("/casino", "nav.casino") + navLink("/rol", "nav.rol") + navLink("/status", "nav.status") : ""}
         ${navLink("/store", "nav.store")}
         ${["users", "servers", "store"].some((p) => perm(user, p)) ? navLink("/admin", "nav.admin") : ""}
       </nav>
@@ -232,7 +232,7 @@ export async function initPage() {
         ${railLink("/ranking", "🏆", "nav.ranking")}
         ${railLink("/play", "🎮", "nav.play")}
         ${railLink("/tournaments", "⚔️", "nav.tournaments")}
-        ${user && user.role !== "pending" ? railLink("/juntos", "🫂", "nav.juntos") + railLink("/rol", "🐉", "nav.rol") + railLink("/status", "🟢", "nav.status") : ""}
+        ${user && user.role !== "pending" ? railLink("/juntos", "🫂", "nav.juntos") + railLink("/casino", "🎰", "nav.casino") + railLink("/rol", "🐉", "nav.rol") + railLink("/status", "🟢", "nav.status") : ""}
         ${railLink("/store", "🪙", "nav.store")}
         ${isAdmin ? railLink("/admin", "⚙️", "nav.admin") : ""}
       </nav>

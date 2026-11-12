@@ -1,4 +1,5 @@
 import { api, esc, t, initPage, avatarHTML, nameHTML, bgStyle } from "./common.js";
+import { mountApex } from "./apex-board.js";
 import { levelInfo, levelBadge, fmtHours, RANKS, xpForLevel } from "./levels.js";
 
 const user = await initPage();
@@ -11,7 +12,12 @@ catch (e) { main.innerHTML = `<p style="padding:40px 0">${esc(e.message)}</p>`; 
 
 const medal = (i) => ["🥇", "🥈", "🥉"][i] || `#${i + 1}`;
 
+const TABS = [["moikas", "rk.tab.moikas"], ["apex", "play.tab.apex"]];
+let tab = location.hash === "#apex" ? "apex" : "moikas";
 main.innerHTML = `
+  <div class="play-tabs rk-tabs">${TABS.map(([k, key]) => `<a href="#${k}" data-tab="${k}">${t(key)}</a>`).join("")}</div>
+  <div id="rk-apex"></div>
+  <div id="rk-moikas">
   <section>
     <div class="section-head"><h2>${t("rk.title")}</h2></div>
     <p class="hint">${t("rk.explain")}</p>
@@ -50,4 +56,22 @@ main.innerHTML = `
       <div class="rank-chip" style="--rank:${r.color}"><b>${t(`rank.${r.key}`)}</b>
         <span class="small muted">${t("rk.fromLevel", { n: r.min })} · ${xpForLevel(r.min).toLocaleString()} XP</span></div>`).join("")}
     </div>
-  </section>`;
+  </section>
+  </div>`;
+
+let apexLoaded = false;
+function show() {
+  main.querySelectorAll("[data-tab]").forEach((a) => a.classList.toggle("active", a.dataset.tab === tab));
+  main.querySelector("#rk-moikas").hidden = tab !== "moikas";
+  const box = main.querySelector("#rk-apex");
+  box.hidden = tab !== "apex";
+  if (tab === "apex" && !apexLoaded) {
+    apexLoaded = true;
+    if (!user || user.role === "pending") { box.innerHTML = `<p class="muted">${t("lfg.emptyGuest")}</p>`; return; }
+    box.innerHTML = `<p class="muted">${t("loading")}</p>`;
+    mountApex(box).catch((x) => (box.innerHTML = `<p class="muted">${esc(x.message)}</p>`));
+  }
+}
+main.querySelectorAll("[data-tab]").forEach((a) => (a.onclick = (e) => { e.preventDefault(); tab = a.dataset.tab; history.replaceState(null, "", tab === "moikas" ? "/ranking" : "/ranking#apex"); show(); }));
+addEventListener("hashchange", () => { tab = location.hash === "#apex" ? "apex" : "moikas"; show(); });
+show();

@@ -5,7 +5,8 @@ import { mountCuando } from "./cuando.js";
 const user = await initPage();
 const main = document.getElementById("main");
 const q = new URLSearchParams(location.search);
-const TABS = ["noches", "cuando", "adivina", "mayor", "ruleta", "apuestas", "frases", "comun", "apex", "gratis"];
+const TABS = ["noches", "cuando", "adivina", "mayor", "ruleta", "apuestas", "frases", "comun", "gratis"];
+if (location.hash === "#apex") location.replace("/ranking#apex"); // Apex board moved to Ranking
 if (location.hash === "#cuentas") location.replace("/profile#ajustes"); // linked accounts moved to the profile settings
 let tab = TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : q.get("night") ? "noches" : "noches";
 const fmt = (ms) => new Date(ms).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
@@ -28,7 +29,7 @@ function frame() {
     </section>`;
   main.querySelectorAll("[data-tab]").forEach((a) => (a.onclick = (e) => { e.preventDefault(); tab = a.dataset.tab; history.replaceState(null, "", `/play#${tab}`); frame(); }));
   const body = main.querySelector("#play-body");
-  ({ noches: nights, cuando: (b) => mountCuando(b, user), adivina: guess, mayor: hilo, ruleta: dares, apuestas: bets, frases: quotes, comun: common, apex, gratis: free })[tab](body).catch((x) => (body.innerHTML = `<p class="muted">${esc(x.message)}</p>`));
+  ({ noches: nights, cuando: (b) => mountCuando(b, user), adivina: guess, mayor: hilo, ruleta: dares, apuestas: bets, frases: quotes, comun: common, gratis: free })[tab](body).catch((x) => (body.innerHTML = `<p class="muted">${esc(x.message)}</p>`));
 }
 
 /* ---------------- Game nights ---------------- */
@@ -168,32 +169,6 @@ async function common(el) {
 }
 
 /* ---------------- Apex ---------------- */
-
-async function apex(el) {
-  const d = await api("/api/apex");
-  if (!d.configured) { el.innerHTML = `<p class="muted">${t("play.noApexKey")}</p>`; return; }
-  const mine = d.players.find((p) => p.mine);
-  const weekly = [...d.players].filter((p) => p.week_rp != null).sort((a, b) => b.week_rp - a.week_rp);
-  el.innerHTML = `
-    ${!mine ? `<div class="card play-cta">🎯 ${t("ap.linkCta")} <a class="primary btn" href="/profile#ajustes">${t("ap.link")}</a></div>` : ""}
-    <div class="ap-grid">${d.players.map((p, i) => `
-      <div class="card ap-card ${p.mine ? "mine" : ""}">
-        <div class="ap-top"><span class="ap-pos">#${i + 1}</span>
-          ${p.rank?.img ? `<img class="ap-rank" src="${esc(p.rank.img)}" alt="" loading="lazy">` : ""}
-          <div><b>${esc(p.username)}</b> <span class="small muted">${esc(p.apex_name)} · ${esc(p.platform)}</span>
-            <div class="small">${p.rank?.name ? `${esc(p.rank.name)} ${p.rank.div || ""} · <b>${p.rank.score ?? "?"} RP</b>` : t("ap.unranked")}${p.rank?.pred ? ` · 🔺 Pred #${p.rank.pred}` : ""}</div></div></div>
-        <div class="ap-stats small">
-          <span>⭐ ${t("ap.level")} ${p.level ?? "?"}</span>
-          ${p.legend ? `<span>🧑‍🚀 ${esc(p.legend)}</span>` : ""}
-          ${p.week_rp != null ? `<span class="${p.week_rp >= 0 ? "lfg-ok" : "bad"}">${p.week_rp >= 0 ? "▲" : "▼"} ${Math.abs(p.week_rp)} RP ${t("ap.thisWeek")}</span>` : ""}
-          ${p.week_kills ? `<span>💀 ${p.week_kills} ${t("ap.killsWeek")}</span>` : ""}
-          ${p.online ? `<span class="lfg-ok">🟢 ${esc(p.state || t("ap.online"))}</span>` : ""}
-        </div>
-        ${p.trackers?.length ? `<div class="ap-trk small muted">${p.trackers.map((x) => `${esc(x.name)}: <b>${x.value}</b>`).join(" · ")}</div>` : ""}
-        ${p.error ? `<div class="hint">⚠ ${esc(p.error)}</div>` : `<div class="hint">${t("ap.updated", { ago: ago(p.updated_at) })}</div>`}
-      </div>`).join("") || `<p class="muted">${t("ap.none")}</p>`}</div>
-    ${weekly.length > 1 ? `<h3>📈 ${t("ap.weekBoard")}</h3><div class="card"><ol class="ap-week">${weekly.map((p) => `<li>${av(p)} <b>${esc(p.username)}</b> <span class="${p.week_rp >= 0 ? "lfg-ok" : "bad"}">${p.week_rp >= 0 ? "+" : ""}${p.week_rp} RP</span></li>`).join("")}</ol></div>` : ""}`;
-}
 
 /* ---------------- Free games ---------------- */
 

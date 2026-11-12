@@ -1,12 +1,13 @@
 import { getUser, need, hasRole } from "../../../lib/auth.js";
 import { json, body, str, err } from "../../../lib/util.js";
-import { loadMarket, ensureMarket, closeDue } from "../../../lib/markets.js";
+import { loadMarket, ensureMarket, closeDue, voidOrphans } from "../../../lib/markets.js";
 
 // GET /api/markets → open + recently settled predictions
 export async function onRequestGet({ env, request }) {
   const me = await getUser(env, request);
   if (!me || me.role === "pending") return json({ markets: [] });
   await closeDue(env);
+  await voidOrphans(env);
   const ids = (await env.DB.prepare(
     `SELECT id FROM markets WHERE status IN ('open','closed') OR created_at > ? ORDER BY CASE status WHEN 'open' THEN 0 WHEN 'closed' THEN 1 ELSE 2 END, id DESC LIMIT 30`
   ).bind(Date.now() - 14 * 86400000).all()).results;

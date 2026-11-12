@@ -1,3 +1,4 @@
+import { voidOrphans } from "../../../lib/markets.js";
 import { getUser, need, hasRole } from "../../../lib/auth.js";
 import { json, body, str, int, now, err } from "../../../lib/util.js";
 import { loadTournament, publicTournament, startBracket, setMatchWinner, finish, standings, announce, tourneyMarket } from "../../../lib/tournaments.js";
@@ -57,6 +58,7 @@ export async function onRequestPost({ env, request, params }) {
       await DB.prepare("DELETE FROM tournament_teams WHERE id = ? AND tournament_id = ?").bind(int(b.team_id, "team_id"), tr.id).run();
     } else if (a === "delete") {
       await DB.prepare("DELETE FROM tournaments WHERE id = ?").bind(tr.id).run();
+      await voidOrphans(env); // its bets get cancelled and refunded
       return json({ deleted: true });
     } else if (a === "start") {
       if (tr.status !== "signup") return err(409, "Already started");

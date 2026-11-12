@@ -71,7 +71,7 @@ export function mountModeration(el, serverId) {
 
   function wire() {
     const form = el.querySelector("#mod-form");
-    form.querySelectorAll("[data-submit]").forEach((b) => b.onclick = (ev) => {
+    form.querySelectorAll("[data-submit]").forEach((b) => b.onclick = async (ev) => {
       ev.preventDefault();
       const d = Object.fromEntries(new FormData(form));
       if (!d.name.trim()) return form.name.focus();
@@ -79,7 +79,7 @@ export function mountModeration(el, serverId) {
       if (action === "ban" && !await ask(t("mod.confirmBan", { name: d.name }), { danger: true })) return;
       queue({ action, name: d.name.trim(), edition: d.edition, reason: d.reason });
     });
-    el.querySelectorAll("[data-act]").forEach((b) => b.onclick = () => {
+    el.querySelectorAll("[data-act]").forEach((b) => b.onclick = async () => {
       const action = b.dataset.act;
       if ((action === "whitelist_remove" || action === "whitelist_off") && !await ask(t("mod.confirm"))) return;
       queue({ action, name: b.dataset.name, edition: b.dataset.ed });

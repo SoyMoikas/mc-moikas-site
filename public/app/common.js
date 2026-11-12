@@ -2,7 +2,7 @@
 import { t, tErr, lang, locale, setLang, applyStatic } from "./i18n.js";
 import { registerApp, isStandalone, canInstall, installApp, isIOS } from "./pwa.js";
 import { levelBadge, levelInfo } from "./levels.js";
-import { avatarHTML, nameHTML, fromAuthor, loadCatalog, catalogItem, bgCSS, bgStyle, bgAnimated, bgWall, textAttrs } from "./cosmetics.js";
+import { avatarHTML, nameHTML, fromAuthor, loadCatalog, catalogItem, applyTabFx, bgCSS, bgStyle, bgAnimated, bgWall, textAttrs } from "./cosmetics.js";
 import { applyTheme, applyCachedTheme } from "./themes.js";
 applyCachedTheme();
 export { t, lang, levelBadge, avatarHTML, nameHTML, bgStyle, bgAnimated, bgWall, textAttrs };
@@ -179,6 +179,7 @@ export async function initPage() {
 
   // Your site theme (only you see it). Applied early from the last visit too, so pages don't flash.
   applyTheme(user ? catalogItem(user.eq_theme) : null);
+  applyTabFx(user ? catalogItem(user.eq_tabfx) : null);
 
   // App shell: left rail (nav, games, your level) + the page's <main>. On narrow screens the rail hides
   // and the top bar's nav takes over.

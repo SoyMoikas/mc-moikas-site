@@ -17,6 +17,7 @@ const SECTIONS = [
   { type: "sticker", key: "st.stickers", id: "stickers" },
   { type: "part", key: "st.parts", id: "avatar-parts" },
   { type: "theme", key: "st.themes", id: "themes" },
+  { type: "tabfx", key: "st.tabfx", id: "tab-effects" },
 ];
 const NEW_MS = 14 * 86400_000;
 let data = null, me = null;

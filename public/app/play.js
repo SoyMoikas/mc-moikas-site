@@ -378,6 +378,7 @@ async function hilo(el, mode = null) {
 async function dares(el) {
   const d = await api("/api/dares");
   const lv = (n) => `<span class="dr-lv dr-lv${n}">${esc(d.levels[n].name)} · 🪙 ${d.levels[n].coins}</span>`;
+  const allOpen = el.querySelector(".dr-all")?.open, addOpen = el.querySelector(".dr-add")?.open;
   el.innerHTML = `
     <p class="muted">${t("dr.intro")}</p>
     <div class="card dr-spin">
@@ -399,7 +400,33 @@ async function dares(el) {
         <span><button class="primary small-btn" data-act="confirm" data-id="${x.id}">✅ ${t("dr.yes")}</button> <button class="small-btn" data-act="deny" data-id="${x.id}">❌ ${t("dr.no")}</button></span></div>`).join("")}</div>` : ""}
     ${d.recent.length ? `<h3>${t("dr.recent")}</h3><div class="dr-list">${d.recent.map((x) => `
       <div class="dr-item small">${x.status === "group" ? "👥" : "✅"} <b>${esc(x.username || "?")}</b> · ${esc(x.game)} — ${esc(x.text)}${x.coins ? ` <span class="lfg-ok">+🪙 ${x.coins}</span>` : ""}${x.confirmer ? ` <span class="muted">(${t("dr.confirmedBy", { name: esc(x.confirmer) })})</span>` : ""}</div>`).join("")}</div>` : ""}
-    <details class="dr-all"><summary class="small">${t("dr.seeAll")}</summary>${Object.entries(d.all).map(([g, list]) => `<h4>${esc(g)}</h4><ul class="small">${list.map(([n, txt]) => `<li>${lv(n)} ${esc(txt)}</li>`).join("")}</ul>`).join("")}</details>`;
+    <details class="card dr-add" ${addOpen ? "open" : ""}><summary>➕ ${t("dr.addTitle")}</summary>
+      <form id="dr-addf" class="dr-addf">
+        <label>${t("dr.game")}<input name="game" list="dr-games" maxlength="40" required><datalist id="dr-games">${d.games.map((g) => `<option value="${esc(g)}">`).join("")}</datalist></label>
+        <label>${t("dr.level")}<select name="level">${[1, 2, 3].map((n) => `<option value="${n}">${esc(d.levels[n].name)} · 🪙 ${d.levels[n].coins}</option>`).join("")}</select></label>
+        <label class="dr-addtext">${t("dr.text")}<input name="text" maxlength="200" minlength="6" required placeholder="${esc(t("dr.textPh"))}"></label>
+        <button class="primary">${t("dr.add")}</button>
+      </form>
+      <div class="hint">${t(d.staff ? "dr.addHintStaff" : "dr.addHint")}</div>
+    </details>
+    <details class="dr-all" ${allOpen ? "open" : ""}><summary class="small">${t("dr.seeAll")}</summary>${Object.entries(d.all).map(([g, list]) => `<h4>${esc(g)}</h4><ul class="small">${list.map((x) => {
+      const can = x.id ? (x.by === d.me || d.staff) : d.staff;
+      return `<li>${lv(x.level)} ${esc(x.text)}${x.author ? ` <span class="muted">· ${esc(x.author)}</span>` : ""}${can ? ` <button class="link dr-del" data-del="${x.id || ""}" data-game="${esc(g)}" data-text="${esc(x.text)}" title="${esc(t("dr.remove"))}">✕</button>` : ""}</li>`;
+    }).join("")}</ul>`).join("")}</details>`;
+  const addf = el.querySelector("#dr-addf"), sel = el.querySelector("#dr-game");
+  addf.game.value = sel.value;
+  sel.addEventListener("change", () => { addf.game.value = sel.value; });
+  el.querySelector("#dr-addf").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const f = e.target;
+    try { await api("/api/dares", { method: "POST", body: { action: "add", game: f.game.value.trim(), level: +f.level.value, text: f.text.value.trim() } }); toast(t("dr.added")); dares(el); }
+    catch (x) { toast(x.message, true); }
+  });
+  el.querySelectorAll("[data-del]").forEach((b) => (b.onclick = async () => {
+    if (!confirm(t("dr.removeQ"))) return;
+    try { await api("/api/dares", { method: "POST", body: { action: "remove", id: +b.dataset.del || undefined, game: b.dataset.game, text: b.dataset.text } }); dares(el); }
+    catch (x) { toast(x.message, true); }
+  }));
 
   const spinAnim = async (wheel) => { wheel.classList.add("spinning"); await new Promise((ok) => setTimeout(ok, 1600)); wheel.classList.remove("spinning"); };
   el.querySelector("#dr-go")?.addEventListener("click", async (e) => {

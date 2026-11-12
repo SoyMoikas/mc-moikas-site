@@ -1,6 +1,6 @@
 import { uploadImage } from "./common.js";
 import { api, esc, can, perm, t, initPage, SITE, gameLabel, localized, toISO, toLocalInput, onSubmit, toast, ago, fmtDate, statusBadge, roleLabel } from "./common.js";
-import { itemPreview, itemName, FONTS, EFFECTS, registerFont, hatPlacement } from "./cosmetics.js";
+import { itemPreview, itemName, FONTS, EFFECTS, registerFont, hatPlacement, TABFX } from "./cosmetics.js";
 import { PART_SLOTS, ART_IDS } from "./avatar-parts.js";
 import { TEXTURES, EDGES } from "./themes.js";
 
@@ -526,7 +526,7 @@ async function walletPanel(uid) {
 
 /* ---------------- Store ---------------- */
 
-const TYPES = ["frame", "hat", "color", "font", "textstyle", "sticker", "banner", "wallpaper", "part", "theme"];
+const TYPES = ["frame", "hat", "color", "font", "textstyle", "sticker", "banner", "wallpaper", "part", "theme", "tabfx"];
 const FRAME_STYLES = ["solid", "glow", "pulse", "rainbow", "shimmer"];
 
 async function storeTab() {
@@ -569,7 +569,7 @@ async function storeTab() {
     <div id="item-editor"></div>
     <details class="card fonts-admin"><summary><b>${t("ad.uploadedFonts")}</b> <span class="muted small" id="font-count"></span></summary><div id="font-list"></div></details>
     ${TYPES.map((type) => `
-      <h3>${t(`st.${{ frame: "frames", hat: "hats", color: "colors", font: "fonts", textstyle: "textstyles", sticker: "stickers", banner: "banners", wallpaper: "wallpapers", part: "parts", theme: "themes" }[type]}`)}</h3>
+      <h3>${t(`st.${{ frame: "frames", hat: "hats", color: "colors", font: "fonts", textstyle: "textstyles", sticker: "stickers", banner: "banners", wallpaper: "wallpapers", part: "parts", theme: "themes", tabfx: "tabfx" }[type]}`)}</h3>
       <div class="card table-wrap"><table>
         <thead><tr><th></th><th>${t("ad.colName")}</th><th>${t("ad.itemPrice")}</th><th>${t("ad.itemReward")}</th><th></th></tr></thead>
         <tbody>${items.filter((i) => i.type === type).map((i) => `
@@ -638,6 +638,7 @@ function editItem(item, items) {
               <input type="file" name="imgfile" accept="image/png,image/jpeg,image/gif,image/webp" hidden></span></label>
             <label class="f-color">${t("ad.color")}<input name="color" type="color" value="${esc(v.color || "#6fcf5a")}"></label>
             <label class="f-style">${t("ad.style")}<select name="style"></select></label>
+            <label class="f-tfx small"><input type="checkbox" name="tfx_color" ${v.color ? "checked" : ""}> ${t("ad.tfxColor")}</label>
             ${(() => { const hp = hatPlacement(v); const sl = (n, label, min, max, val, unit) => `<label class="f-hat">${t(label)} <b data-val="${n}">${val}${unit}</b><input type="range" name="${n}" min="${min}" max="${max}" step="1" value="${val}"></label>`;
               return sl("hsize", "ad.hatSize", 30, 200, hp.size, "%") + sl("hx", "ad.hatX", -100, 100, hp.x, "") + sl("hy", "ad.hatY", -120, 100, hp.y, "") + sl("hrot", "ad.hatRot", -180, 180, hp.rotate, "°")
                 + `<button type="button" class="f-hat link small" data-hat-reset>${t("ad.hatReset")}</button>`; })()}
@@ -696,14 +697,15 @@ function editItem(item, items) {
 
   function styleOptions() {
     const type = typeOf();
-    const opts = type === "frame" ? FRAME_STYLES : ["solid", "glow", "rainbow"];
-    const cur = form.style.value || v.style || "solid";
+    const opts = type === "frame" ? FRAME_STYLES : type === "tabfx" ? TABFX : ["solid", "glow", "rainbow"];
+    const cur = form.style.value || v.style || v.fx || opts[0];
     form.style.innerHTML = opts.map((o) => `<option value="${o}" ${o === cur ? "selected" : ""}>${t(`ad.style.${o}`)}</option>`).join("");
   }
   function visual() {
     const type = typeOf();
     if (type === "frame" && form.image.value.trim()) return { image: form.image.value.trim() };
     if (type === "frame" || type === "color") return { color: form.color.value, style: form.style.value };
+    if (type === "tabfx") return { fx: form.style.value, color: form.tfx_color.checked ? form.color.value : undefined };
     if (type === "banner" || type === "wallpaper") return { color: form.color.value, color2: form.color2.value, pattern: form.pattern.value,
       tile: form.tile.checked || undefined, tile_size: Number(form.tile_size.value), pixel: form.pixel.checked || undefined,
       image: form.image.value.trim() || undefined, animate: form.animate.checked || undefined };
@@ -778,6 +780,13 @@ function editItem(item, items) {
       show(".f-emoji", false); show(".f-image", false); show(".f-style", false); show(".f-pattern", false);
       show(".f-color", !["none", "rainbow"].includes(fx)); show(".f-color2", ["gradient", "graffiti", "3d"].includes(fx));
       show(".f-animate", ["gradient", "rainbow", "graffiti"].includes(fx));
+    }
+    const tfx = type === "tabfx";
+    show(".f-tfx", tfx);
+    if (tfx) {
+      ["emoji", "image", "text", "halo", "color2", "pattern", "animate", "slot", "art", "font", "effect", "theme"].forEach((f) => form.querySelectorAll(`.f-${f}`).forEach((x) => x.classList.add("hidden")));
+      form.querySelectorAll(".f-hat, .f-tile").forEach((x) => x.classList.add("hidden"));
+      show(".f-style", true); show(".f-color", form.tfx_color.checked);
     }
     form.querySelector(".look-hint").textContent = t(`ad.lookHint.${type}`);
     const preview = { type, name: form.name.value || "?", name_es: form.name_es.value, visual: visual() };

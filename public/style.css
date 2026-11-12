@@ -551,12 +551,12 @@ button.primary, .btn.primary { background: var(--accent); border-color: var(--ac
 
 /* top bar */
 .topbar { position: sticky; top: 0; z-index: 30; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); }
-.topbar .wrap { max-width: 1560px; height: var(--topbar); padding: 0 18px; }
+.topbar .wrap { max-width: none; height: var(--topbar); padding: 0 18px; }
 .brand { color: var(--accent); font-size: 1.2rem; }
 @media (min-width: 1100px) { .topbar nav { visibility: hidden; } }
 
 /* shell */
-.shell { display: grid; grid-template-columns: 228px minmax(0, 1fr); max-width: 1560px; margin: 0 auto; }
+.shell { display: grid; grid-template-columns: 228px minmax(0, 1fr); max-width: none; margin: 0; }
 .rail { position: sticky; top: var(--topbar); height: calc(100vh - var(--topbar)); overflow-y: auto; padding: 16px 12px 20px;
   border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px; }
 .rail-nav, .rail-games { display: grid; gap: 2px; }
@@ -579,7 +579,7 @@ button.primary, .btn.primary { background: var(--accent); border-color: var(--ac
 .rm-foot { display: flex; justify-content: space-between; gap: 8px; font-size: .74rem; color: var(--muted); }
 .rm-coins { color: var(--warn); font-weight: 600; white-space: nowrap; }
 
-main.page { max-width: none; margin: 0; padding: 18px 24px 0; min-width: 0; }
+main.page { max-width: 1440px; width: 100%; margin: 0 auto; padding: 18px 24px 0; min-width: 0; box-sizing: border-box; }
 main.page > section, .col-main > section, .col-side > section { padding: 0 0 18px; }
 main.page footer { padding: 24px 0; }
 .section-head { margin-bottom: 10px; }
@@ -1768,3 +1768,57 @@ code.copy { user-select: all; word-break: break-all; display: inline-block; back
 @media (max-width: 860px) { .home-cols { grid-template-columns: minmax(0, 1fr); } }
 .cz-wall { z-index: 0; } .cz-card { z-index: 1; }
 @media (max-width: 600px) { .pf-tabs { margin: 12px 0 0; } .home-pane[data-pane] > section:first-child { margin-top: 6px; } }
+
+/* ---- Tab hover effects ---- everyone gets a soft hover; the store's "tabfx" items (html[data-tabfx]) add an animation */
+.home-tabs button, .play-tabs a, .tabs button, .cz-tabs button, .rail-nav a, .rail-games a, .quest-tabs button, .topbar nav a, .tfx-tab { transition: transform .15s ease, box-shadow .15s ease, color .15s, background-color .15s, border-color .15s, text-shadow .15s; }
+@media (hover: hover) {
+  .home-tabs button:hover:not(.on), .play-tabs a:hover:not(.active) { color: var(--text); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  .play-tabs a:hover { border-color: color-mix(in srgb, var(--accent) 60%, var(--border)); }
+}
+:root { --tfxc: var(--tabfx, var(--accent)); }
+.tabfx-preview { display: inline-flex; gap: 4px; padding: 10px 6px 6px; }
+.tfx-tab { position: relative; border: 2px solid var(--border); background: var(--panel-2); padding: 3px 8px; font-size: 12px; font-weight: 700; color: var(--muted); }
+html[data-tabfx="underline"] .home-tabs button, html[data-tabfx="underline"] .play-tabs a, html[data-tabfx="underline"] .tabs button, html[data-tabfx="underline"] .cz-tabs button, html[data-tabfx="underline"] .rail-nav a, html[data-tabfx="underline"] .rail-games a, html[data-tabfx="underline"] .quest-tabs button, html[data-tabfx="underline"] .topbar nav a, .tfx-tab { position: relative; }
+@media (hover: hover) {
+html[data-tabfx="lift"] .home-tabs button:hover, html[data-tabfx="lift"] .play-tabs a:hover, html[data-tabfx="lift"] .tabs button:hover, html[data-tabfx="lift"] .cz-tabs button:hover, html[data-tabfx="lift"] .rail-nav a:hover, html[data-tabfx="lift"] .rail-games a:hover, html[data-tabfx="lift"] .quest-tabs button:hover, html[data-tabfx="lift"] .topbar nav a:hover,
+.tabfx-preview[data-tabfx="lift"] .tfx-tab:hover, .tabfx-preview[data-tabfx="lift"] .tfx-tab.demo { transform: translateY(-3px); box-shadow: 0 4px 0 color-mix(in srgb, var(--tfxc) 70%, transparent); color: var(--tfxc); }
+html[data-tabfx="underline"] .home-tabs button:not(.has-new):hover::after, html[data-tabfx="underline"] .play-tabs a:hover::after, html[data-tabfx="underline"] .tabs button:hover::after, html[data-tabfx="underline"] .cz-tabs button:hover::after, html[data-tabfx="underline"] .rail-nav a:hover::after, html[data-tabfx="underline"] .rail-games a:hover::after, html[data-tabfx="underline"] .quest-tabs button:hover::after, html[data-tabfx="underline"] .topbar nav a:hover::after,
+.tabfx-preview[data-tabfx="underline"] .tfx-tab:hover::after, .tabfx-preview[data-tabfx="underline"] .tfx-tab.demo::after { transform: scaleX(1); }
+html[data-tabfx="glow"] .home-tabs button:hover, html[data-tabfx="glow"] .play-tabs a:hover, html[data-tabfx="glow"] .tabs button:hover, html[data-tabfx="glow"] .cz-tabs button:hover, html[data-tabfx="glow"] .rail-nav a:hover, html[data-tabfx="glow"] .rail-games a:hover, html[data-tabfx="glow"] .quest-tabs button:hover, html[data-tabfx="glow"] .topbar nav a:hover,
+.tabfx-preview[data-tabfx="glow"] .tfx-tab:hover, .tabfx-preview[data-tabfx="glow"] .tfx-tab.demo { color: var(--tfxc); border-color: var(--tfxc); box-shadow: 0 0 12px color-mix(in srgb, var(--tfxc) 65%, transparent); text-shadow: 0 0 8px color-mix(in srgb, var(--tfxc) 70%, transparent); }
+html[data-tabfx="bounce"] .home-tabs button:hover, html[data-tabfx="bounce"] .play-tabs a:hover, html[data-tabfx="bounce"] .tabs button:hover, html[data-tabfx="bounce"] .cz-tabs button:hover, html[data-tabfx="bounce"] .rail-nav a:hover, html[data-tabfx="bounce"] .rail-games a:hover, html[data-tabfx="bounce"] .quest-tabs button:hover, html[data-tabfx="bounce"] .topbar nav a:hover,
+.tabfx-preview[data-tabfx="bounce"] .tfx-tab:hover, .tabfx-preview[data-tabfx="bounce"] .tfx-tab.demo { color: var(--tfxc); animation: tfx-bounce .5s ease; }
+html[data-tabfx="shake"] .home-tabs button:hover, html[data-tabfx="shake"] .play-tabs a:hover, html[data-tabfx="shake"] .tabs button:hover, html[data-tabfx="shake"] .cz-tabs button:hover, html[data-tabfx="shake"] .rail-nav a:hover, html[data-tabfx="shake"] .rail-games a:hover, html[data-tabfx="shake"] .quest-tabs button:hover, html[data-tabfx="shake"] .topbar nav a:hover,
+.tabfx-preview[data-tabfx="shake"] .tfx-tab:hover, .tabfx-preview[data-tabfx="shake"] .tfx-tab.demo { color: var(--tfxc); animation: tfx-shake .4s ease; }
+html[data-tabfx="pixel"] .home-tabs button:hover, html[data-tabfx="pixel"] .play-tabs a:hover, html[data-tabfx="pixel"] .tabs button:hover, html[data-tabfx="pixel"] .cz-tabs button:hover, html[data-tabfx="pixel"] .rail-nav a:hover, html[data-tabfx="pixel"] .rail-games a:hover, html[data-tabfx="pixel"] .quest-tabs button:hover, html[data-tabfx="pixel"] .topbar nav a:hover,
+.tabfx-preview[data-tabfx="pixel"] .tfx-tab:hover, .tabfx-preview[data-tabfx="pixel"] .tfx-tab.demo { transform: translate(-3px, -3px); box-shadow: 3px 3px 0 var(--tfxc); color: var(--tfxc); transition-timing-function: steps(2); }
+html[data-tabfx="neon"] .home-tabs button:hover, html[data-tabfx="neon"] .play-tabs a:hover, html[data-tabfx="neon"] .tabs button:hover, html[data-tabfx="neon"] .cz-tabs button:hover, html[data-tabfx="neon"] .rail-nav a:hover, html[data-tabfx="neon"] .rail-games a:hover, html[data-tabfx="neon"] .quest-tabs button:hover, html[data-tabfx="neon"] .topbar nav a:hover,
+.tabfx-preview[data-tabfx="neon"] .tfx-tab:hover, .tabfx-preview[data-tabfx="neon"] .tfx-tab.demo { color: var(--tfxc); text-shadow: 0 0 4px var(--tfxc), 0 0 12px var(--tfxc); animation: tfx-neon 1.4s linear infinite; }
+html[data-tabfx="rainbow"] .home-tabs button:hover, html[data-tabfx="rainbow"] .play-tabs a:hover, html[data-tabfx="rainbow"] .tabs button:hover, html[data-tabfx="rainbow"] .cz-tabs button:hover, html[data-tabfx="rainbow"] .rail-nav a:hover, html[data-tabfx="rainbow"] .rail-games a:hover, html[data-tabfx="rainbow"] .quest-tabs button:hover, html[data-tabfx="rainbow"] .topbar nav a:hover,
+.tabfx-preview[data-tabfx="rainbow"] .tfx-tab:hover, .tabfx-preview[data-tabfx="rainbow"] .tfx-tab.demo { background-image: linear-gradient(90deg, #ff5f6d, #ffc371, #f9f871, #47e891, #4cc9f0, #9d6bff, #ff5f6d); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; animation: tfx-rainbow 1.5s linear infinite; border-color: #9d6bff; }
+}
+html[data-tabfx="rainbow"] .home-tabs button:hover .ri, html[data-tabfx="rainbow"] .play-tabs a:hover .ri, html[data-tabfx="rainbow"] .tabs button:hover .ri, html[data-tabfx="rainbow"] .cz-tabs button:hover .ri, html[data-tabfx="rainbow"] .rail-nav a:hover .ri, html[data-tabfx="rainbow"] .rail-games a:hover .ri, html[data-tabfx="rainbow"] .quest-tabs button:hover .ri, html[data-tabfx="rainbow"] .topbar nav a:hover .ri,
+.tabfx-preview[data-tabfx="rainbow"] .tfx-tab:hover .ri, .tabfx-preview[data-tabfx="rainbow"] .tfx-tab.demo .ri { -webkit-text-fill-color: initial; }
+html[data-tabfx="underline"] .home-tabs button:not(.has-new)::after, html[data-tabfx="underline"] .play-tabs a::after, html[data-tabfx="underline"] .tabs button::after, html[data-tabfx="underline"] .cz-tabs button::after, html[data-tabfx="underline"] .rail-nav a::after, html[data-tabfx="underline"] .rail-games a::after, html[data-tabfx="underline"] .quest-tabs button::after, html[data-tabfx="underline"] .topbar nav a::after, .tabfx-preview[data-tabfx="underline"] .tfx-tab::after {
+  content: ""; position: absolute; left: 10%; right: 10%; bottom: 2px; height: 2px; background: var(--tfxc); transform: scaleX(0); transition: transform .2s ease; pointer-events: none; }
+.tabfx-preview .tfx-tab.demo { animation-iteration-count: infinite; animation-delay: .6s; }
+@keyframes tfx-bounce { 0%, 100% { transform: translateY(0); } 35% { transform: translateY(-6px); } 65% { transform: translateY(1px); } 85% { transform: translateY(-2px); } }
+@keyframes tfx-shake { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } 75% { transform: rotate(-2deg); } }
+@keyframes tfx-neon { 0%, 18%, 22%, 62%, 66%, 100% { opacity: 1; } 20%, 64% { opacity: .55; } }
+@keyframes tfx-rainbow { to { background-position: 200% 0; } }
+@media (prefers-reduced-motion: reduce) { html[data-tabfx] * { animation: none !important; } }
+
+/* daily question: edit / delete your answer */
+.qd-body { flex: 1; min-width: 0; }
+.qd-tools { float: right; display: inline-flex; gap: 6px; opacity: .45; transition: opacity .15s; }
+.qd-a:hover .qd-tools, .qd-tools:focus-within { opacity: 1; }
+@media (hover: none) { .qd-tools { opacity: .8; } }
+.qd-edit { margin-top: 4px; } .qd-edit input { flex: 1; min-width: 0; }
+
+/* ruleta: add / remove castigos */
+.dr-add { padding: 10px 14px; margin: 0 0 14px; }
+.dr-add summary { cursor: pointer; font-weight: 600; }
+.dr-addf { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(120px, auto) minmax(200px, 2fr) auto; gap: 10px; align-items: end; margin-top: 10px; }
+.dr-addf label { display: grid; gap: 4px; font-size: .85rem; }
+@media (max-width: 700px) { .dr-addf { grid-template-columns: 1fr 1fr; } .dr-addf .dr-addtext { grid-column: 1 / -1; } .dr-addf button { grid-column: 1 / -1; } }
+.dr-del { margin-left: 4px; color: var(--bad) !important; }

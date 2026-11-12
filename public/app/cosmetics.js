@@ -168,6 +168,7 @@ export function itemPreview(item, user, size = 56) {
   if (item.type === "textstyle") { const a = textAttrs(null, item); return `<span class="text-preview"><span class="body${a.cls}" style="${a.style}">${esc(t("st.textSample"))}</span></span>`; }
   if (item.type === "banner") return `<span class="banner-preview has-art ${item.visual?.animate ? "art-anim" : ""}" style="${bgStyle(item)}">${avatarHTML({ ...base, eq_frame: null, eq_hat: null }, 30, { frame: null, hat: null })}<b>${esc(base.username || "")}</b></span>`;
   if (item.type === "theme") return themePreviewHTML(item);
+  if (item.type === "tabfx") return tabFxPreviewHTML(item);
   if (item.type === "part") { // a sample avatar wearing this part on top of the starter look
     const parts = { shape: "part_shape_round", eyes: "part_eyes_dots", mouth: "part_mouth_smile", [item.visual?.slot || "shape"]: item };
     return `<span class="av" style="--av:${size}px">${buildSVG({ parts })}</span>`;
@@ -225,3 +226,19 @@ export const fromAuthor = (p) => ({
   username: p.author, avatar: p.author_avatar, xp: p.author_xp,
   eq_frame: p.author_frame, eq_hat: p.author_hat, hat_fit: p.author_hat_fit, avatar_build: p.author_avatar_build, acc_extra: p.author_acc_extra, eq_color: p.author_color, eq_font: p.author_font,
 });
+
+// Tab hover effects (store type "tabfx"): how tabs and menu links react when you hover them, for whoever equips it.
+// visual = { fx, color? } → <html data-tabfx="fx" style="--tabfx: color">. CSS lives in style.css under "Tab hover effects".
+// Keep in sync with TABFX in lib/catalog.js.
+export const TABFX = ["lift", "underline", "glow", "bounce", "shake", "pixel", "neon", "rainbow"];
+export function applyTabFx(item) {
+  const root = document.documentElement, v = item?.visual;
+  if (v && TABFX.includes(v.fx)) root.dataset.tabfx = v.fx; else delete root.dataset.tabfx;
+  if (v?.color && /^#[0-9a-f]{6}$/i.test(v.color)) root.style.setProperty("--tabfx", v.color); else root.style.removeProperty("--tabfx");
+}
+// Little row of fake tabs; the middle one plays the effect on loop (and all of them on hover).
+export function tabFxPreviewHTML(item) {
+  const v = item?.visual || {};
+  const style = v.color && /^#[0-9a-f]{6}$/i.test(v.color) ? ` style="--tabfx:${v.color}"` : "";
+  return `<span class="tabfx-preview" data-tabfx="${esc(TABFX.includes(v.fx) ? v.fx : "lift")}"${style}><span class="tfx-tab">Aa</span><span class="tfx-tab demo">Bb</span><span class="tfx-tab">Cc</span></span>`;
+}

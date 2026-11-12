@@ -4,19 +4,35 @@ const av = (u) => `<img class="soc-av" src="${esc(u.avatar || "")}" alt="" title
 
 export async function preguntaCard(el, compact = false) {
   const d = await api("/api/juntos/qotd");
+  const send = (body) => api("/api/juntos/qotd", { method: "POST", body });
+  const tools = (a) => a.id === d.me ? `<span class="qd-tools"><button class="link" data-qd="edit" title="${esc(t("qd.edit"))}">✏️</button><button class="link" data-qd="delete" title="${esc(t("qd.delete"))}">🗑</button></span>`
+    : d.staff ? `<span class="qd-tools"><button class="link" data-qd="mod" data-uid="${a.id}" title="${esc(t("qd.delete"))}">🗑</button></span>` : "";
   el.innerHTML = `
     <div class="card qd">
       <div class="small muted">💭 ${t("qd.title")}</div>
       <h2 class="qd-q">${esc(d.question)}</h2>
-      ${d.answered ? `<div class="qd-list">${d.answers.slice(0, compact ? 4 : 99).map((a) => `<div class="qd-a">${av(a)} <div><b>${esc(a.username)}</b><div>${esc(a.answer)}</div></div></div>`).join("")}
+      ${d.answered ? `<div class="qd-list">${d.answers.slice(0, compact ? 4 : 99).map((a) => `<div class="qd-a${a.id === d.me ? " mine" : ""}">${av(a)} <div class="qd-body"><b>${esc(a.username)}</b>${tools(a)}<div class="qd-text">${esc(a.answer)}</div></div></div>`).join("")}
           ${compact && d.answers.length > 4 ? `<a class="small" href="/juntos#pregunta">${t("qd.more", { n: d.answers.length - 4 })}</a>` : ""}</div>`
         : `<form class="lfg-row" id="qd-form"><input name="a" maxlength="500" required placeholder="${esc(t("qd.ph"))}"><button class="primary">${t("qd.send")}</button></form>
            <div class="hint">${t("qd.hidden", { n: d.count })}</div>`}
     </div>`;
   el.querySelector("#qd-form")?.addEventListener("submit", async (e) => {
     e.preventDefault();
-    try { await api("/api/juntos/qotd", { method: "POST", body: { answer: e.target.a.value } }); toast(t("qd.thanks")); preguntaCard(el, compact); } catch (x) { toast(x.message, true); }
+    try { await send({ answer: e.target.a.value }); toast(t("qd.thanks")); preguntaCard(el, compact); } catch (x) { toast(x.message, true); }
   });
+  el.querySelectorAll("[data-qd]").forEach((b) => (b.onclick = async () => {
+    const act = b.dataset.qd;
+    if (act === "edit") { // swap the text for an inline editor
+      const box = b.closest(".qd-body").querySelector(".qd-text");
+      box.innerHTML = `<form class="lfg-row qd-edit"><input name="a" maxlength="500" required value="${esc(d.mine || "")}"><button class="primary small-btn">${t("qd.save")}</button><button type="button" class="small-btn" data-cancel>${t("qd.cancel")}</button></form>`;
+      const f = box.querySelector("form"); f.a.focus(); f.a.select();
+      f.querySelector("[data-cancel]").onclick = () => preguntaCard(el, compact);
+      f.onsubmit = async (e) => { e.preventDefault(); try { await send({ action: "edit", answer: f.a.value }); preguntaCard(el, compact); } catch (x) { toast(x.message, true); } };
+      return;
+    }
+    if (!confirm(t(act === "mod" ? "qd.modQ" : "qd.deleteQ"))) return;
+    try { await send({ action: "delete", ...(act === "mod" ? { user_id: +b.dataset.uid, day: d.day } : {}) }); preguntaCard(el, compact); } catch (x) { toast(x.message, true); }
+  }));
 }
 
 // "Un día como hoy": posts, nights, tournaments, quotes from 1 week / 1 month / N years ago. Removes itself when empty.

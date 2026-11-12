@@ -1,6 +1,6 @@
 // 📻 Radio: one shared station playing songs from the YouTube playlists of whoever is tuned in, taking turns.
 // Everyone's player follows the server's clock, so you all hear the same song at the same moment.
-import { ask, api, esc, t, initPage, toast } from "./common.js";
+import { ask, notice, api, esc, t, initPage, toast } from "./common.js";
 
 const user = await initPage();
 const main = document.getElementById("main");
@@ -162,7 +162,7 @@ function readPlaylist(listId) {
     const finish = (v) => { if (done) return; done = true; try { imp.destroy(); } catch { /* */ } box.innerHTML = ""; v instanceof Error ? reject(v) : resolve(v); };
     const imp = new YT.Player("rd-imp", { width: 200, height: 200, playerVars: { listType: "playlist", list: listId, autoplay: 0 },
       events: {
-        onReady: () => { const tryRead = (n) => { const ids = imp.getPlaylist?.(); if (ids?.length) finish(ids); else if (n > 0) setTimeout(() => tryRead(n - 1), 500); else finish(new Error(t("rd.cantRead"))); }; tryRead(16); },
+        onReady: () => { try { imp.cuePlaylist({ listType: "playlist", list: listId }); } catch { /* */ } const tryRead = (n) => { const ids = imp.getPlaylist?.(); if (ids?.length) finish(ids); else if (n > 0) setTimeout(() => tryRead(n - 1), 500); else finish(new Error(t("rd.cantRead"))); }; tryRead(16); },
         onError: () => finish(new Error(t("rd.cantRead"))),
       } });
     setTimeout(() => finish(new Error(t("rd.cantRead"))), 12000);
@@ -172,10 +172,17 @@ async function addList(url) {
   const id = (() => { try { return new URL(url).searchParams.get("list"); } catch { return null; } })();
   if (!id) return toast(t("rd.badLink"), true);
   toast(t("rd.reading"));
+  const send = (body) => fetch("/api/radio", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "add_list", url, ...body }) })
+    .then(async (r) => ({ ok: r.ok, status: r.status, data: await r.json().catch(() => ({})) }));
   try {
-    const vids = await readPlaylist(id);
-    const r = await api("/api/radio", { method: "POST", body: { action: "add_list", url, vids } });
-    toast(t("rd.added", { n: r.tracks }));
+    let r = await send({}); // the server reads the playlist itself
+    if (!r.ok && r.status === 422 && r.data.fallback) { // it couldn't — let YouTube's player in this browser try
+      const vids = await readPlaylist(id).catch(() => null);
+      if (vids?.length) r = await send({ vids });
+      else r = { ok: false, data: { error: t("rd.cantRead") } };
+    }
+    if (!r.ok) return notice(r.data.error || t("rd.cantRead"), { icon: "🎵" });
+    toast(t("rd.added", { n: r.data.tracks }));
     poll();
   } catch (x) { toast(x.message, true); }
 }

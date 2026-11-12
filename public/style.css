@@ -2095,7 +2095,7 @@ button.danger-fill { background: var(--bad); border-color: var(--bad); color: #f
 .rd-hist { display: grid; gap: 5px; } .rd-h { display: flex; gap: 6px; align-items: center; } .rd-h span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rd-mine { margin-top: 14px; display: grid; gap: 8px; }
 .rd-lists { display: grid; gap: 4px; } .rd-list { display: flex; gap: 8px; align-items: center; }
-.rd-import { position: fixed; left: -9999px; top: 0; } /* the importer player works off-screen for a few seconds */
+.rd-import { position: fixed; right: 4px; bottom: 4px; width: 200px; height: 200px; opacity: .01; pointer-events: none; z-index: -1; } /* the importer player, nearly invisible for a few seconds */
 @media (max-width: 800px) { .rd-grid { grid-template-columns: 1fr; } }
 /* pop-out window: just the radio */
 body.popup .topbar, body.popup .rail, body.popup footer, body.popup .m-tabs, body.popup .app-banner { display: none !important; }

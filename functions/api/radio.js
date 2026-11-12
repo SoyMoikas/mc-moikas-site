@@ -1,6 +1,6 @@
 import { need, hasRole } from "../../lib/auth.js";
 import { json, body, now, err } from "../../lib/util.js";
-import { tick, listeners, advance, report, voteSkip, listIdOf, loadState, addRequest, removeItem, vidOf, oembed } from "../../lib/radio.js";
+import { tick, listeners, advance, report, voteSkip, listIdOf, loadState, addRequest, removeItem, vidOf, oembed, readPlaylistServer, listProblem } from "../../lib/radio.js";
 
 // GET /api/radio?tune=1 → the station (and, with tune=1, counts you as listening). Also moves the station along.
 export async function onRequestGet({ env, request }) {
@@ -52,22 +52,30 @@ export async function onRequestPost({ env, request }) {
   const okVid = /^[\w-]{11}$/.test(vid);
   const t = now();
 
-  if (b.action === "add_list") { // one playlist (re-adding refreshes it); the video ids come from YouTube's player in your browser
+  if (b.action === "add_list") { // one playlist (re-adding refreshes it). The server reads it; if it can't, the browser sends the ids it read.
+    const raw = (() => { try { return new URL(String(b.url).trim()).searchParams.get("list") || ""; } catch { return ""; } })();
+    const why = listProblem(raw);
+    if (why) return err(400, why);
     const id = listIdOf(b.url);
-    if (!id) return err(400, "That isn't a YouTube playlist link (it needs ?list=…)");
-    const vids = [...new Set((Array.isArray(b.vids) ? b.vids : []).filter((v) => /^[\w-]{11}$/.test(v)))].slice(0, 300);
-    if (!vids.length) return err(400, "That playlist looks empty or private");
-    const n = (await env.DB.prepare("SELECT COUNT(*) AS n FROM radio_playlists WHERE user_id = ? AND list_id != ?").bind(me.id, id).first()).n;
-    if (n >= 5) return err(429, "Max 5 playlists — remove one first");
+    if (!id) return err(400, "Ese link no es de una playlist (necesita ?list=…). En YouTube Music: abre la playlist → ⋮ → Compartir → Copiar link.");
+    let vids = [...new Set((Array.isArray(b.vids) ? b.vids : []).filter((v) => /^[\w-]{11}$/.test(v)))].slice(0, 300).map((vid) => ({ vid }));
     let title = null;
-    try { const r = await fetch(`https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(`https://www.youtube.com/playlist?list=${id}`)}`); if (r.ok) title = String((await r.json()).title || "").slice(0, 80) || null; } catch { /* no title */ }
+    if (!vids.length) {
+      const r = await readPlaylistServer(env, id);
+      if (r.vids) { vids = r.vids; title = r.title; }
+      else return json({ error: r.error || "No pude leer esa playlist desde el servidor", fallback: !r.error, private: !!r.private }, 422);
+    }
+    const n = (await env.DB.prepare("SELECT COUNT(*) AS n FROM radio_playlists WHERE user_id = ? AND list_id != ?").bind(me.id, id).first()).n;
+    if (n >= 5) return err(429, "Máximo 5 playlists — quita una primero");
+    if (!title) try { const r = await fetch(`https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(`https://www.youtube.com/playlist?list=${id}`)}`); if (r.ok) title = String((await r.json()).title || "").slice(0, 80) || null; } catch { /* no title */ }
     await env.DB.prepare(`INSERT INTO radio_playlists (user_id, list_id, url, title, tracks, updated_at) VALUES (?, ?, ?, ?, ?, ?)
       ON CONFLICT(user_id, list_id) DO UPDATE SET url = excluded.url, title = COALESCE(excluded.title, title), tracks = excluded.tracks, updated_at = excluded.updated_at`)
       .bind(me.id, id, String(b.url).slice(0, 300), title, vids.length, t).run();
     const old = new Set((await env.DB.prepare("SELECT vid FROM radio_tracks WHERE user_id = ? AND list_id = ?").bind(me.id, id).all()).results.map((r) => r.vid));
-    const keep = new Set(vids);
+    const keep = new Set(vids.map((v) => v.vid));
     const ops = [...[...old].filter((v) => !keep.has(v)).map((v) => env.DB.prepare("DELETE FROM radio_tracks WHERE user_id = ? AND vid = ?").bind(me.id, v)),
-      ...vids.filter((v) => !old.has(v)).map((v) => env.DB.prepare("INSERT OR IGNORE INTO radio_tracks (user_id, vid, list_id) VALUES (?, ?, ?)").bind(me.id, v, id))];
+      ...vids.filter((v) => !old.has(v.vid)).map((v) => env.DB.prepare("INSERT OR IGNORE INTO radio_tracks (user_id, vid, list_id, title, author) VALUES (?, ?, ?, ?, ?)").bind(me.id, v.vid, id, v.title || null, v.author || null)),
+      ...vids.filter((v) => old.has(v.vid) && v.title).map((v) => env.DB.prepare("UPDATE radio_tracks SET title = COALESCE(title, ?), author = COALESCE(author, ?) WHERE user_id = ? AND vid = ?").bind(v.title, v.author || null, me.id, v.vid))];
     for (let i = 0; i < ops.length; i += 90) await env.DB.batch(ops.slice(i, i + 90));
     return json({ ok: true, tracks: vids.length, title });
   }

@@ -1031,7 +1031,7 @@ tr.has-banner td + td { background: none; }
 .ae-move { margin-left: auto; }
 .ae-move.on { color: var(--accent); }
 .ae-adjust { padding: 6px 0 10px 80px; }
-@media (max-width: 760px) { .cz { grid-template-columns: 1fr; } .cz-preview { position: static; } .ae-adjust { padding-left: 0; } }
+@media (max-width: 760px) { .cz { grid-template-columns: 1fr; } .cz-preview { position: relative; top: auto; } .ae-adjust { padding-left: 0; } }
 .cz-banner.has-art { background: var(--bg-art); }
 .cz-banner.has-art.art-anim { background-size: 300% 300%; animation: art-drift 12s ease-in-out infinite alternate; }
 .ae-mode button.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--text, inherit); }
@@ -1763,3 +1763,8 @@ code.copy { user-select: all; word-break: break-all; display: inline-block; back
 @media (max-width: 600px) { .sp-row { grid-template-columns: 1fr auto; } .sp-row > span:last-child { grid-column: 1 / -1; } }
 .sp-settings { margin-top: 16px; } .sp-settings summary { cursor: pointer; }
 .sp-settings input[type=number] { max-width: 110px; }
+/* phones: never let a wide child (poster strip, week bar…) stretch the page sideways */
+.home-cols > *, .col-main, .col-side, .home-pane, .home-pane > * { min-width: 0; }
+@media (max-width: 860px) { .home-cols { grid-template-columns: minmax(0, 1fr); } }
+.cz-wall { z-index: 0; } .cz-card { z-index: 1; }
+@media (max-width: 600px) { .pf-tabs { margin: 12px 0 0; } .home-pane[data-pane] > section:first-child { margin-top: 6px; } }

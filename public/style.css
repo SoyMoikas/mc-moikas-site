@@ -2075,3 +2075,29 @@ button.danger-fill { background: var(--bad); border-color: var(--bad); color: #f
 .seg button.on { background: var(--accent); color: #10131c; }
 .jr-ready { margin: 8px 0; } .jr-pw { font-size: 1.15rem; padding: 3px 8px; background: var(--bg); border: 1px dashed var(--accent); user-select: all; }
 .jr-appr { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 6px 0; }
+
+/* ---- Radio ---- */
+.rd-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(240px, 1fr); gap: 14px; align-items: start; }
+.rd-now { margin: 0; display: grid; gap: 10px; }
+.rd-video { position: relative; aspect-ratio: 16 / 9; min-height: 200px; background: #000; border-radius: 8px; overflow: hidden; }
+.rd-video iframe, .rd-video #rd-player { position: absolute; inset: 0; width: 100%; height: 100%; }
+.rd-cover { position: absolute; inset: 0; display: grid; place-items: center; font-size: 4rem; background: radial-gradient(circle at 50% 40%, #2a2340, #0d0b14); }
+.rd-cover[hidden] { display: none; }
+.rd-title { font-size: 1.15rem; font-weight: 700; }
+.rd-now .soc-av { width: 20px; height: 20px; vertical-align: middle; }
+.rd-bar { height: 5px; background: var(--panel-2); border-radius: 3px; overflow: hidden; } .rd-bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 1s linear; }
+.rd-ctl { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.rd-ctl input[type=range] { width: 110px; }
+.rd-tune { font-size: 1.1rem; padding: 10px 26px; }
+.rd-side { display: grid; gap: 14px; } .rd-side .card { margin: 0; display: grid; gap: 8px; }
+.rd-people { display: flex; flex-wrap: wrap; gap: 8px; } .rd-p { display: inline-flex; gap: 5px; align-items: center; font-size: .9rem; } .rd-p.none { opacity: .55; }
+.rd-p .soc-av, .rd-h .soc-av { width: 22px; height: 22px; }
+.rd-hist { display: grid; gap: 5px; } .rd-h { display: flex; gap: 6px; align-items: center; } .rd-h span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rd-mine { margin-top: 14px; display: grid; gap: 8px; }
+.rd-lists { display: grid; gap: 4px; } .rd-list { display: flex; gap: 8px; align-items: center; }
+.rd-import { position: fixed; left: -9999px; top: 0; } /* the importer player works off-screen for a few seconds */
+@media (max-width: 800px) { .rd-grid { grid-template-columns: 1fr; } }
+/* pop-out window: just the radio */
+body.popup .topbar, body.popup .rail, body.popup footer, body.popup .m-tabs, body.popup .app-banner { display: none !important; }
+body.popup .shell { display: block; } body.popup main.page { padding: 10px 12px; max-width: none; }
+body.popup .rd-grid { grid-template-columns: 1fr; } body.popup .rd-intro { display: none; }

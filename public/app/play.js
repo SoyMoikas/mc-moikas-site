@@ -1,11 +1,12 @@
 // "Jugar": game nights (vote), games we all own (Steam), Apex stats, free games, and linking accounts.
 import { ask, notice, askText, api, esc, t, initPage, toast, ago, inputToMs, zonedNow, wallInput, msToInput } from "./common.js";
 import { mountCuando } from "./cuando.js";
+import { mountWheels } from "./wheels.js";
 
 const user = await initPage();
 const main = document.getElementById("main");
 const q = new URLSearchParams(location.search);
-const TABS = ["noches", "cuando", "adivina", "mayor", "ruleta", "frases", "comun", "gratis"];
+const TABS = ["noches", "cuando", "adivina", "mayor", "ruleta", "ruedas", "frases", "comun", "gratis"];
 if (location.hash === "#apuestas") location.replace("/casino#apuestas"); // bets moved to the Casino
 if (location.hash === "#apex") location.replace("/ranking#apex"); // Apex board moved to Ranking
 if (location.hash === "#cuentas") location.replace("/profile#ajustes"); // linked accounts moved to the profile settings
@@ -30,7 +31,7 @@ function frame() {
     </section>`;
   main.querySelectorAll("[data-tab]").forEach((a) => (a.onclick = (e) => { e.preventDefault(); tab = a.dataset.tab; history.replaceState(null, "", `/play#${tab}`); frame(); }));
   const body = main.querySelector("#play-body");
-  ({ noches: nights, cuando: (b) => mountCuando(b, user), adivina: guess, mayor: hilo, ruleta: dares, frases: quotes, comun: common, gratis: free })[tab](body).catch((x) => (body.innerHTML = `<p class="muted">${esc(x.message)}</p>`));
+  ({ noches: nights, cuando: (b) => mountCuando(b, user), adivina: guess, mayor: hilo, ruleta: dares, ruedas: (b) => mountWheels(b, user), frases: quotes, comun: common, gratis: free })[tab](body).catch((x) => (body.innerHTML = `<p class="muted">${esc(x.message)}</p>`));
 }
 
 /* ---------------- Game nights ---------------- */

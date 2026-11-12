@@ -1,7 +1,7 @@
 import { voidOrphans } from "../../../lib/markets.js";
 import { getUser, need, hasRole } from "../../../lib/auth.js";
 import { json, body, str, int, now, err } from "../../../lib/util.js";
-import { loadTournament, publicTournament, startBracket, setMatchWinner, finish, standings, announce, tourneyMarket } from "../../../lib/tournaments.js";
+import { loadTournament, publicTournament, startFormat, reportResult, earlyPodium, finish, standings, announce, tourneyMarket } from "../../../lib/tournaments.js";
 
 export async function onRequestGet({ env, request, params }) {
   const me = await getUser(env, request);
@@ -64,19 +64,20 @@ export async function onRequestPost({ env, request, params }) {
       if (tr.status !== "signup") return err(409, "Already started");
       if (tr.teams.length < 2) return err(409, "Needs at least 2 teams");
       await DB.prepare("UPDATE tournaments SET status = 'running' WHERE id = ?").bind(tr.id).run();
-      if (tr.format === "bracket") await startBracket(env, tr);
+      if (tr.format !== "points") await startFormat(env, tr);
       await tourneyMarket(env, tr);
       await announce(env, `▶️ **${tr.title}** empezó con ${tr.teams.length} ${tr.team_size === 1 ? "jugadores" : "equipos"}. ¡Suerte!`, tr.id);
     } else if (a === "report") {
-      if (tr.format !== "bracket" || tr.status !== "running") return err(409, "Not a running bracket");
+      if (tr.format === "points" || tr.status !== "running") return err(409, "Not a running match tournament");
       const m = tr.matches.find((x) => x.id === b.match_id);
-      if (!m || !m.team_a || !m.team_b) return err(409, "That match isn't ready");
-      const next = tr.matches.find((x) => x.round === m.round + 1 && x.slot === Math.floor(m.slot / 2));
-      if (next?.winner) return err(409, "The next match already has a result — undo that first");
+      if (!m || !(m.team_a > 0) || !(m.team_b > 0)) return err(409, "That match isn't ready");
       if (![m.team_a, m.team_b].includes(b.winner)) return err(400, "Pick one of the two teams");
       const sa = b.score_a === "" || b.score_a == null ? null : int(b.score_a, "score_a", { min: 0, max: 999 });
       const sb = b.score_b === "" || b.score_b == null ? null : int(b.score_b, "score_b", { min: 0, max: 999 });
-      await setMatchWinner(env, tr, m, b.winner, sa, sb);
+      if (sa != null && sb != null && (b.winner === m.team_a ? sa <= sb : sb <= sa)) return err(400, "The winner needs the higher score");
+      const e = await reportResult(env, tr, m, b.winner, sa, sb);
+      if (e === "locked" || e === "next_decided") return err(409, "That result can't change anymore — a later match already has a result");
+      if (e) return err(400, e);
     } else if (a === "add_game" || a === "undo_game") {
       if (tr.format !== "points" || tr.status !== "running") return err(409, "Not a running points tournament");
       if (a === "undo_game") {
@@ -89,10 +90,15 @@ export async function onRequestPost({ env, request, params }) {
           .bind(tr.id, gameNo, r.team_id, Math.min(99, r.placement), Math.max(0, Math.min(99, parseInt(r.kills) || 0)))));
       }
     } else if (a === "finish") {
-      if (tr.format !== "points" || tr.status !== "running") return err(409, "Only points tournaments are finished by hand");
-      const st = standings(tr);
-      if (!st.length || !st[0].games) return err(409, "No games entered yet");
-      await finish(env, tr, [st[0].team_id, st[1]?.team_id]);
+      if (tr.status !== "running") return err(409, "Not running");
+      if (tr.format === "points") {
+        const st = standings(tr);
+        if (!st.length || !st[0].games) return err(409, "No games entered yet");
+        await finish(env, tr, [st[0].team_id, st[1]?.team_id]);
+      } else if (["koth", "roundrobin", "swiss"].includes(tr.format)) {
+        if (!tr.matches.some((x) => x.winner > 0 && x.team_b > 0)) return err(409, "No results yet");
+        await finish(env, tr, earlyPodium(tr));
+      } else return err(409, "Brackets finish themselves when the final is played");
     } else return err(400, "Bad action");
   }
   return json({ tournament: publicTournament(await loadTournament(env, tr.id), me), staff });

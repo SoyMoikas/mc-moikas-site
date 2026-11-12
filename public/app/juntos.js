@@ -32,6 +32,18 @@ const reload = (el, fn) => () => fn(el).catch((x) => toast(x.message, true));
 
 /* ---------------- Cine (movie nights with Jellyfin SyncPlay) ---------------- */
 
+// status of your Jellyfin password reset (+ staff approvals)
+function resetBox(jf) {
+  const r = jf.reset;
+  let me = "";
+  if (r?.status === "ready") me = `<div class="card jr-ready">🔑 ${t("jr.yourTemp")} <code class="jr-pw">${esc(r.temp)}</code><div class="hint">${t("jr.onlyOnce")}</div></div>`;
+  else if (r && ["approval", "queued", "sent"].includes(r.status)) me = `<p class="hint">⏳ ${t(r.status === "approval" ? "jr.waitStaff" : "jr.coming")}</p>`;
+  else if (r?.status === "failed") me = `<p class="hint bad">⚠ ${esc(r.detail || "")}</p>`;
+  const staff = (jf.approvals || []).map((a) => `<div class="card jr-appr small">🔑 <b>${esc(a.username)}</b> ${t("jr.asks", { name: esc(a.jf_name) })}
+    <span style="flex:1"></span><button class="primary small-btn" data-jr="reset_ok" data-id="${a.id}">${t("jr.approve")}</button><button class="small-btn" data-jr="reset_no" data-id="${a.id}">${t("jr.reject")}</button></div>`).join("");
+  return me + staff;
+}
+
 async function cine(el) {
   const [{ nights }, jf, wl] = await Promise.all([api("/api/nights?kind=watch"), api("/api/juntos/jellyfin"), api("/api/juntos/watch")]);
   const focus = +q.get("night") || null;
@@ -59,7 +71,8 @@ async function cine(el) {
   el.innerHTML = `
     <div class="section-head"><p class="muted" style="margin:0">${t("cn.intro")}</p><button class="primary" id="cn-new">+ ${t("cn.new")}</button></div>
     ${!jf.name ? `<div class="card play-cta">🎞️ ${t("cn.haveJf")} <form id="jf-form" class="lfg-row"><input name="n" placeholder="${esc(t("cn.jfName"))}" required><button class="small-btn">${t("acc.save")}</button></form></div>`
-      : `<p class="small muted">🎞️ Jellyfin: <b>${esc(jf.name)}</b> <button class="link small" id="jf-change">${t("cn.change")}</button>${jf.url ? ` · <a href="${esc(jf.url)}" target="_blank" rel="noopener">${t("cn.open")} ↗</a>` : ""}</p>`}
+      : `<p class="small muted">🎞️ Jellyfin: <b>${esc(jf.name)}</b> <button class="link small" id="jf-change">${t("cn.change")}</button>${jf.url ? ` · <a href="${esc(jf.url)}" target="_blank" rel="noopener">${t("cn.open")} ↗</a>` : ""}
+          · <button class="link small" id="jf-forgot">🔑 ${t("jr.forgot")}</button></p>${resetBox(jf)}`}
     <div id="jf-invite"></div>
     <div id="jf-new"></div>
     <div id="cn-form"></div>
@@ -68,6 +81,14 @@ async function cine(el) {
   el.querySelector("#jf-form")?.addEventListener("submit", async (e) => { e.preventDefault(); try { await api("/api/juntos/jellyfin", { method: "POST", body: { name: e.target.n.value } }); toast("✓"); back(); } catch (x) { toast(x.message, true); } });
   jellyfinInvite(el.querySelector("#jf-invite"), jf, back);
   nuevoStrip(el.querySelector("#jf-new"));
+  el.querySelector("#jf-forgot")?.addEventListener("click", async () => {
+    if (!(await ask(t("jr.confirm", { name: jf.name }), { icon: "🔑", ok: t("jr.send") }))) return;
+    try { const r = await api("/api/juntos/jellyfin", { method: "POST", body: { action: "reset" } }); toast(t(r.status === "approval" ? "jr.waitStaff" : "jr.coming")); back(); }
+    catch (x) { toast(x.message, true); }
+  });
+  el.querySelectorAll("[data-jr]").forEach((b) => (b.onclick = async () => {
+    try { await api("/api/juntos/jellyfin", { method: "POST", body: { action: b.dataset.jr, id: +b.dataset.id } }); toast("✓"); back(); } catch (x) { toast(x.message, true); }
+  }));
   el.querySelector("#jf-change")?.addEventListener("click", async () => {
     const n = await askText(t("cn.jfName"), jf.name);
     if (n === null) return;

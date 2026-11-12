@@ -2073,3 +2073,5 @@ button.danger-fill { background: var(--bad); border-color: var(--bad); color: #f
 .seg { display: inline-flex; border: 2px solid var(--border); border-radius: 999px; padding: 3px; gap: 3px; margin-bottom: 14px; background: var(--panel); }
 .seg button { border: 0; border-radius: 999px; background: transparent; padding: 6px 16px; font-weight: 600; color: var(--muted); }
 .seg button.on { background: var(--accent); color: #10131c; }
+.jr-ready { margin: 8px 0; } .jr-pw { font-size: 1.15rem; padding: 3px 8px; background: var(--bg); border: 1px dashed var(--accent); user-select: all; }
+.jr-appr { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 6px 0; }

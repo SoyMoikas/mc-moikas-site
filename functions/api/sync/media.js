@@ -3,6 +3,7 @@ import { json, body, err, now } from "../../../lib/util.js";
 import { norm, settleArrivals } from "../../../lib/media.js";
 import { notify } from "../../../lib/notify.js";
 import { ingest, scan, deleteQueue, deleteResults } from "../../../lib/cleanup.js";
+import { resetQueue, resetResults } from "../../../lib/jfreset.js";
 
 // The NAS bot ↔ site: Jellyfin library + Seerr requests.
 // POST { library?: [{id, type, name, year, tmdb, added}], results?: [{id, status, detail, tmdb}], seerr: bool }
@@ -54,11 +55,16 @@ export async function onRequestPost({ env, request }) {
     del = await deleteQueue(env);
   } catch (e) { console.error("cleanup", e.message); }
 
+  // 3b) Jellyfin password resets: the bot's answers, then the next ones to do.
+  let jfResets = [];
+  try { if (Array.isArray(b.jf_resets_done)) await resetResults(env, b.jf_resets_done); jfResets = await resetQueue(env); }
+  catch (e) { console.error("jf reset", e.message); }
+
   // 4) What the bot should request next.
   const queue = (await env.DB.prepare(`SELECT r.id, w.title, w.year, w.kind, w.ext FROM media_requests r JOIN watch_items w ON w.id = r.item_id
     WHERE r.status = 'queued' ORDER BY r.created_at LIMIT 10`).all()).results.map((r) => {
     const m = /^tmdb:(movie|tv):(\d+)$/.exec(r.ext || "");
     return { id: r.id, title: r.title, year: +r.year || null, kind: r.kind === "movie" ? "movie" : "tv", tmdb: m ? +m[2] : null };
   });
-  return json({ ok: true, queue, arrived, fresh: fresh.length, delete: del, cleanup });
+  return json({ ok: true, queue, arrived, fresh: fresh.length, delete: del, cleanup, jf_resets: jfResets });
 }

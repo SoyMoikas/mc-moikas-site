@@ -1,6 +1,7 @@
 import { need, hasRole } from "../../../lib/auth.js";
 import { json, body, err, now } from "../../../lib/util.js";
 import { notify } from "../../../lib/notify.js";
+import { requestReset, decideReset, myReset, pendingApprovals } from "../../../lib/jfreset.js";
 
 // Jellyfin on the site: your user name (so movie nights know what you're watching) + invite links.
 // Staff paste Wizarr invite links; a member without an account claims one (single-use links go to one person each; "multi" links are shared).
@@ -17,7 +18,9 @@ export async function onRequestGet({ env, request }) {
     if (hasRole(me, "staff")) list = (await env.DB.prepare(`SELECT i.id, i.url, i.multi, i.created_at, i.claimed_at, u.username AS claimed_name
       FROM jellyfin_invites i LEFT JOIN users u ON u.id = i.claimed_by ORDER BY (i.claimed_by IS NULL OR i.multi = 1) DESC, i.created_at DESC LIMIT 60`).all()).results;
   } catch { /* before migration 033 */ }
-  return json({ name: r?.jellyfin_name || null, url: env.JELLYFIN_PUBLIC_URL || null, invite, available, staff: list });
+  let reset = null, approvals = null;
+  try { reset = await myReset(env, me.id); if (hasRole(me, "staff")) approvals = await pendingApprovals(env); } catch { /* before migration 042 */ }
+  return json({ name: r?.jellyfin_name || null, url: env.JELLYFIN_PUBLIC_URL || null, invite, available, staff: list, reset, approvals });
 }
 
 export async function onRequestPost({ env, request }) {
@@ -44,6 +47,15 @@ export async function onRequestPost({ env, request }) {
     return json({ invite: got.url });
   }
 
+  if (b.action === "reset") {
+    const r = await requestReset(env, me);
+    return r.error ? err(409, r.error) : json(r);
+  }
+  if (b.action === "reset_ok" || b.action === "reset_no") {
+    if (!hasRole(me, "staff")) return err(403, "Staff only");
+    return (await decideReset(env, me, +b.id || 0, b.action === "reset_ok")) ? json({ ok: true }) : err(404, "Already handled");
+  }
+
   if (b.action === "add" || b.action === "delete") {
     if (!hasRole(me, "staff")) return err(403, "Staff only");
     if (b.action === "delete") {
@@ -63,6 +75,8 @@ export async function onRequestPost({ env, request }) {
 
   const name = b.name ? String(b.name).trim().slice(0, 40) : null;
   if (name && !/^[\w .@-]+$/.test(name)) return err(400, "Just your Jellyfin user name");
-  await env.DB.prepare("UPDATE users SET jellyfin_name = ? WHERE id = ?").bind(name, me.id).run();
+  // a new name has to be approved again before it can be reset
+  await env.DB.prepare("UPDATE users SET jellyfin_name = ?, jellyfin_verified = CASE WHEN lower(COALESCE(jellyfin_name, '')) = lower(COALESCE(?, '')) THEN jellyfin_verified ELSE 0 END WHERE id = ?").bind(name, name, me.id).run().catch(() =>
+    env.DB.prepare("UPDATE users SET jellyfin_name = ? WHERE id = ?").bind(name, me.id).run());
   return json({ name });
 }

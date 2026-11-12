@@ -2,6 +2,7 @@
 import { ask, uploadImage } from "./common.js";
 import { api, esc, rich, can, t, ago, toast, roleLabel, loginHint, levelBadge, avatarHTML, nameHTML, SITE, gameLabel, bgStyle, bgAnimated, bgWall, textAttrs, onPulse } from "./common.js";
 import { catalogItem, itemName, textFx } from "./cosmetics.js";
+import { parseVideo, videoHTML, wireVideoFaces, uploadConfig, uploadVideo } from "./video.js";
 
 // Text styles + backgrounds you own, for the composer's 🎨 picker (fetched once per page).
 let ownedLooks = null;
@@ -29,6 +30,7 @@ function lookAttrs(style, bg) {
 
 // opts: { game: id (filter + preselect), userId: profile filter, composer: bool, modes: bool }
 export function mountFeed(el, user, opts = {}) {
+  if (!el.dataset.vfaces) { el.dataset.vfaces = "1"; wireVideoFaces(el); }
   el.classList.add("feed");
   if (!can(user, "member")) {
     el.innerHTML = `<div class="card feed-locked"><b>🔒 ${t("feed.private")}</b><p class="hint">${user ? t("sp.pendingNotice") : loginHint(user)}</p></div>`;
@@ -61,6 +63,14 @@ export function mountFeed(el, user, opts = {}) {
           <img alt="" src="${esc(p?.image || "")}"><span class="up-status small"></span>
           <button type="button" class="link small" data-img-remove>✕ ${t("feed.removeImage")}</button>
         </div>
+        <div class="composer-vid ${p?.video ? "" : "hidden"}">
+          <div class="cv-prev">${p?.video ? videoHTML(p.video) : ""}</div><span class="vup-status small"></span>
+          <button type="button" class="link small" data-vid-remove>✕ ${t("vid.remove")}</button>
+        </div>
+        <div class="composer-vlink hidden lfg-row"><input name="vlink" placeholder="${esc(t("vid.linkPh"))}"><button type="button" class="small-btn" data-vid-use>${t("vid.use")}</button>
+          <button type="button" class="small-btn hidden" data-vid-file>📁 ${t("vid.upload")}</button></div>
+        <input type="hidden" name="video" value="${esc(p?.video || "")}">
+        <input type="file" name="vidfile" accept="video/mp4,video/webm,video/quicktime" hidden>
         <div class="composer-extra hidden">
           <input name="image" placeholder="${esc(t("feed.imagePh"))}" value="${esc(p?.image || "")}">
         </div>
@@ -68,6 +78,7 @@ export function mountFeed(el, user, opts = {}) {
         <div class="actions">
           <button type="button" class="link" data-add-image title="${esc(t("feed.imageHelp"))}">🖼 ${t("feed.addImage")}</button>
           <button type="button" class="link small" data-img-link>🔗</button>
+          <button type="button" class="link" data-add-video>🎬 ${t("vid.add")}</button>
           <button type="button" class="link" data-look>🎨 ${t("feed.style")}<span class="look-dot hidden"></span></button>
           <select name="game_id" style="width:auto">
             <option value="">${t("feed.noGame")}</option>
@@ -102,6 +113,37 @@ export function mountFeed(el, user, opts = {}) {
     form.addEventListener("dragover", (e) => { if ([...e.dataTransfer.types].includes("Files")) { e.preventDefault(); form.classList.add("drop"); } });
     form.addEventListener("dragleave", () => form.classList.remove("drop"));
     form.addEventListener("drop", (e) => { const f = [...e.dataTransfer.files].find((x) => x.type.startsWith("image/")); if (f) { e.preventDefault(); form.classList.remove("drop"); addFile(f); } });
+    // Video: paste a link (YouTube, Twitch, Streamable, TikTok, Instagram) or upload a clip (when the site has storage for it).
+    const vidBox = form.querySelector(".composer-vid"), vStatus = vidBox.querySelector(".vup-status"), vLink = form.querySelector(".composer-vlink");
+    const showVid = (code) => { form.video.value = code || ""; vidBox.classList.toggle("hidden", !code); vidBox.querySelector(".cv-prev").innerHTML = code ? videoHTML(code) : ""; if (code) vLink.classList.add("hidden"); };
+    form.querySelector("[data-add-video]").onclick = async () => {
+      vLink.classList.toggle("hidden"); form.vlink.focus();
+      const c = await uploadConfig(api);
+      vLink.querySelector("[data-vid-file]").classList.toggle("hidden", !c.enabled);
+    };
+    const useLink = () => { const code = parseVideo(form.vlink.value); if (!code) return toast(t("vid.badLink"), true); showVid(code); form.vlink.value = ""; };
+    form.querySelector("[data-vid-use]").onclick = useLink;
+    form.vlink.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); useLink(); } });
+    form.querySelector("[data-vid-remove]").onclick = () => showVid("");
+    form.querySelector("[data-vid-file]").onclick = () => form.vidfile.click();
+    form.vidfile.onchange = async () => {
+      const file = form.vidfile.files[0]; form.vidfile.value = "";
+      if (!file) return;
+      const c = await uploadConfig(api);
+      if (file.size > (c.max || 0)) return toast(t("vid.tooBig", { n: Math.round((c.max || 0) / 1048576) }), true);
+      vidBox.classList.remove("hidden"); vLink.classList.add("hidden");
+      vidBox.querySelector(".cv-prev").innerHTML = `<div class="fvid up"><video src="${URL.createObjectURL(file)}" muted playsinline></video></div>`;
+      submitBtn.disabled = true;
+      try { showVid(await uploadVideo(file, (pct) => (vStatus.textContent = t("vid.uploading", { pct })))); vStatus.textContent = ""; }
+      catch (e) { toast(e.message, true); showVid(""); vStatus.textContent = ""; }
+      finally { submitBtn.disabled = false; }
+    };
+    // a pasted video link in the text becomes the post's video
+    form.body.addEventListener("paste", (e) => {
+      const txt = e.clipboardData?.getData("text") || "";
+      const code = !form.video.value && /^https?:\/\/\S+$/.test(txt.trim()) && parseVideo(txt.trim());
+      if (code) { e.preventDefault(); showVid(code); toast(t("vid.attached")); }
+    });
     // Per-post look: pick a text style and a background you own; preview updates as you type.
     const look = { style: start ? start.style : null, bg: start ? start.bg : null };
     const panel = form.querySelector(".composer-look"), preview = form.querySelector(".composer-preview");
@@ -150,7 +192,7 @@ export function mountFeed(el, user, opts = {}) {
     form.body.addEventListener("input", showPreview);
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const d = { body: form.body.value, image: form.image.value.trim() || null, game_id: form.game_id.value || null, style: look.style, bg: look.bg, club: opts.club || null };
+      const d = { body: form.body.value, image: form.image.value.trim() || null, video: form.video.value || null, game_id: form.game_id.value || null, style: look.style, bg: look.bg, club: opts.club || null };
       const btn = form.querySelector("button.primary"); btn.disabled = true;
       try {
         if (postId) await api(`/api/feed/${postId}`, { method: "PATCH", body: d });
@@ -182,6 +224,7 @@ export function mountFeed(el, user, opts = {}) {
         <div class="fpost-body">
           ${p.body ? `<div class="body${look.cls}" style="${look.style}">${rich(p.body)}</div>` : ""}
           ${p.image ? `<a href="${esc(p.image)}" target="_blank" rel="noopener"><img class="fpost-img" src="${esc(p.image)}" alt="" loading="lazy" referrerpolicy="no-referrer"></a>` : ""}
+          ${p.video ? videoHTML(p.video) : ""}
         </div>
         <div class="fpost-actions">
           <button class="like ${p.liked ? "on" : ""}" data-like><span class="emo">${esc(SITE.like_emoji)}</span> <span class="n">${p.likes || ""}</span></button>

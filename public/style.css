@@ -2111,3 +2111,14 @@ body.popup .rd-grid { grid-template-columns: 1fr; } body.popup .rd-intro { displ
 .rd-pl { display: grid; gap: 4px; max-height: 280px; overflow-y: auto; }
 .rd-pi { display: flex; gap: 6px; align-items: center; justify-content: space-between; } .rd-pi > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rd-pi[hidden] { display: none; }
+
+/* video posts */
+.fvid { position: relative; width: 100%; aspect-ratio: 16 / 9; margin-top: 8px; border-radius: 8px; overflow: hidden; background: #000; }
+.fvid.tall { aspect-ratio: 9 / 16; max-width: 340px; } .fvid.ig { aspect-ratio: auto; height: 640px; max-width: 400px; background: #fff; }
+.fvid iframe, .fvid video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.fvid.up { aspect-ratio: auto; max-height: 560px; } .fvid.up video { position: static; display: block; max-height: 560px; }
+.fvid-face { position: absolute; inset: 0; border: 0; padding: 0; background: #000 center / cover no-repeat; cursor: pointer; display: grid; place-items: center; }
+.fvid-face span { width: 66px; height: 46px; border-radius: 12px; background: rgba(230, 33, 23, .92); color: #fff; font-size: 1.3rem; display: grid; place-items: center; box-shadow: 0 4px 14px rgba(0,0,0,.5); transition: transform .12s; }
+.fvid-face:hover span { transform: scale(1.08); }
+.composer-vid { margin: 6px 0; } .composer-vid .fvid { max-width: 420px; } .composer-vid .fvid.tall { max-width: 200px; }
+.composer-vlink { margin: 6px 0; } .composer-vlink input { flex: 1; min-width: 0; }

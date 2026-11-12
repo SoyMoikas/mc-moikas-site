@@ -62,8 +62,8 @@ export async function onRequestPost({ request, env, waitUntil }) {
   if (recent.n >= 8) return err(429, "Slow down a little");
 
   const look = await postLook(env, viewer, b);
-  const res = await env.DB.prepare("INSERT INTO social_posts (user_id, body, image, game_id, style, bg, created_at, club) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-    .bind(viewer.id, f.body, f.image, f.game_id, look.style, look.bg, now(), f.club).run();
+  const res = await env.DB.prepare("INSERT INTO social_posts (user_id, body, image, video, game_id, style, bg, created_at, club) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+    .bind(viewer.id, f.body, f.image, f.video, f.game_id, look.style, look.bg, now(), f.club).run();
   waitUntil(awardActivity(env, viewer, "post"));
   return json({ id: res.meta.last_row_id }, 201);
 }

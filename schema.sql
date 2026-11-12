@@ -78,7 +78,7 @@ UPDATE quests SET coins = 200 WHERE title = 'Free the End' AND coins = 0;
 UPDATE quests SET coins = 30 WHERE title = 'Show off your base' AND coins = 0;
 CREATE TABLE IF NOT EXISTS games ( id TEXT PRIMARY KEY, name TEXT NOT NULL, name_es TEXT, description TEXT, description_es TEXT, icon TEXT, image TEXT, color TEXT, active INTEGER NOT NULL DEFAULT 1, sort_order INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL );
 INSERT OR IGNORE INTO games (id, name, name_es, description, description_es, icon, color, active, sort_order, created_at, updated_at) VALUES ('minecraft', 'Minecraft', 'Minecraft', 'Modded survival servers.', 'Servidores de supervivencia con mods.', '⛏️', '#6fcf5a', 1, 0, strftime('%s','now')*1000, strftime('%s','now')*1000);
-CREATE TABLE IF NOT EXISTS social_posts ( id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, body TEXT, image TEXT, game_id TEXT, created_at INTEGER NOT NULL, edited_at INTEGER, deleted INTEGER NOT NULL DEFAULT 0, style TEXT, bg TEXT, club TEXT );
+CREATE TABLE IF NOT EXISTS social_posts ( id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, body TEXT, image TEXT, game_id TEXT, created_at INTEGER NOT NULL, edited_at INTEGER, deleted INTEGER NOT NULL DEFAULT 0, style TEXT, bg TEXT, club TEXT, video TEXT );
 CREATE INDEX IF NOT EXISTS idx_social_posts_time ON social_posts(deleted, id);
 CREATE INDEX IF NOT EXISTS idx_social_posts_user ON social_posts(user_id, id);
 CREATE INDEX IF NOT EXISTS idx_social_posts_game ON social_posts(game_id, id);
@@ -290,3 +290,4 @@ CREATE TABLE IF NOT EXISTS jf_resets ( id INTEGER PRIMARY KEY AUTOINCREMENT, use
 CREATE TABLE IF NOT EXISTS radio_playlists ( user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, list_id TEXT NOT NULL, url TEXT NOT NULL, title TEXT, tracks INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL, PRIMARY KEY (user_id, list_id) );
 CREATE TABLE IF NOT EXISTS radio_tracks ( user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, vid TEXT NOT NULL, list_id TEXT, title TEXT, author TEXT, dur INTEGER, bad INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, vid) );
 CREATE TABLE IF NOT EXISTS radio_listeners ( user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, seen_at INTEGER NOT NULL );
+CREATE TABLE IF NOT EXISTS videos ( id TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, r2_key TEXT NOT NULL, type TEXT NOT NULL, size INTEGER NOT NULL, created_at INTEGER NOT NULL );

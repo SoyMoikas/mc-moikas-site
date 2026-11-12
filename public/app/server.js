@@ -2,7 +2,7 @@ import { mountChat } from "./chat.js";
 import { mountModeration } from "./moderation.js";
 import { mountOcaso } from "./ocaso.js";
 import { renderMarkdown } from "./markdown.js";
-import {
+import { ask,
   api, esc, rich, can, perm, t, initPage, SITE, gameLabel, statusBadge, renderPost, postForm, bindPostActions,
   onSubmit, toast, toISO, ago, fmtDate, loginHint, roleLabel, taskLabel, localized, levelBadge, avatarHTML, nameHTML, livePosts,
 } from "./common.js";
@@ -195,7 +195,7 @@ async function loadTask(el) {
   });
 
   inner.querySelectorAll("[data-delete-comment]").forEach((b) => b.onclick = async () => {
-    if (!confirm(t("sp.confirmDeleteComment"))) return;
+    if (!await ask(t("sp.confirmDeleteComment"), { danger: true })) return;
     try { await api(`/api/comments/${b.dataset.deleteComment}`, { method: "DELETE" }); await refreshKeepingOpen(); }
     catch (e) { toast(e.message, true); }
   });
@@ -206,7 +206,7 @@ async function loadTask(el) {
       catch (err) { toast(err.message, true); }
     };
     inner.querySelector("[data-delete-task]").onclick = async () => {
-      if (!confirm(t("sp.confirmDeleteTask", { title: task.title }))) return;
+      if (!await ask(t("sp.confirmDeleteTask", { title: task.title }), { danger: true })) return;
       try { await api(`/api/tasks/${task.id}`, { method: "DELETE" }); openTasks.delete(String(task.id)); toast(t("sp.taskDeleted")); await load(); }
       catch (e) { toast(e.message, true); }
     };

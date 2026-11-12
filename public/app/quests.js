@@ -1,4 +1,4 @@
-import { api, esc, rich, can, t, initPage, onSubmit, toast, ago, localized, levelBadge, SITE, gameLabel } from "./common.js";
+import { ask, askText, api, esc, rich, can, t, initPage, onSubmit, toast, ago, localized, levelBadge, SITE, gameLabel } from "./common.js";
 
 const user = await initPage();
 const main = document.getElementById("main");
@@ -245,7 +245,7 @@ function wire() {
     catch (e) { toast(e.message, true); }
   });
   main.querySelectorAll("[data-delete]").forEach((b) => b.onclick = async () => {
-    if (!confirm(t("q.confirmDelete"))) return;
+    if (!await ask(t("q.confirmDelete"), { danger: true })) return;
     try { await api(`/api/quests/${b.dataset.delete}`, { method: "DELETE" }); toast(t("ad.deleted")); load(); }
     catch (e) { toast(e.message, true); }
   });
@@ -262,7 +262,7 @@ function wire() {
     onSubmit(f, async (d) => { await api(`/api/quests/${b.dataset.submit}/submit`, { method: "POST", body: d }); toast(t("q.submitted")); load(); });
   });
   const review = async (id, approve) => {
-    const note = approve ? null : prompt(t("q.rejectNote"));
+    const note = approve ? null : await askText(t("q.rejectNote"));
     if (!approve && note === null) return;
     try { await api(`/api/quest-reviews/${id}`, { method: "POST", body: { approve, note } }); toast(approve ? t("q.approved") : t("q.rejectedToast")); load(); }
     catch (e) { toast(e.message, true); }

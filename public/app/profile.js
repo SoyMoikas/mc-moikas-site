@@ -1,4 +1,4 @@
-import { api, esc, t, initPage, onSubmit, toast, fmtDate, roleLabel, localized, avatarHTML, nameHTML, bgStyle, bgAnimated, flag, openLocalePicker } from "./common.js";
+import { ask, api, esc, t, initPage, onSubmit, toast, fmtDate, roleLabel, localized, avatarHTML, nameHTML, bgStyle, bgAnimated, flag, openLocalePicker } from "./common.js";
 import { levelInfo, fmtHours } from "./levels.js";
 import { itemName } from "./cosmetics.js";
 import { mountFeed } from "./feed.js";
@@ -120,7 +120,7 @@ async function renderLink() {
       <p style="margin-top:0">${t("lk.linked", { name: esc(st.mc_name) })}</p>
       <button class="danger" data-unlink>${t("lk.unlink")}</button>`;
     box.querySelector("[data-unlink]").onclick = async () => {
-      if (!confirm(t("lk.confirmUnlink"))) return;
+      if (!await ask(t("lk.confirmUnlink"), { danger: true })) return;
       try { await api("/api/link", { method: "DELETE" }); toast(t("lk.unlinked")); load(); } catch (e) { toast(e.message, true); }
     };
     return;

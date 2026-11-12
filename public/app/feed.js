@@ -1,5 +1,5 @@
 // Private "For you" feed: composer, posts, likes, replies. Approved members only.
-import { uploadImage } from "./common.js";
+import { ask, uploadImage } from "./common.js";
 import { api, esc, rich, can, t, ago, toast, roleLabel, loginHint, levelBadge, avatarHTML, nameHTML, SITE, gameLabel, bgStyle, bgAnimated, bgWall, textAttrs, onPulse } from "./common.js";
 import { catalogItem, itemName, textFx } from "./cosmetics.js";
 
@@ -275,11 +275,11 @@ export function mountFeed(el, user, opts = {}) {
       box.classList.toggle("hidden");
       if (!box.classList.contains("hidden")) { box.innerHTML = `<p class="muted small">${t("loading")}</p>`; loadReplies(art); }
     } else if (e.target.closest("[data-del-reply]")) {
-      if (!confirm(t("sp.confirmDeleteComment"))) return;
+      if (!await ask(t("sp.confirmDeleteComment"), { danger: true })) return;
       try { await api(`/api/feed-comments/${e.target.closest("[data-del-reply]").dataset.delReply}`, { method: "DELETE" }); loadReplies(art); }
       catch (err) { toast(err.message, true); }
     } else if (e.target.closest("[data-del]")) {
-      if (!confirm(t("feed.confirmDelete"))) return;
+      if (!await ask(t("feed.confirmDelete"), { danger: true })) return;
       try { await api(`/api/feed/${id}`, { method: "DELETE" }); art.remove(); }
       catch (err) { toast(err.message, true); }
     } else if (e.target.closest("[data-edit]")) {

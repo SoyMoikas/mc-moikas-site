@@ -1,5 +1,5 @@
 // /status: is the NAS up? Services checked by the bot every minute, uptime bars, game servers, NAS load.
-import { api, esc, t, initPage, ago, toast } from "./common.js";
+import { ask, api, esc, t, initPage, ago, toast } from "./common.js";
 
 const user = await initPage();
 const main = document.getElementById("main");
@@ -126,15 +126,15 @@ async function espacio(el) {
       </form></details>` : ""}`;
   el.querySelectorAll("[data-a]").forEach((b) => (b.onclick = async () => {
     const a = b.dataset.a;
-    if (a === "delete_now" && !confirm(t("sp.deleteQ"))) return;
-    if (a === "approve_due" && !confirm(t("sp.approveQ", { n: groups.due.length }))) return;
+    if (a === "delete_now" && !await ask(t("sp.deleteQ"), { danger: true })) return;
+    if (a === "approve_due" && !await ask(t("sp.approveQ", { n: groups.due.length }))) return;
     try { await api("/api/storage", { method: "POST", body: { action: a, id: b.dataset.id } }); toast(a === "keep" ? t("sp.kept", { d: s.keep_days }) : "✓"); espacio(el); }
     catch (x) { toast(x.message, true); }
   }));
   el.querySelector("#sp-set")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const f = e.target;
-    if (f.auto.checked && !s.auto && !confirm(t("sp.autoQ"))) return;
+    if (f.auto.checked && !s.auto && !await ask(t("sp.autoQ"))) return;
     try {
       await api("/api/storage", { method: "POST", body: { action: "settings", enabled: f.enabled.checked, series: f.series.checked, auto: f.auto.checked, idle_days: +f.idle_days.value, added_days: +f.added_days.value,
         grace_days: +f.grace_days.value, keep_days: +f.keep_days.value, min_used_pct: +f.min_used_pct.value } });

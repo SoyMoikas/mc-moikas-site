@@ -1,5 +1,5 @@
 // 🐉 Rol: async tabletop RPG. Campaign list → campaign page (story, party, your turn, narrator panel).
-import { api, esc, t, initPage, toast, ago } from "./common.js";
+import { ask, api, esc, t, initPage, toast, ago } from "./common.js";
 import { lang } from "./i18n.js";
 
 const user = await initPage();
@@ -113,8 +113,8 @@ async function campaign(id) {
 
   // ---- wiring
   main.querySelector("#rp-join")?.addEventListener("click", () => joinForm(main.querySelector("#rp-joinbox"), c, post, reload));
-  main.querySelector("#rp-leave")?.addEventListener("click", () => confirm(t("rol.leaveQ")) && post({ action: "leave" }).then(reload));
-  main.querySelectorAll("[data-kick]").forEach((b) => (b.onclick = () => confirm(t("rol.kickQ")) && post({ action: "kick", character_id: +b.dataset.kick }).then(reload)));
+  main.querySelector("#rp-leave")?.addEventListener("click", async () => await ask(t("rol.leaveQ")) && post({ action: "leave" }).then(reload));
+  main.querySelectorAll("[data-kick]").forEach((b) => (b.onclick = async () => await ask(t("rol.kickQ"), { danger: true }) && post({ action: "kick", character_id: +b.dataset.kick }).then(reload)));
   main.querySelector("#rp-notes")?.addEventListener("change", (e) => post({ action: "sheet", notes: e.target.value }).then(() => toast("✓")));
   bindComposer(c, d, open, post, reload);
   bindDm(c, d, open, post, reload);
@@ -311,12 +311,12 @@ function bindDm(c, d, open, post, reload) {
     b.disabled = false; b.textContent = "✨ " + t("rol.draft");
   });
   f.querySelector("[data-aigo]")?.addEventListener("click", async () => {
-    if (!confirm(t("rol.aiGoQ"))) return;
+    if (!await ask(t("rol.aiGoQ"))) return;
     try { await post({ action: open ? "resolve" : "start", ai: true }); toast(t("rol.aiStarted")); setTimeout(reload, 1500); } catch (x) { toast(x.message, true); }
   });
   f.onsubmit = async (e) => {
     e.preventDefault();
-    if (!confirm(t(open ? "rol.publishQ" : "rol.startQ"))) return;
+    if (!await ask(t(open ? "rol.publishQ" : "rol.startQ"))) return;
     try { await post({ action: open ? "resolve" : "start", narration: f.narration.value, effects: effects() }); toast(t("rol.published")); reload(); }
     catch (x) { toast(x.message, true); }
   };
@@ -326,5 +326,5 @@ function bindDm(c, d, open, post, reload) {
     try { await post({ action: "settings", title: s.title.value, setting: s.setting.value, dm_mode: s.dm_mode.value, turn_hours: +s.turn_hours.value, max_players: +s.max_players.value }); toast("✓"); reload(); }
     catch (x) { toast(x.message, true); }
   };
-  s.querySelector("[data-end]").onclick = async () => { if (confirm(t("rol.endQ"))) { await post({ action: "end" }).catch((x) => toast(x.message, true)); reload(); } };
+  s.querySelector("[data-end]").onclick = async () => { if (await ask(t("rol.endQ"))) { await post({ action: "end" }).catch((x) => toast(x.message, true)); reload(); } };
 }

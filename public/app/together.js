@@ -1,5 +1,5 @@
 // Small "Juntos" widgets shared by the home page and /juntos.
-import { api, esc, t, toast } from "./common.js";
+import { ask, api, esc, t, toast } from "./common.js";
 const av = (u) => `<img class="soc-av" src="${esc(u.avatar || "")}" alt="" title="${esc(u.username || "")}" loading="lazy" onerror="this.style.visibility='hidden'">`;
 
 export async function preguntaCard(el, compact = false) {
@@ -30,7 +30,7 @@ export async function preguntaCard(el, compact = false) {
       f.onsubmit = async (e) => { e.preventDefault(); try { await send({ action: "edit", answer: f.a.value }); preguntaCard(el, compact); } catch (x) { toast(x.message, true); } };
       return;
     }
-    if (!confirm(t(act === "mod" ? "qd.modQ" : "qd.deleteQ"))) return;
+    if (!await ask(t(act === "mod" ? "qd.modQ" : "qd.deleteQ"))) return;
     try { await send({ action: "delete", ...(act === "mod" ? { user_id: +b.dataset.uid, day: d.day } : {}) }); preguntaCard(el, compact); } catch (x) { toast(x.message, true); }
   }));
 }
@@ -76,7 +76,7 @@ export function jellyfinInvite(el, jf, onChange) {
     catch (x) { toast(x.message, true); }
   });
   el.querySelectorAll("[data-jfdel]").forEach((b) => (b.onclick = async () => {
-    if (!confirm(t("jf.delQ"))) return;
+    if (!await ask(t("jf.delQ"), { danger: true })) return;
     await api("/api/juntos/jellyfin", { method: "POST", body: { action: "delete", id: +b.dataset.jfdel } }).catch((x) => toast(x.message, true));
     onChange();
   }));

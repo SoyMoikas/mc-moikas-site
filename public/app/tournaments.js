@@ -1,4 +1,4 @@
-import { api, esc, t, initPage, toast, ago, inputToMs, zonedNow, wallInput } from "./common.js";
+import { ask, api, esc, t, initPage, toast, ago, inputToMs, zonedNow, wallInput } from "./common.js";
 import { renderMarkdown } from "./markdown.js";
 
 const user = await initPage();
@@ -90,7 +90,7 @@ async function detail() {
 }
 
 async function act(body, confirmText) {
-  if (confirmText && !confirm(confirmText)) return;
+  if (confirmText && !await ask(confirmText)) return;
   try {
     const r = await api(`/api/tournaments/${tr.id}`, { method: "POST", body });
     if (r.deleted) { location.href = "/tournaments"; return; }

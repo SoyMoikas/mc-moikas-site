@@ -1,5 +1,5 @@
 // Profile → ⚙️ Ajustes: linked accounts (Discord, Minecraft, Steam, Apex, Jellyfin), language, time zone, notifications.
-import { api, esc, t, toast, TZ, flag, openLocalePicker, NT_KINDS } from "./common.js";
+import { ask, api, esc, t, toast, TZ, flag, openLocalePicker, NT_KINDS } from "./common.js";
 import { lang, setLang } from "./i18n.js";
 import { jellyfinInvite } from "./together.js";
 import { isStandalone, isIOS, canInstall, installApp, pushState, enablePush, disablePush, makeVapidKeys } from "./pwa.js";
@@ -103,7 +103,7 @@ async function steam(box) {
     <div class="lfg-row"><button class="small-btn" data-st="refresh">${t("acc.refresh")}</button><button class="small-btn danger" data-st="unlink">${t("acc.unlink")}</button></div>`
     : `<p class="muted small">${t("acc.steamWhy")}</p><a class="primary btn" href="/api/steam/link">${t("play.linkSteam")}</a><p class="hint">${t("acc.steamSafe")}</p>`}`;
   box.querySelectorAll("[data-st]").forEach((b) => (b.onclick = async () => {
-    if (b.dataset.st === "unlink" && !confirm(t("acc.unlinkQ"))) return;
+    if (b.dataset.st === "unlink" && !await ask(t("acc.unlinkQ"), { danger: true })) return;
     try { await api("/api/steam", { method: "POST", body: { action: b.dataset.st } }); toast("✓"); await steam(box); } catch (x) { toast(x.message, true); }
   }));
 }
@@ -120,7 +120,7 @@ async function apex(box) {
     <p class="hint">${t("acc.apexHint")}</p>
     ${ap ? `<div class="lfg-row"><button class="small-btn" data-ap="refresh">${t("acc.refresh")}</button><button class="small-btn danger" data-ap="unlink">${t("acc.unlink")}</button></div>` : ""}`}`;
   box.querySelectorAll("[data-ap]").forEach((b) => (b.onclick = async () => {
-    if (b.dataset.ap === "unlink" && !confirm(t("acc.unlinkQ"))) return;
+    if (b.dataset.ap === "unlink" && !await ask(t("acc.unlinkQ"), { danger: true })) return;
     try { await api("/api/apex", { method: "POST", body: { action: b.dataset.ap } }); toast("✓"); await apex(box); } catch (x) { toast(x.message, true); }
   }));
   const f = box.querySelector("#ap-form");

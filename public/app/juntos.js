@@ -1,5 +1,5 @@
 // "Juntos": movie nights, watchlist, music, clubs, personal goals, question of the day, calendar, Secret Santa.
-import { api, esc, t, initPage, toast, ago, inputToMs, zonedNow, wallInput, msToInput } from "./common.js";
+import { ask, askText, api, esc, t, initPage, toast, ago, inputToMs, zonedNow, wallInput, msToInput } from "./common.js";
 import { mountFeed } from "./feed.js";
 import { preguntaCard, jellyfinInvite, nuevoStrip } from "./together.js";
 
@@ -69,13 +69,13 @@ async function cine(el) {
   jellyfinInvite(el.querySelector("#jf-invite"), jf, back);
   nuevoStrip(el.querySelector("#jf-new"));
   el.querySelector("#jf-change")?.addEventListener("click", async () => {
-    const n = prompt(t("cn.jfName"), jf.name);
+    const n = await askText(t("cn.jfName"), jf.name);
     if (n === null) return;
     try { await api("/api/juntos/jellyfin", { method: "POST", body: { name: n } }); back(); } catch (x) { toast(x.message, true); }
   });
   el.querySelectorAll("[data-vote]").forEach((b) => (b.onclick = () => api(`/api/nights/${b.dataset.n}`, { method: "POST", body: { action: "vote", option_id: +b.dataset.vote } }).then(back, (x) => toast(x.message, true))));
   el.querySelectorAll("[data-rsvp]").forEach((b) => (b.onclick = () => api(`/api/nights/${b.dataset.n}`, { method: "POST", body: { action: "rsvp", status: b.dataset.rsvp } }).then(back, (x) => toast(x.message, true))));
-  el.querySelectorAll("[data-lock]").forEach((b) => (b.onclick = () => confirm(t("gn.lockQ")) && api(`/api/nights/${b.dataset.lock}`, { method: "POST", body: { action: "lock" } }).then(back, (x) => toast(x.message, true))));
+  el.querySelectorAll("[data-lock]").forEach((b) => (b.onclick = async () => await ask(t("gn.lockQ")) && api(`/api/nights/${b.dataset.lock}`, { method: "POST", body: { action: "lock" } }).then(back, (x) => toast(x.message, true))));
   el.querySelector("#cn-new").onclick = () => {
     const box = el.querySelector("#cn-form");
     if (box.innerHTML) { box.innerHTML = ""; return; }
@@ -144,7 +144,7 @@ async function lista(el, filter = "want") {
   }));
   el.querySelectorAll("[data-rate]").forEach((s) => (s.onchange = async () => {
     if (!s.value) return;
-    const comment = prompt(t("wl.commentQ")) || null;
+    const comment = await askText(t("wl.commentQ")) || null;
     await api("/api/juntos/watch", { method: "POST", body: { action: "rate", id: +s.dataset.rate, stars: +s.value, comment } }).catch((x) => toast(x.message, true));
     back();
   }));
@@ -251,8 +251,8 @@ async function retos(el) {
       </div>`).join("") || `<p class="muted">${t("gl.none")}</p>`}</div>`;
   el.querySelectorAll("[data-g]").forEach((b) => (b.onclick = async () => {
     const action = b.dataset.g;
-    if (action === "archive" && !confirm(t("gl.archiveQ"))) return;
-    const note = action === "check" ? prompt(t("gl.noteQ")) || null : null;
+    if (action === "archive" && !await ask(t("gl.archiveQ"), { danger: true })) return;
+    const note = action === "check" ? await askText(t("gl.noteQ")) || null : null;
     try { await api("/api/juntos/goals", { method: "POST", body: { action, id: +b.dataset.id, note } }); if (action === "check") toast(t("gl.checked")); retos(el); } catch (x) { toast(x.message, true); }
   }));
   el.querySelector("#gl-new")?.addEventListener("click", () => {
@@ -302,7 +302,7 @@ async function calendario(el, offset = 0) {
           <span class="small">${t("gn.going", { n: x.going })}</span>${x.can_delete ? `<button class="link small" data-del="${x.id}">✕</button>` : ""}</div></div>`).join("")}` : ""}`;
   el.querySelectorAll("[data-m]").forEach((b) => (b.onclick = () => calendario(el, offset + +b.dataset.m)));
   el.querySelectorAll("[data-rsvp]").forEach((b) => (b.onclick = () => api("/api/juntos/calendar", { method: "POST", body: { action: "rsvp", id: +b.dataset.id, status: b.dataset.rsvp } }).then(() => calendario(el, offset))));
-  el.querySelectorAll("[data-del]").forEach((b) => (b.onclick = () => confirm(t("ca.delQ")) && api("/api/juntos/calendar", { method: "POST", body: { action: "delete", id: +b.dataset.del } }).then(() => calendario(el, offset))));
+  el.querySelectorAll("[data-del]").forEach((b) => (b.onclick = async () => await ask(t("ca.delQ"), { danger: true }) && api("/api/juntos/calendar", { method: "POST", body: { action: "delete", id: +b.dataset.del } }).then(() => calendario(el, offset))));
   el.querySelector("#ev-new").onclick = () => {
     const box = el.querySelector("#ev-form");
     box.innerHTML = box.innerHTML ? "" : `<form class="card lfg-form">
@@ -354,7 +354,7 @@ async function intercambio(el) {
   });
   el.querySelectorAll("[data-ix]").forEach((b) => (b.onclick = async () => {
     const a = b.dataset.ix;
-    if ((a === "draw" && !confirm(t("ix.drawQ"))) || (a === "cancel" && !confirm(t("tr.deleteQ"))) || (a === "leave" && !confirm(t("tr.leaveQ")))) return;
+    if ((a === "draw" && !await ask(t("ix.drawQ"))) || (a === "cancel" && !await ask(t("tr.deleteQ"), { danger: true })) || (a === "leave" && !await ask(t("tr.leaveQ")))) return;
     try { await api("/api/juntos/exchange", { method: "POST", body: { action: a } }); intercambio(el); } catch (x) { toast(x.message, true); }
   }));
   bindCreate();

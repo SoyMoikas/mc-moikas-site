@@ -1,4 +1,4 @@
-import { uploadImage } from "./common.js";
+import { ask, askText, uploadImage } from "./common.js";
 import { api, esc, can, perm, t, initPage, SITE, gameLabel, localized, toISO, toLocalInput, onSubmit, toast, ago, fmtDate, statusBadge, roleLabel } from "./common.js";
 import { itemPreview, itemName, FONTS, EFFECTS, registerFont, hatPlacement, TABFX } from "./cosmetics.js";
 import { PART_SLOTS, ART_IDS } from "./avatar-parts.js";
@@ -174,7 +174,7 @@ async function editServer(id) {
   });
   const del = form.querySelector("[data-delete]");
   if (del) del.onclick = async () => {
-    if (!confirm(t("ad.confirmDeletePage", { name: raw.name || id }))) return;
+    if (!await ask(t("ad.confirmDeletePage", { name: raw.name || id }), { danger: true })) return;
     try { await api(`/api/servers/${encodeURIComponent(id)}`, { method: "DELETE" }); toast(t("ad.deleted")); serversTab(); }
     catch (e) { toast(e.message, true); }
   };
@@ -222,7 +222,7 @@ function editGame(g) {
   const form = editor.querySelector("form");
   form.querySelector("[data-cancel]").onclick = () => (editor.innerHTML = "");
   form.querySelector("[data-delete]")?.addEventListener("click", async () => {
-    if (!confirm(t("ad.confirmDeleteGame", { name: gameLabel(g) }))) return;
+    if (!await ask(t("ad.confirmDeleteGame", { name: gameLabel(g) }))) return;
     try { await api(`/api/games/${encodeURIComponent(g.id)}`, { method: "DELETE" }); toast(t("ad.deleted")); serversTab(); }
     catch (e) { toast(e.message, true); }
   });
@@ -276,7 +276,7 @@ function editCollection(c) {
   const form = editor.querySelector("form");
   form.querySelector("[data-cancel]").onclick = () => (editor.innerHTML = "");
   form.querySelector("[data-delete]")?.addEventListener("click", async () => {
-    if (!confirm(t("ad.confirmDeleteCollection"))) return;
+    if (!await ask(t("ad.confirmDeleteCollection"), { danger: true })) return;
     try { await api(`/api/store/collections/${encodeURIComponent(c.id)}`, { method: "DELETE" }); toast(t("ad.deleted")); storeTab(); }
     catch (e) { toast(e.message, true); }
   });
@@ -389,14 +389,14 @@ async function usersTab() {
   tabEl.querySelectorAll("[data-wallet]").forEach((b) => b.onclick = () => walletPanel(b.dataset.wallet));
 
   tabEl.querySelectorAll("[data-unlink]").forEach((b) => b.onclick = async () => {
-    if (!confirm(t("ad.confirmUnlink"))) return;
+    if (!await ask(t("ad.confirmUnlink"), { danger: true })) return;
     try { await api(`/api/users/${b.dataset.unlink}`, { method: "PATCH", body: { unlink_mc: true } }); usersTab(); }
     catch (e) { toast(e.message, true); }
   });
   tabEl.querySelectorAll("[data-user]").forEach((sel) => {
     const was = sel.value;
     sel.onchange = async () => {
-      if (sel.value === "admin" && !confirm(t("ad.confirmAdmin"))) { sel.value = was; return; }
+      if (sel.value === "admin" && !await ask(t("ad.confirmAdmin"))) { sel.value = was; return; }
       try { await api(`/api/users/${sel.dataset.user}`, { method: "PATCH", body: { role: sel.value } }); toast(t("ad.roleUpdated")); usersTab(); }
       catch (e) { toast(e.message, true); sel.value = was; }
     };
@@ -448,7 +448,7 @@ async function loadFontList() {
       <button class="link small" data-del-font="${esc(f.id)}">${t("delete")}</button></div>`).join("")
     : `<p class="hint">${t("ad.noUploadedFonts")}</p>`;
   box.querySelectorAll("[data-del-font]").forEach((b) => b.onclick = async () => {
-    if (!confirm(t("ad.confirmDeleteFont"))) return;
+    if (!await ask(t("ad.confirmDeleteFont"), { danger: true })) return;
     try { const r = await api(`/api/fonts/${b.dataset.delFont}`, { method: "DELETE" }); toast(r.items_affected ? t("ad.fontDeletedUsed", { n: r.items_affected }) : t("ad.deleted")); loadFontList(); }
     catch (e) { toast(e.message, true); }
   });
@@ -509,13 +509,13 @@ async function walletPanel(uid) {
     box.querySelector("[data-give]").onclick = () => call({ give: box.querySelector("[name=give]").value });
     box.querySelectorAll("[data-take]").forEach((b) => b.onclick = () => call({ take: b.dataset.take }));
     box.querySelector("[data-give-all]").onclick = async () => {
-      if (!confirm(t("ad.confirmGiveAll", { n: missing.length }))) return;
+      if (!await ask(t("ad.confirmGiveAll", { n: missing.length }))) return;
       for (const i of missing) await api(`/api/users/${uid}/wallet`, { method: "POST", body: { give: i.id } }).catch(() => {});
       call();
     };
     box.querySelector("[data-take-all]").onclick = async () => {
       const bought = w.items.filter((i) => i.bought);
-      if (!bought.length || !confirm(t("ad.confirmTakeAll", { n: bought.length }))) return;
+      if (!bought.length || !await ask(t("ad.confirmTakeAll", { n: bought.length }), { danger: true })) return;
       for (const i of bought) await api(`/api/users/${uid}/wallet`, { method: "POST", body: { take: i.id } }).catch(() => {});
       call();
     };
@@ -832,7 +832,7 @@ function editItem(item, items) {
     const file = fileIn.files[0]; fileIn.value = "";
     if (!file) return;
     if (file.size > 1024 * 1024) { toast(t("ad.fontTooBig"), true); return; }
-    const name = prompt(t("ad.fontName"), file.name.replace(/\.(woff2?|ttf|otf)$/i, "").replace(/[-_]+/g, " ").replace(/\b(regular|normal|400)\b/gi, "").trim());
+    const name = await askText(t("ad.fontName"), file.name.replace(/\.(woff2?|ttf|otf)$/i, "").replace(/[-_]+/g, " ").replace(/\b(regular|normal|400)\b/gi, "").trim());
     if (!name) return;
     const data = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1]); r.onerror = rej; r.readAsDataURL(file); });
     try {
@@ -850,7 +850,7 @@ function editItem(item, items) {
 
   form.querySelector("[data-cancel]").onclick = () => (editor.innerHTML = "");
   form.querySelector("[data-delete-item]")?.addEventListener("click", async () => {
-    if (!confirm(t("ad.confirmDeleteItem", { name: itemName(it) }))) return;
+    if (!await ask(t("ad.confirmDeleteItem", { name: itemName(it) }))) return;
     try { await api(`/api/store/items/${encodeURIComponent(it.id)}`, { method: "DELETE" }); toast(t("ad.deleted")); storeTab(); }
     catch (e) { toast(e.message, true); }
   });

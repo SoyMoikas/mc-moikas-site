@@ -1,5 +1,5 @@
 // Daily bonus card + Ocaso panel (Blood Moon, player cards, death feed).
-import { api, esc, t, lang, ago, toast } from "./common.js";
+import { ask, api, esc, t, lang, ago, toast } from "./common.js";
 
 /* ---------------- Daily login bonus ---------------- */
 
@@ -199,7 +199,7 @@ export async function mountBounties(el) {
     };
   };
   el.querySelectorAll("[data-cancel-bt]").forEach((b) => (b.onclick = async () => {
-    if (!confirm(t("bt.cancelQ"))) return;
+    if (!await ask(t("bt.cancelQ"))) return;
     try { await api(`/api/bounties/${b.dataset.cancelBt}`, { method: "POST" }); mountBounties(el); } catch (x) { toast(x.message, true); }
   }));
 }

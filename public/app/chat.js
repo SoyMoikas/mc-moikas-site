@@ -1,6 +1,6 @@
 // Chat box. Polls for new messages every couple of seconds while you're active (slower when idle,
 // paused when the tab is hidden). Each poll also carries the page's "pulse" for feed/announcements.
-import { api, esc, rich, can, t, ago, toast, roleLabel, loginHint, levelBadge, avatarHTML, nameHTML, emitPulse, textAttrs } from "./common.js";
+import { ask, api, esc, rich, can, t, ago, toast, roleLabel, loginHint, levelBadge, avatarHTML, nameHTML, emitPulse, textAttrs } from "./common.js";
 import { STICKER_RE, catalogItem, stickerHTML, stickerCode } from "./cosmetics.js";
 
 const POLL_MS = 2500;       // while you're using the page
@@ -154,7 +154,7 @@ export function mountChat(el, channel, user) {
       return;
     }
     const b = e.target.closest("[data-del]");
-    if (!b || !confirm(t("chat.confirmDelete"))) return;
+    if (!b || !await ask(t("chat.confirmDelete"), { danger: true })) return;
     try { await api(`/api/chat-messages/${b.dataset.del}`, { method: "DELETE" }); b.closest(".chat-msg").remove(); }
     catch (err) { toast(err.message, true); }
   });

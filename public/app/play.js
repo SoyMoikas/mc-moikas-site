@@ -1,5 +1,5 @@
 // "Jugar": game nights (vote), games we all own (Steam), Apex stats, free games, and linking accounts.
-import { api, esc, t, initPage, toast, ago, inputToMs, zonedNow, wallInput, msToInput } from "./common.js";
+import { ask, notice, askText, api, esc, t, initPage, toast, ago, inputToMs, zonedNow, wallInput, msToInput } from "./common.js";
 import { mountCuando } from "./cuando.js";
 
 const user = await initPage();
@@ -44,8 +44,8 @@ async function nights(el) {
   el.querySelector("#gn-new").onclick = () => nightForm(el.querySelector("#gn-form"));
   el.querySelectorAll("[data-vote]").forEach((b) => (b.onclick = () => nightAct(b.dataset.n, { action: "vote", option_id: +b.dataset.vote }, el)));
   el.querySelectorAll("[data-rsvp]").forEach((b) => (b.onclick = () => nightAct(b.dataset.n, { action: "rsvp", status: b.dataset.rsvp }, el)));
-  el.querySelectorAll("[data-lock]").forEach((b) => (b.onclick = () => confirm(t("gn.lockQ")) && nightAct(b.dataset.lock, { action: "lock" }, el)));
-  el.querySelectorAll("[data-cancel]").forEach((b) => (b.onclick = () => confirm(t("gn.cancelQ")) && nightAct(b.dataset.cancel, { action: "cancel" }, el)));
+  el.querySelectorAll("[data-lock]").forEach((b) => (b.onclick = async () => await ask(t("gn.lockQ")) && nightAct(b.dataset.lock, { action: "lock" }, el)));
+  el.querySelectorAll("[data-cancel]").forEach((b) => (b.onclick = async () => await ask(t("gn.cancelQ")) && nightAct(b.dataset.cancel, { action: "cancel" }, el)));
   if (focus) el.querySelector(`#gn-${focus}`)?.scrollIntoView({ block: "center" });
   const pre = +q.get("time");
   if (pre > Date.now() - 3600000) { // from "¿Cuándo pueden?": open the form with that time
@@ -267,13 +267,13 @@ async function bets(el) {
     <div id="mk-form"></div>
     <div class="mk-list">${markets.map(card).join("") || `<p class="muted">${t("mk.none")}</p>`}</div>`;
   el.querySelectorAll("[data-bet]").forEach((b) => (b.onclick = async () => {
-    const coins = parseInt(prompt(t("mk.howMuch"), "20"));
+    const coins = parseInt(await askText(t("mk.howMuch"), "20"));
     if (!coins) return;
     try { await api(`/api/markets/${b.dataset.bet}`, { method: "POST", body: { action: "bet", option_id: +b.dataset.opt, coins } }); toast(t("mk.placed")); bets(el); }
     catch (x) { toast(x.message, true); }
   }));
   el.querySelectorAll("[data-settle]").forEach((b) => (b.onclick = async () => {
-    if (!confirm(t("mk.settleQ"))) return;
+    if (!await ask(t("mk.settleQ"))) return;
     try { await api(`/api/markets/${b.dataset.settle}`, { method: "POST", body: { action: "settle", option_id: +b.dataset.opt } }); bets(el); } catch (x) { toast(x.message, true); }
   }));
   el.querySelector("#mk-new")?.addEventListener("click", () => {
@@ -398,7 +398,7 @@ async function dares(el) {
     catch (x) { toast(x.message, true); }
   });
   el.querySelectorAll("[data-del]").forEach((b) => (b.onclick = async () => {
-    if (!confirm(t("dr.removeQ"))) return;
+    if (!await ask(t("dr.removeQ"), { danger: true })) return;
     try { await api("/api/dares", { method: "POST", body: { action: "remove", id: +b.dataset.del || undefined, game: b.dataset.game, text: b.dataset.text } }); dares(el); }
     catch (x) { toast(x.message, true); }
   }));
@@ -413,11 +413,11 @@ async function dares(el) {
   el.querySelector("#dr-group")?.addEventListener("click", async (e) => {
     e.currentTarget.disabled = true;
     const game = el.querySelector("#dr-game").value;
-    try { const p = api("/api/dares", { method: "POST", body: { action: "group", game } }); await spinAnim(el.querySelector("#dr-wheel")); const r = await p; toast(t("dr.groupPosted")); alert(`🎡 ${r.game}\n\n${r.text}`); dares(el); }
+    try { const p = api("/api/dares", { method: "POST", body: { action: "group", game } }); await spinAnim(el.querySelector("#dr-wheel")); const r = await p; toast(t("dr.groupPosted")); notice(`🎡 ${r.game}\n\n${r.text}`); dares(el); }
     catch (x) { toast(x.message, true); dares(el); }
   });
   el.querySelectorAll("[data-act]").forEach((b) => (b.onclick = async () => {
-    if (b.dataset.act === "give_up" && !confirm(t("dr.giveUpQ"))) return;
+    if (b.dataset.act === "give_up" && !await ask(t("dr.giveUpQ"))) return;
     try { await api(`/api/dares/${b.dataset.id}`, { method: "POST", body: { action: b.dataset.act } }); dares(el); } catch (x) { toast(x.message, true); }
   }));
 }

@@ -1,5 +1,5 @@
 // Home: "Jugando ahora" bar (Discord presence) + "¿Quién se apunta?" (looking for group).
-import { api, esc, t, ago, toast, avatarHTML, inputToMs } from "./common.js";
+import { ask, api, esc, t, ago, toast, avatarHTML, inputToMs } from "./common.js";
 
 const GAME_ICONS = [[/apex/i, "🎯"], [/league|lol\b/i, "⚔️"], [/forest/i, "🌲"], [/minecraft|ocaso/i, "⛏️"], [/valheim/i, "🪓"],
   [/valorant/i, "🔫"], [/fortnite/i, "🏗️"], [/rocket/i, "🚗"], [/fifa|fc ?2\d/i, "⚽"], [/call of duty|warzone/i, "🪖"]];
@@ -113,7 +113,7 @@ export async function mountLfg(el, user) {
       };
     });
     el.querySelectorAll("[data-lfg]").forEach((b) => (b.onclick = async () => {
-      if (b.dataset.lfg === "close" && !confirm(t("lfg.closeQ"))) return;
+      if (b.dataset.lfg === "close" && !await ask(t("lfg.closeQ"))) return;
       b.disabled = true;
       try { await api(`/api/lfg/${b.dataset.id}`, { method: "POST", body: { action: b.dataset.lfg } }); await load(); }
       catch (x) { toast(x.message, true); b.disabled = false; }

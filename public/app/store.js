@@ -1,4 +1,4 @@
-import { api, esc, can, t, initPage, toast, levelBadge, avatarHTML, nameHTML, localized } from "./common.js";
+import { ask, api, esc, can, t, initPage, toast, levelBadge, avatarHTML, nameHTML, localized } from "./common.js";
 import { itemName, itemPreview, catalogItem, parseBuild, bgStyle, textAttrs, stickerHTML, applyTabFx } from "./cosmetics.js";
 import { applyTheme } from "./themes.js";
 import { levelInfo } from "./levels.js";
@@ -331,7 +331,7 @@ function rewardTrack() {
       </div>`).join("") || `<p class="muted">—</p>`}</div>`;
 }
 
-// Purchase confirmation panel (instead of the browser's confirm()): big preview, price, coins before → after.
+// Purchase confirmation panel (instead of the browser's await ask()): big preview, price, coins before → after.
 // Resolves true when you press Buy; Cancel, Esc or clicking outside resolves false.
 function confirmPurchase({ item, bundle }) {
   return new Promise((resolve) => {
@@ -487,7 +487,7 @@ async function mountCrate() {
     </div>`;
   el.querySelector("#crate-open").onclick = async (e) => {
     const btn = e.currentTarget, box = el.querySelector("#crate-box"), out = el.querySelector("#crate-result");
-    if (!confirm(t("cr.confirm", { n: d.price }))) return;
+    if (!await ask(t("cr.confirm", { n: d.price }), { icon: "🎁", ok: t("cr.openShort") })) return;
     btn.disabled = true; out.innerHTML = ""; box.classList.add("shake");
     let r;
     try { r = await api("/api/crates", { method: "POST" }); }

@@ -1,6 +1,6 @@
 // Whitelist & bans panel on a server page (staff with the "moderation" permission).
 // Actions are queued on the site; the NAS script runs them in the server console within ~2 minutes.
-import { api, esc, t, toast, ago } from "./common.js";
+import { ask, api, esc, t, toast, ago } from "./common.js";
 
 const ED = { java: "☕ Java", bedrock: "📱 Bedrock" };
 const ACTION_LABEL = (a) => t(`mod.a.${a}`);
@@ -76,12 +76,12 @@ export function mountModeration(el, serverId) {
       const d = Object.fromEntries(new FormData(form));
       if (!d.name.trim()) return form.name.focus();
       const action = b.dataset.submit;
-      if (action === "ban" && !confirm(t("mod.confirmBan", { name: d.name }))) return;
+      if (action === "ban" && !await ask(t("mod.confirmBan", { name: d.name }), { danger: true })) return;
       queue({ action, name: d.name.trim(), edition: d.edition, reason: d.reason });
     });
     el.querySelectorAll("[data-act]").forEach((b) => b.onclick = () => {
       const action = b.dataset.act;
-      if ((action === "whitelist_remove" || action === "whitelist_off") && !confirm(t("mod.confirm"))) return;
+      if ((action === "whitelist_remove" || action === "whitelist_off") && !await ask(t("mod.confirm"))) return;
       queue({ action, name: b.dataset.name, edition: b.dataset.ed });
     });
     el.querySelectorAll("[data-cancel]").forEach((b) => b.onclick = async () => {

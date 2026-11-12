@@ -89,6 +89,41 @@ export function statusBadge(s) {
   return `<span class="status ${esc(s.status)}"><span class="dot"></span>${esc(label)}</span>`;
 }
 
+// Card dialogs instead of the browser's confirm() / alert() / prompt(). All return promises.
+//   await ask("¿Borrar?")                 → true / false      (opts: { ok, danger, icon })
+//   notice("¡Listo!")                      → resolves when closed
+//   await askText("¿Cuánto?", "20")       → string, or null if cancelled
+function cardDialog({ msg, input, def = "", ok, cancel = true, danger = false, icon = "" }) {
+  return new Promise((resolve) => {
+    const dlg = document.createElement("div");
+    dlg.className = "buy-modal ask-modal";
+    dlg.innerHTML = `
+      <form class="card buy-card ask-card" role="dialog" aria-modal="true">
+        ${icon ? `<div class="ask-icon">${icon}</div>` : ""}
+        <p class="ask-msg"></p>
+        ${input ? `<input name="v" maxlength="500" autocomplete="off">` : ""}
+        <div class="actions">${cancel ? `<button type="button" data-no>${t("cancel")}</button>` : ""}
+          <button class="primary ${danger ? "danger-fill" : ""}" data-yes>${esc(ok || (cancel ? t("dlg.ok") : t("dlg.gotIt")))}</button></div>
+      </form>`;
+    dlg.querySelector(".ask-msg").textContent = String(msg ?? "");
+    const f = dlg.querySelector("form");
+    if (input) f.v.value = def ?? "";
+    let closed = false;
+    const done = (v) => { if (closed) return; closed = true; removeEventListener("keydown", onKey); dlg.classList.add("closing"); setTimeout(() => dlg.remove(), 150); resolve(v); };
+    const no = input ? null : cancel ? false : true;
+    const onKey = (e) => { if (e.key === "Escape") done(no); };
+    f.onsubmit = (e) => { e.preventDefault(); done(input ? f.v.value : true); };
+    dlg.addEventListener("click", (e) => { if (e.target === dlg || e.target.closest("[data-no]")) done(no); });
+    addEventListener("keydown", onKey);
+    document.body.appendChild(dlg);
+    (input ? f.v : f.querySelector("[data-yes]")).focus();
+    if (input) f.v.select();
+  });
+}
+export const ask = (msg, opts = {}) => cardDialog({ msg, ...opts });
+export const notice = (msg, opts = {}) => cardDialog({ msg, cancel: false, ...opts });
+export const askText = (msg, def = "", opts = {}) => cardDialog({ msg, input: true, def, ...opts });
+
 export function toast(msg, error = false) {
   let el = document.getElementById("toast");
   if (!el) { el = document.createElement("div"); el.id = "toast"; document.body.appendChild(el); }
@@ -424,7 +459,7 @@ export function bindPostActions(root, posts, { user, reload }) {
     const del = e.target.closest("[data-delete-post]");
     const edit = e.target.closest("[data-edit-post]");
     if (del) {
-      if (!confirm(t("pf.confirmDelete"))) return;
+      if (!await ask(t("pf.confirmDelete"), { danger: true })) return;
       try { await api(`/api/posts/${del.dataset.deletePost}`, { method: "DELETE" }); toast(t("pf.deleted")); reload(); }
       catch (err) { toast(err.message, true); }
     } else if (edit) {

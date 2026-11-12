@@ -1918,3 +1918,14 @@ button.si-need { background: transparent; border-style: dashed; font-size: .8rem
 .st-bar .chips button, .st-groups button { white-space: nowrap; }
 @media (max-width: 1099px) { .tryon.open { z-index: 1000; } }
 @media (max-width: 600px) { .store-filters { position: static; } .st-bar input[type=search] { flex-basis: 100%; } }
+
+/* card dialogs (ask / notice / askText) */
+.ask-card { max-width: 420px; width: 100%; display: grid; gap: 14px; text-align: center; animation: ask-in .14s ease-out; }
+.ask-icon { font-size: 2.4rem; line-height: 1; }
+.ask-msg { margin: 0; font-size: 1.02rem; line-height: 1.45; white-space: pre-line; }
+.ask-card input { width: 100%; }
+.ask-card .actions { display: flex; gap: 8px; justify-content: center; }
+.ask-card .actions button { min-width: 110px; }
+button.danger-fill { background: var(--bad); border-color: var(--bad); color: #fff; }
+.buy-modal.closing .ask-card { opacity: 0; transform: scale(.97); transition: .15s; }
+@keyframes ask-in { from { opacity: 0; transform: scale(.96) translateY(6px); } }

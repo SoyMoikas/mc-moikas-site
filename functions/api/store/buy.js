@@ -1,6 +1,7 @@
 import { json, err, body, now, str } from "../../../lib/util.js";
 import { need } from "../../../lib/auth.js";
-import { getItem, coinsOf, ownedSet, owns, forSale, collectionOpen } from "../../../lib/catalog.js";
+import { getItem, coinsOf, ownedSet, owns, forSale, collectionOpen, loadItems, dailyDeals } from "../../../lib/catalog.js";
+import { laDay } from "../../../lib/coins.js";
 
 // { item } — spend coins on an item. Approved members and up.
 export async function onRequestPost({ request, env }) {
@@ -16,16 +17,17 @@ export async function onRequestPost({ request, env }) {
     const c = await env.DB.prepare("SELECT * FROM collections WHERE id = ?").bind(item.collection_id).first();
     if (c && !collectionOpen(c)) return err(400, "This collection isn't available right now");
   }
-  if (coinsOf(user) < item.price) return err(402, "Not enough coins");
+  const price = dailyDeals(await loadItems(env), laDay())[item.id] ?? item.price; // today's deal price, if it's one
+  if (coinsOf(user) < price) return err(402, "Not enough coins");
 
   // Charge only if the balance still covers it at write time (guards against double clicks).
   const res = await env.DB.prepare(
     `UPDATE users SET coins_spent = coins_spent + ?1
       WHERE id = ?2 AND coins_earned - coins_spent >= ?1
         AND NOT EXISTS (SELECT 1 FROM user_items WHERE user_id = ?2 AND item_id = ?3)`
-  ).bind(item.price, user.id, item.id).run();
+  ).bind(price, user.id, item.id).run();
   if (!res.meta.changes) return err(402, "Not enough coins");
   await env.DB.prepare("INSERT OR IGNORE INTO user_items (user_id, item_id, created_at) VALUES (?, ?, ?)")
     .bind(user.id, item.id, now()).run();
-  return json({ ok: true, coins: coinsOf(user) - item.price });
+  return json({ ok: true, price, coins: coinsOf(user) - price });
 }

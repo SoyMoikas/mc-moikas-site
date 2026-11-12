@@ -1,7 +1,8 @@
 import { json } from "../../../lib/util.js";
 import { getUser, hasPerm } from "../../../lib/auth.js";
 import { recomputeXP } from "../../../lib/xp.js";
-import { loadItems, coinsOf, levelOf, owns, ownedSet, getSettings, rewardForLevel, loadCollections, collectionOpen, bundlePrice } from "../../../lib/catalog.js";
+import { loadItems, coinsOf, levelOf, owns, ownedSet, getSettings, rewardForLevel, loadCollections, collectionOpen, bundlePrice, dailyDeals, DEAL_OFF } from "../../../lib/catalog.js";
+import { laDay } from "../../../lib/coins.js";
 
 // Store: items, collections, coin rules, and (if logged in) your balance, what you own and have equipped.
 export async function onRequestGet({ request, env }) {
@@ -19,7 +20,7 @@ export async function onRequestGet({ request, env }) {
   const bought = user ? await ownedSet(env, user.id) : new Set();
   const ownedIds = new Set(user ? items.filter((i) => owns(i, bought, user.xp)).map((i) => i.id) : []);
   const out = {
-    items, settings, user: null,
+    items, settings, user: null, deals: dailyDeals(allItems.filter((i) => i.active), laDay()), deal_off: DEAL_OFF,
     collections: collections.map((c) => {
       const its = items.filter((i) => i.collection_id === c.id && i.active);
       return { ...c, open: collectionOpen(c), item_ids: its.map((i) => i.id),

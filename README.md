@@ -123,3 +123,11 @@ npx wrangler d1 execute moikas-mc --local --file=schema.sql
 npx wrangler pages dev
 ```
 Discord login needs `http://localhost:8788/auth/callback` added as a redirect in the Discord app.
+
+## Traducción automática (Workers AI)
+Lo que escribe la gente (chat, publicaciones, anuncios, respuestas, comentarios) se traduce solo entre español
+e inglés, según el idioma de cada quien. Cada texto se traduce una vez y se guarda en D1 (`translations`).
+- Cloudflare → tu proyecto de Pages → Settings → Bindings → **Add → Workers AI**, nombre de variable: `AI`.
+- Migración: `migrations-045-traduccion.sql`.
+- Límite: 3000 traducciones nuevas al día para todo el sitio (`DAILY_CAP` en `lib/translate.js`).
+- Cada quien lo puede apagar en ⚙️ Ajustes. El 🌐 junto a un texto traducido muestra el original.

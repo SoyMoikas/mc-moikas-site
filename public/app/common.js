@@ -4,6 +4,7 @@ import { registerApp, isStandalone, canInstall, installApp, isIOS } from "./pwa.
 import { levelBadge, levelInfo } from "./levels.js";
 import { avatarHTML, nameHTML, fromAuthor, loadCatalog, catalogItem, applyTabFx, bgCSS, bgStyle, bgAnimated, bgWall, textAttrs } from "./cosmetics.js";
 import { applyTheme, applyCachedTheme } from "./themes.js";
+import { startAutoTr } from "./autotr.js";
 applyCachedTheme();
 export { t, lang, levelBadge, avatarHTML, nameHTML, bgStyle, bgAnimated, bgWall, textAttrs };
 
@@ -141,6 +142,7 @@ export const gameLabel = (g) => (g ? (lang === "es" && g.name_es ? g.name_es : g
 // Builds the top bar, translates static text, and returns the logged-in user (or null).
 export async function initPage() {
   applyStatic();
+  startAutoTr();
   registerApp();
   let user = null;
   const [me, site] = await Promise.allSettled([api("/api/me"), api("/api/site"), loadCatalog()]);

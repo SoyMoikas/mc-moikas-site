@@ -1,6 +1,7 @@
 // Profile → ⚙️ Ajustes: linked accounts (Discord, Minecraft, Steam, Apex, Jellyfin), language, time zone, notifications.
 import { ask, api, esc, t, toast, TZ, flag, openLocalePicker, NT_KINDS } from "./common.js";
 import { lang, setLang } from "./i18n.js";
+import { autoTrOn, setAutoTr } from "./autotr.js";
 import { jellyfinInvite } from "./together.js";
 import { isStandalone, isIOS, canInstall, installApp, pushState, enablePush, disablePush, makeVapidKeys } from "./pwa.js";
 
@@ -31,6 +32,8 @@ export async function mountSettings(el, user, me, renderMinecraft) {
       <div class="card set-rows">
         <div class="set-row"><div><b>${t("set.lang")}</b></div>
           <div class="lfg-row"><button class="${lang === "es" ? "primary" : "small-btn"}" data-lang="es">Español</button><button class="${lang === "en" ? "primary" : "small-btn"}" data-lang="en">English</button></div></div>
+        <div class="set-row"><div><b>${t("set.autotr")}</b><div class="small muted">${t("set.autotrHint")}</div></div>
+          <div class="lfg-row"><button class="${autoTrOn() ? "primary" : "small-btn"}" data-autotr="on">${t("set.autotrOn")}</button><button class="${autoTrOn() ? "small-btn" : "primary"}" data-autotr="off">${t("set.autotrOff")}</button></div></div>
         <div class="set-row"><div><b>${t("set.tz")}</b><div class="small muted">${me.country ? `${flag(me.country)} · ` : ""}${esc(TZ)} · ${esc(new Date().toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }))}${me.tz ? "" : ` · ${t("set.tzDevice")}`}</div></div>
           <button class="small-btn" id="set-tz">${t("tz.change")}</button></div>
       </div>`)}
@@ -54,6 +57,7 @@ export async function mountSettings(el, user, me, renderMinecraft) {
   drawLinked();
   SUM("prefs", `${lang === "es" ? "Español" : "English"} · ${esc(TZ.split("/").pop().replace(/_/g, " "))}`);
   el.querySelectorAll("[data-lang]").forEach((b) => (b.onclick = () => setLang(b.dataset.lang)));
+  el.querySelectorAll("[data-autotr]").forEach((b) => (b.onclick = () => setAutoTr(b.dataset.autotr === "on")));
   el.querySelector("#set-tz").onclick = () => openLocalePicker(user, () => location.reload());
   renderMinecraft?.();
   steam(el.querySelector("#acc-steam")).catch(fail(el, "#acc-steam"));

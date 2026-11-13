@@ -2122,3 +2122,6 @@ body.popup .rd-grid { grid-template-columns: 1fr; } body.popup .rd-intro { displ
 .fvid-face:hover span { transform: scale(1.08); }
 .composer-vid { margin: 6px 0; } .composer-vid .fvid { max-width: 420px; } .composer-vid .fvid.tall { max-width: 200px; }
 .composer-vlink { margin: 6px 0; } .composer-vlink input { flex: 1; min-width: 0; }
+/* traducción automática: el 🌐 junto a lo que se tradujo (clic → original) */
+.tr-tag { all: unset; cursor: pointer; font-size: .72em; margin-left: .4em; opacity: .55; vertical-align: middle; filter: grayscale(.3); }
+.tr-tag:hover { opacity: 1; } .tr-tag.off { opacity: .3; filter: grayscale(1); }

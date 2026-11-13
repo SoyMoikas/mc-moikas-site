@@ -1,5 +1,5 @@
 // Small "Juntos" widgets shared by the home page and /juntos.
-import { ask, api, esc, t, toast } from "./common.js";
+import { ask, api, esc, t, toast, hscroll } from "./common.js";
 const av = (u) => `<img class="soc-av" src="${esc(u.avatar || "")}" alt="" title="${esc(u.username || "")}" loading="lazy" onerror="this.style.visibility='hidden'">`;
 
 export async function preguntaCard(el, compact = false) {
@@ -91,4 +91,5 @@ export async function nuevoStrip(el) {
     <a class="jf-tile" href="${esc(i.url || "#")}" target="_blank" rel="noopener" title="${esc(i.title)}">
       <img src="${esc(i.poster)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'jf-noimg',textContent:'${i.type === "Movie" ? "🎬" : "📺"}'}))">
       <span>${esc(i.title)}</span><span class="small muted">${i.year || ""}${i.added_at && Date.now() - i.added_at < 3 * 86400000 ? ` · <b class="lfg-ok">${t("jfn.new")}</b>` : ""}</span></a>`).join("")}</div></div>`;
+  hscroll(el.querySelector(".jf-strip"));
 }

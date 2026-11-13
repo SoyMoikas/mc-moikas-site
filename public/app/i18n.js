@@ -219,7 +219,7 @@ const STRINGS = {
     "ad.roleUpdated": "Role updated",
 
     // games & feed
-    "nav.home": "Home", "nav.games": "Games", "nav.menu": "Menu", "mtab.feed": "Feed", "mtab.chat": "Chat",
+    "nav.home": "Home", "nav.games": "Games", "nav.menu": "Menu", "nav.more": "More", "nav.collapse": "Collapse menu", "nav.expand": "Expand menu", "mtab.feed": "Feed", "mtab.chat": "Chat",
     "home.games": "Games", "home.serverCount": "{n} server(s)", "home.noGames": "No games yet.",
     "feed.title": "For you", "feed.private": "The feed is private to approved members.",
     "feed.forYou": "For you", "feed.recent": "Latest",
@@ -2236,7 +2236,7 @@ const STRINGS = {
     "ad.confirmAdmin": "Los admins pueden eliminar servidores y cambiar los roles de todos. ¿Continuar?",
     "ad.roleUpdated": "Rol actualizado",
 
-    "nav.home": "Inicio", "nav.games": "Juegos", "nav.menu": "Menú", "mtab.feed": "Inicio", "mtab.chat": "Chat",
+    "nav.home": "Inicio", "nav.games": "Juegos", "nav.menu": "Menú", "nav.more": "Más", "nav.collapse": "Encoger menú", "nav.expand": "Abrir menú", "mtab.feed": "Inicio", "mtab.chat": "Chat",
     "home.games": "Juegos", "home.serverCount": "{n} servidor(es)", "home.noGames": "Todavía no hay juegos.",
     "feed.title": "Para ti", "feed.private": "El feed es privado para miembros aprobados.",
     "feed.forYou": "Para ti", "feed.recent": "Recientes",

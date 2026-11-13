@@ -223,23 +223,35 @@ export async function initPage() {
   const main = document.querySelector("main");
   if (main) {
     const isAdmin = ["users", "servers", "store"].some((p) => perm(user, p));
-    const railLink = (href, icon, key) => `<a href="${href}" class="${here === href || (href !== "/" && here.startsWith(href)) ? "active" : ""}"><span class="ri">${icon}</span>${t(key)}</a>`;
+    const isHere = (href) => here === href || (href !== "/" && here.startsWith(href));
+    const railLink = (href, icon, key) => `<a href="${href}" class="${isHere(href) ? "active" : ""}" title="${esc(t(key))}"><span class="ri">${icon}</span><span class="rl">${t(key)}</span></a>`;
+    const member = user && user.role !== "pending";
+    // the "Más" group: pages people open less often. Opens by itself when you're on one of them.
+    const more = [member && ["/juntos", "🫂", "nav.juntos"], member && ["/rol", "🐉", "nav.rol"], member && ["/status", "🟢", "nav.status"], isAdmin && ["/admin", "⚙️", "nav.admin"]].filter(Boolean);
+    const pref = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : v === "1"; } catch { return d; } };
+    const moreOpen = more.some(([h]) => isHere(h)) || pref("rail:more", false);
+    const gamesOpen = pref("rail:games", true);
     const rail = document.createElement("aside");
     rail.className = "rail";
     const l = user ? levelInfo(user.xp) : null;
     rail.innerHTML = `
+      <button class="rail-mini-btn" type="button" title="${esc(t("nav.collapse"))}" aria-label="${esc(t("nav.collapse"))}">⟨</button>
+      <div class="rail-scroll">
       <nav class="rail-nav">
         ${railLink("/", "🏠", "nav.home")}
         ${railLink("/quests", "🎯", "nav.quests")}
         ${railLink("/ranking", "🏆", "nav.ranking")}
         ${railLink("/play", "🎮", "nav.play")}
         ${railLink("/tournaments", "⚔️", "nav.tournaments")}
-        ${user && user.role !== "pending" ? railLink("/juntos", "🫂", "nav.juntos") + railLink("/radio", "📻", "nav.radio") + railLink("/casino", "🎰", "nav.casino") + railLink("/rol", "🐉", "nav.rol") + railLink("/status", "🟢", "nav.status") : ""}
+        ${member ? railLink("/radio", "📻", "nav.radio") + railLink("/casino", "🎰", "nav.casino") : ""}
         ${railLink("/store", "🪙", "nav.store")}
-        ${isAdmin ? railLink("/admin", "⚙️", "nav.admin") : ""}
+        ${more.length ? `<details class="rail-more" data-pref="rail:more" ${moreOpen ? "open" : ""}>
+          <summary title="${esc(t("nav.more"))}"><span class="ri">⋯</span><span class="rl">${t("nav.more")}</span></summary>
+          ${more.map(([h, i, k]) => railLink(h, i, k)).join("")}</details>` : ""}
       </nav>
       ${SITE.games.length ? `
-        <div class="rail-title">${t("nav.games")}</div>
+        <details class="rail-sec" data-pref="rail:games" ${gamesOpen ? "open" : ""}>
+        <summary class="rail-title">${t("nav.games")}</summary>
         <nav class="rail-games">
           ${SITE.games.map((x) => {
             const gc = esc(/^#[0-9a-f]{6}$/i.test(x.color || "") ? x.color : "#8a93a8");
@@ -248,9 +260,10 @@ export async function initPage() {
               <span class="gt">${esc(x.icon || "🎮")}</span><span class="gn">${esc(gameLabel(x))}</span></a>
               ${(x.servers || []).map((sv) => `<a class="rail-server ${sv.id === curServer ? "active" : ""}" style="--gc:${gc}" href="/server?id=${encodeURIComponent(sv.id)}"><span class="rs-dot"></span>${esc(sv.name)}</a>`).join("")}`;
           }).join("")}
-        </nav>` : ""}
+        </nav></details>` : ""}
+      </div>
       ${user ? `
-        <a class="rail-me ${user.eq_banner ? "has-art" : ""} ${bgAnimated(user.eq_banner) ? "art-anim" : ""}" href="/profile" style="--rank:${l.color};${bgStyle(user.eq_banner)}">
+        <a class="rail-me ${user.eq_banner ? "has-art" : ""} ${bgAnimated(user.eq_banner) ? "art-anim" : ""}" href="/profile" title="${esc(user.username)}" style="--rank:${l.color};${bgStyle(user.eq_banner)}">
           <div class="rm-top">${avatarHTML(user, 36)}
             <div class="rm-who"><b>${esc(user.username)}</b><span class="rm-rank">${t("lvl.short")} ${l.level} · ${esc(l.rank)}</span></div></div>
           <div class="rm-bar"><span style="width:${l.pct}%"></span></div>
@@ -280,6 +293,24 @@ export async function initPage() {
       ${user ? `<a class="small muted" href="/auth/logout">${t("auth.logout")}</a>` : ""}
       <button class="lang" data-lang2="${lang === "es" ? "en" : "es"}">${t("lang.switch")}</button></div>`);
     rail.querySelector("[data-lang2]").onclick = (e) => setLang(e.currentTarget.dataset.lang2);
+    // remember which groups you leave open
+    rail.querySelectorAll("details[data-pref]").forEach((d) => d.addEventListener("toggle", () => {
+      if (document.body.classList.contains("rail-mini") && d.classList.contains("rail-sec")) return;
+      try { localStorage.setItem(d.dataset.pref, d.open ? "1" : "0"); } catch {}
+    }));
+    // ⟨ shrink the rail to icons only (desktop); names show on hover
+    const miniBtn = rail.querySelector(".rail-mini-btn");
+    const setMini = (on) => {
+      document.body.classList.toggle("rail-mini", on);
+      // icons only: the games always show (their title, which opens/closes them, is hidden)
+      const gs = rail.querySelector(".rail-sec");
+      if (gs) gs.open = on ? true : pref("rail:games", true);
+      const label = t(on ? "nav.expand" : "nav.collapse");
+      miniBtn.textContent = on ? "⟩" : "⟨"; miniBtn.title = label; miniBtn.setAttribute("aria-label", label);
+      try { localStorage.setItem("rail:mini", on ? "1" : "0"); } catch {}
+    };
+    if (pref("rail:mini", false)) setMini(true);
+    miniBtn.onclick = (e) => { e.stopPropagation(); setMini(!document.body.classList.contains("rail-mini")); };
 
     const footer = document.querySelector("body > footer");
     if (footer) main.append(footer);
@@ -294,8 +325,8 @@ export async function initPage() {
 
   // Side-rail announcements are clamped to 3 lines; click to expand.
   document.addEventListener("click", (e) => {
-    const body = e.target.closest(".col-side .post .body");
-    if (body && !e.target.closest("a")) body.closest(".post").classList.toggle("open");
+    const hit = e.target.closest(".col-side .post .body, .col-side .post h3");
+    if (hit && !e.target.closest("a, button")) hit.closest(".post").classList.toggle("open");
   });
 
   document.addEventListener("click", async (e) => {
@@ -362,6 +393,32 @@ export function mountMobileTabs({ mirror = null } = {}) {
 }
 
 // Thin XP bar with "X XP to level N" tooltip.
+// Horizontal strips (posters, store rows…): no scrollbar, ‹ › buttons on hover and faded edges.
+export function hscroll(strip) {
+  if (!strip || strip.parentElement?.classList.contains("hs-wrap")) return;
+  const wrap = document.createElement("div");
+  wrap.className = "hs-wrap";
+  strip.before(wrap);
+  wrap.append(strip);
+  strip.classList.add("hs");
+  const btn = (dir) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = `hs-btn ${dir < 0 ? "prev" : "next"}`; b.textContent = dir < 0 ? "‹" : "›";
+    b.setAttribute("aria-label", dir < 0 ? "‹" : "›");
+    b.onclick = () => strip.scrollBy({ left: dir * strip.clientWidth * 0.85, behavior: "smooth" });
+    wrap.append(b);
+  };
+  btn(-1); btn(1);
+  const edges = () => {
+    const max = strip.scrollWidth - strip.clientWidth - 2;
+    wrap.classList.toggle("at-start", strip.scrollLeft <= 2);
+    wrap.classList.toggle("at-end", strip.scrollLeft >= max);
+  };
+  strip.addEventListener("scroll", edges, { passive: true });
+  new ResizeObserver(edges).observe(strip);
+  edges();
+}
+
 export function xpMini(xp) {
   const l = levelInfo(xp);
   const tip = t("xp.toNext", { n: (l.needed - l.into).toLocaleString(), level: l.level + 1 });

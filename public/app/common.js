@@ -226,11 +226,18 @@ export async function initPage() {
     const isHere = (href) => here === href || (href !== "/" && here.startsWith(href));
     const railLink = (href, icon, key) => `<a href="${href}" class="${isHere(href) ? "active" : ""}" title="${esc(t(key))}"><span class="ri">${icon}</span><span class="rl">${t(key)}</span></a>`;
     const member = user && user.role !== "pending";
-    // the "Más" group: pages people open less often. Opens by itself when you're on one of them.
-    const more = [member && ["/juntos", "🫂", "nav.juntos"], member && ["/rol", "🐉", "nav.rol"], member && ["/status", "🟢", "nav.status"], isAdmin && ["/admin", "⚙️", "nav.admin"]].filter(Boolean);
     const pref = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : v === "1"; } catch { return d; } };
-    const moreOpen = more.some(([h]) => isHere(h)) || pref("rail:more", false);
+    // menu groups by what you came to do. Each one folds and remembers it; it opens by itself if you're on one of its pages.
+    const groups = [
+      { id: "play", key: "nav.grpPlay", links: [["/play", "🎮", "nav.play"], ["/tournaments", "⚔️", "nav.tournaments"], member && ["/casino", "🎰", "nav.casino"]] },
+      { id: "together", key: "nav.grpTogether", links: [member && ["/juntos", "🫂", "nav.juntos"], member && ["/radio", "📻", "nav.radio"], member && ["/rol", "🐉", "nav.rol"]] },
+    ].map((g) => ({ ...g, links: g.links.filter(Boolean) })).filter((g) => g.links.length);
+    const groupHTML = (g) => `<details class="rail-sec" data-pref="rail:g:${g.id}" ${g.links.some(([h]) => isHere(h)) || pref(`rail:g:${g.id}`, true) ? "open" : ""}>
+        <summary class="rail-title">${t(g.key)}</summary>
+        <nav class="rail-nav">${g.links.map(([h, i, k]) => railLink(h, i, k)).join("")}</nav></details>`;
     const gamesOpen = pref("rail:games", true);
+    // rarely used: small icons next to your profile card
+    const tools = [member && ["/status", "🟢", "nav.status"], isAdmin && ["/admin", "⚙️", "nav.admin"]].filter(Boolean);
     const rail = document.createElement("aside");
     rail.className = "rail";
     const l = user ? levelInfo(user.xp) : null;
@@ -241,16 +248,11 @@ export async function initPage() {
         ${railLink("/", "🏠", "nav.home")}
         ${railLink("/quests", "🎯", "nav.quests")}
         ${railLink("/ranking", "🏆", "nav.ranking")}
-        ${railLink("/play", "🎮", "nav.play")}
-        ${railLink("/tournaments", "⚔️", "nav.tournaments")}
-        ${member ? railLink("/radio", "📻", "nav.radio") + railLink("/casino", "🎰", "nav.casino") : ""}
         ${railLink("/store", "🪙", "nav.store")}
-        ${more.length ? `<details class="rail-more" data-pref="rail:more" ${moreOpen ? "open" : ""}>
-          <summary title="${esc(t("nav.more"))}"><span class="ri">⋯</span><span class="rl">${t("nav.more")}</span></summary>
-          ${more.map(([h, i, k]) => railLink(h, i, k)).join("")}</details>` : ""}
       </nav>
+      ${groups.map(groupHTML).join("")}
       ${SITE.games.length ? `
-        <details class="rail-sec" data-pref="rail:games" ${gamesOpen ? "open" : ""}>
+        <details class="rail-sec rail-sec-games" data-pref="rail:games" ${gamesOpen ? "open" : ""}>
         <summary class="rail-title">${t("nav.games")}</summary>
         <nav class="rail-games">
           ${SITE.games.map((x) => {
@@ -262,6 +264,7 @@ export async function initPage() {
           }).join("")}
         </nav></details>` : ""}
       </div>
+      ${tools.length ? `<div class="rail-tools">${tools.map(([h, i, k]) => `<a href="${h}" class="${isHere(h) ? "active" : ""}" title="${esc(t(k))}" aria-label="${esc(t(k))}">${i}<span class="rl">${t(k)}</span></a>`).join("")}</div>` : ""}
       ${user ? `
         <a class="rail-me ${user.eq_banner ? "has-art" : ""} ${bgAnimated(user.eq_banner) ? "art-anim" : ""}" href="/profile" title="${esc(user.username)}" style="--rank:${l.color};${bgStyle(user.eq_banner)}">
           <div class="rm-top">${avatarHTML(user, 36)}
@@ -295,7 +298,7 @@ export async function initPage() {
     rail.querySelector("[data-lang2]").onclick = (e) => setLang(e.currentTarget.dataset.lang2);
     // remember which groups you leave open
     rail.querySelectorAll("details[data-pref]").forEach((d) => d.addEventListener("toggle", () => {
-      if (document.body.classList.contains("rail-mini") && d.classList.contains("rail-sec")) return;
+      if (document.body.classList.contains("rail-mini")) return;
       try { localStorage.setItem(d.dataset.pref, d.open ? "1" : "0"); } catch {}
     }));
     // ⟨ shrink the rail to icons only (desktop); names show on hover
@@ -303,8 +306,9 @@ export async function initPage() {
     const setMini = (on) => {
       document.body.classList.toggle("rail-mini", on);
       // icons only: the games always show (their title, which opens/closes them, is hidden)
-      const gs = rail.querySelector(".rail-sec");
-      if (gs) gs.open = on ? true : pref("rail:games", true);
+      rail.querySelectorAll("details[data-pref]").forEach((d) => {
+        d.open = on || pref(d.dataset.pref, true) || !!d.querySelector("a.active");
+      });
       const label = t(on ? "nav.expand" : "nav.collapse");
       miniBtn.textContent = on ? "⟩" : "⟨"; miniBtn.title = label; miniBtn.setAttribute("aria-label", label);
       try { localStorage.setItem("rail:mini", on ? "1" : "0"); } catch {}

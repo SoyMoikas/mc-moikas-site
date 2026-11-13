@@ -2202,3 +2202,11 @@ html { scrollbar-color: color-mix(in srgb, var(--muted) 45%, transparent) transp
   .col-side > .side-block:first-child { flex: 0 0 auto; max-height: 45%; }
   .col-side > .side-chat { flex: 1 1 0; min-height: 220px; }
 }
+/* grupos del menú (Jugar, Juntos) y la fila de iconos junto a tu tarjeta */
+.rail-sec > .rail-nav { margin-top: 1px; }
+.rail-tools { display: flex; gap: 6px; flex: none; }
+.rail-tools a { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--panel); color: var(--muted); text-decoration: none; font-size: .82rem; }
+.rail-tools a:hover { color: var(--text); border-color: var(--accent); }
+.rail-tools a.active { color: var(--accent); border-color: var(--accent); }
+@media (min-width: 1100px) { body.rail-mini .rail-tools { flex-direction: column; } body.rail-mini .rail-tools a { padding: 6px 0; } }

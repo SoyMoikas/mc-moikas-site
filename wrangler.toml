@@ -19,3 +19,10 @@ PUBLIC_HOST = "games.moikas.cc"
 binding = "DB"
 database_name = "moikas-mc"
 database_id = "439c5c05-9111-44e9-baa1-f2e803b4b682"
+
+[ai]
+binding = "AI"
+
+[[r2_buckets]]
+binding = "VIDEOS"
+bucket_name = "videos"

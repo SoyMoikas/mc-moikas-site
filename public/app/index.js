@@ -89,6 +89,23 @@ async function homeTabs() {
   tabs.forEach((b) => (b.onclick = () => show(b.dataset.pane)));
   const tab = (n) => tabs.find((b) => b.dataset.pane === n);
   show(store.get("home.tab", "inicio"));
+  // links like "/#lfg" ("Arma una partida →"): open the Jugar tab, scroll to it and open the new-game form
+  const fromHash = () => {
+    const h = location.hash.slice(1);
+    if (h !== "lfg" && h !== "jugar") return;
+    show("jugar");
+    const go = (tries = 0) => {
+      const sec = document.getElementById("lfg") || document.getElementById("lfg-home");
+      if (!sec?.querySelector(".lfg-list") && tries < 40) return setTimeout(() => go(tries + 1), 150);
+      const btn = sec?.querySelector("#lfg-new");
+      sec?.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (h === "lfg" && btn && sec.querySelector("#lfg-form")?.classList.contains("hidden")) btn.click();
+      history.replaceState(null, "", location.pathname + location.search);
+    };
+    go();
+  };
+  fromHash();
+  window.addEventListener("hashchange", fromHash);
 
   // fill the other panes in the background; hide a tab as soon as we know it has nothing
   const hideIfEmpty = (name) => (data) => {

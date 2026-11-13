@@ -25,7 +25,7 @@ export async function mountPlaying(el, user) {
     for (const s of d.servers) chips.push(`<a class="soc-chip" href="/server?id=${encodeURIComponent(s.id)}"><span>⛏️ <b>${t("soc.nOn", { n: s.players_online })}</b> ${esc(s.name)}</span></a>`);
     el.innerHTML = chips.length
       ? `<div class="soc-bar"><span class="soc-live">🟢 ${t("soc.playingNow")}</span>${chips.join("")}</div>`
-      : `<div class="soc-bar quiet"><span class="soc-live">⚪ ${t("soc.nobody")}</span><a href="#lfg">${t("soc.startOne")}</a></div>`;
+      : `<div class="soc-bar quiet"><span class="soc-live">⚪ ${t("soc.nobody")}</span><a href="/#lfg">${t("soc.startOne")}</a></div>`;
   };
   await load();
   setInterval(() => { if (!document.hidden) load(); }, 60000);

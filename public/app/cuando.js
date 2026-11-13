@@ -95,7 +95,7 @@ export async function mountCuando(el, user, mode = null) {
       e.preventDefault();
       try {
         await api("/api/lfg", { method: "POST", body: { game: e.target.game.value, starts_at: w.from, slots: Math.max(2, Math.min(30, w.n)), note: t("cu.note", { names: w.people.map((p) => p.username).join(", ") }).slice(0, 200) } });
-        toast(t("cu.posted")); location.href = "/#lfg";
+        toast(t("cu.posted")); location.href = "/#jugar";
       } catch (x) { toast(x.message, true); }
     };
   }));

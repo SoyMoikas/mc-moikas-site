@@ -2197,3 +2197,8 @@ html { scrollbar-color: color-mix(in srgb, var(--muted) 45%, transparent) transp
 .rail-games .gn { padding: 0; display: block; gap: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .rail-server { padding-left: 46px !important; }
 .col-side .post:not(.open) .actions { display: none !important; }
+/* anuncios: no se encogen cuando el chat tiene muchos mensajes (antes el chat les robaba el espacio) */
+@media (min-width: 1100px) {
+  .col-side > .side-block:first-child { flex: 0 0 auto; max-height: 45%; }
+  .col-side > .side-chat { flex: 1 1 0; min-height: 220px; }
+}

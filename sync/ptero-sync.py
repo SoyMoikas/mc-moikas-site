@@ -114,6 +114,42 @@ def ptero_command(cfg, ident, command):
         pass
 
 
+def ptero_start(cfg, ident):
+    """Start a stopped server. Needs the API key's user to have the Control → Start permission on it."""
+    req = urllib.request.Request(f"{cfg['PTERO_URL'].rstrip('/')}/api/client/servers/{ident}/power",
+                                 data=json.dumps({"signal": "start"}).encode(),
+                                 headers={**_ptero_headers(cfg), "Content-Type": "application/json"}, method="POST")
+    with urllib.request.urlopen(req, timeout=10):
+        pass
+
+
+def sync_starts(cfg, servers, starts, dry, site, auth):
+    """Start the stopped servers members asked for on the site. Only ever sends "start"."""
+    by_uuid = {s["uuid"]: s for s in servers}
+    done, sent = [], set()
+    for st in starts:
+        s = by_uuid.get(st.get("ptero_uuid"))
+        if not s:
+            result = "unknown_server"
+        elif s["state"] != "offline" or s["uuid"] in sent:
+            result = "already_on"
+        elif dry:
+            print(f"  would start {s['name']}")
+            continue
+        else:
+            try:
+                ptero_start(cfg, s["identifier"])
+                sent.add(s["uuid"])
+                result = "started"
+                print(f"  started {s['name']} (asked for on the site)")
+            except Exception as e:
+                result = "failed"
+                print(f"  couldn't start {s['name']}: {e}", file=sys.stderr)
+        done.append({"id": st.get("id"), "result": result})
+    if done and not dry:
+        http_json(site + "/api/sync/starts", auth, {"done": done})
+
+
 def list_servers(cfg):
     page, include = 1, "&include=egg"
     while True:
@@ -567,6 +603,12 @@ def main():
 
     if conf.get("verify"):
         send_link_codes(cfg, servers, conf["verify"], dry)
+
+    if conf.get("starts"):
+        try:
+            sync_starts(cfg, servers, conf["starts"], dry, site, auth)
+        except Exception as e:  # a failed start must never block the rest of the sync
+            print(f"  start requests: {e}", file=sys.stderr)
 
     try:
         sync_moderation(cfg, servers, conf.get("moderation") or [], dry, site, auth)

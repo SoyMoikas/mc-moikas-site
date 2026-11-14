@@ -3,6 +3,8 @@ import { getUser, hasPerm, needPerm } from "../../../lib/auth.js";
 import { mergeServer, SERVER_SELECT, splitRow } from "../../../lib/servers.js";
 import { serverFields, setClause } from "../../../lib/fields.js";
 
+const START_WAIT_MS = 5 * 60 * 1000; // a start request counts as "on its way" for this long
+
 // Full server page: info + announcements + tasks.
 export async function onRequestGet({ request, env, params }) {
   const user = await getUser(env, request);
@@ -27,8 +29,14 @@ export async function onRequestGet({ request, env, params }) {
     ).bind(params.id),
   ]);
 
+  const server = mergeServer(...splitRow(r), env, { admin });
+  if (server.can_start) {
+    server.start_pending = !!(await env.DB.prepare(
+      "SELECT 1 FROM server_starts WHERE ptero_uuid = ? AND created_at > ? AND (done_at IS NULL OR result = 'started') LIMIT 1"
+    ).bind(r.ptero_uuid, now() - START_WAIT_MS).first());
+  }
   return json({
-    server: mergeServer(...splitRow(r), env, { admin }),
+    server,
     posts: posts.results,
     tasks: tasks.results,
   });

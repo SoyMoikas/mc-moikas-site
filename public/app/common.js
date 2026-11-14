@@ -140,6 +140,14 @@ export const SITE = { games: [], like_emoji: "❤️" };
 export const gameLabel = (g) => (g ? (lang === "es" && g.name_es ? g.name_es : g.name) : "");
 
 // Builds the top bar, translates static text, and returns the logged-in user (or null).
+// Hidden page: typing its name anywhere on the site (outside a text box) opens it.
+let typedKeys = "";
+addEventListener("keydown", (e) => {
+  if (e.ctrlKey || e.metaKey || e.altKey || !e.key || e.key.length !== 1 || e.target?.closest?.("input, textarea, select, [contenteditable]")) return;
+  typedKeys = (typedKeys + e.key.toLowerCase()).slice(-6);
+  if (typedKeys === "umbral" && location.pathname !== "/umbral") location.href = "/umbral";
+});
+
 export async function initPage() {
   applyStatic();
   startAutoTr();

@@ -2226,3 +2226,9 @@ html { scrollbar-color: color-mix(in srgb, var(--muted) 45%, transparent) transp
 /* 3D skin on profiles */
 .pf-skin { display: flex; justify-content: center; margin: 6px 0 10px; }
 .pf-skin canvas { cursor: grab; max-width: 100%; }
+
+/* Hidden page */
+.umbral { max-width: 560px; margin: 60px auto; padding: 28px; text-align: center; border: 2px solid #3a1512; background: rgba(20, 4, 4, .6); }
+.umbral h2 { color: #ff8a80; font-family: Silkscreen, monospace; }
+.umbral-souls { display: inline-block; text-align: left; margin: 12px auto; padding-left: 28px; }
+.umbral-souls li.me a { color: #ff8a80; }

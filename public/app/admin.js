@@ -145,6 +145,7 @@ async function editServer(id) {
       </details>
       <div class="row">
         <label>${t("ad.sortOrder")}<input name="sort_order" type="number" value="${esc(raw.sort_order ?? 0)}"></label>
+        <label class="check"><input type="checkbox" name="allow_start" ${raw.allow_start ? "checked" : ""}> ${t("ad.allowStart")}</label>
         <label class="check"><input type="checkbox" name="hidden" ${raw.hidden === 0 ? "" : "checked"}> ${t("ad.draftCheck")}</label>
       </div>
       ${ptero ? `<details><summary class="small muted">${esc(t("ad.rawPtero", { ago: ago(ptero.synced_at) }))}</summary><pre class="vars">${esc(JSON.stringify(ptero, null, 2))}</pre></details>` : ""}

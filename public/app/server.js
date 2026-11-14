@@ -19,6 +19,19 @@ let guideEl = null; // the embedded player guide is fetched once, so re-renderin
 
 const STATUSES = ["open", "in_progress", "done"];
 
+// "Start the server": queues a request the NAS picks up on its next run (every 2 minutes).
+main.addEventListener("click", async (e) => {
+  const btn = e.target.closest("#start-server");
+  if (!btn) return;
+  btn.disabled = true;
+  try {
+    await api(`/api/servers/${encodeURIComponent(id)}/start`, { method: "POST" });
+    toast(t("sp.startSent"));
+    data.server.start_pending = true;
+    render();
+  } catch (x) { toast(x.message, true); btn.disabled = false; }
+});
+
 async function load() {
   if (!id) { main.innerHTML = `<p style="padding:40px 0">${t("sp.noServer")} <a href="/">${t("sp.seeAll")}</a></p>`; return; }
   try {
@@ -59,6 +72,8 @@ function render() {
           ${spec(t("sp.ram"), s.ram)}
         </div>
         ${s.modpack_url ? `<a class="btn" href="${esc(s.modpack_url)}" target="_blank" rel="noopener">${t("sp.getModpack")}</a>` : ""}
+        ${s.can_start && s.status === "offline" && user && user.role !== "pending"
+          ? (s.start_pending ? `<span class="hint">⏳ ${t("sp.starting")}</span>` : `<button class="primary" id="start-server">▶ ${t("sp.start")}</button>`) : ""}
         ${s.has_guide ? `<a class="btn primary" href="#player-guide">📖 ${t("guide.open")}</a>` : ""}
         ${s.map_url ? `<a class="btn" href="/map?server=${encodeURIComponent(s.id)}">🗺️ ${t("map.open")}</a>` : ""}
         ${steps.length ? `<ol class="steps">${steps.map((x) => `<li>${rich(x)}</li>`).join("")}</ol>` : ""}

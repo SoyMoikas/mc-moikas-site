@@ -2210,3 +2210,19 @@ html { scrollbar-color: color-mix(in srgb, var(--muted) 45%, transparent) transp
 .rail-tools a:hover { color: var(--text); border-color: var(--accent); }
 .rail-tools a.active { color: var(--accent); border-color: var(--accent); }
 @media (min-width: 1100px) { body.rail-mini .rail-tools { flex-direction: column; } body.rail-mini .rail-tools a { padding: 6px 0; } }
+
+/* Ocaso night look: dim after dark, red during a Blood Moon */
+.oc-dark, .oc-blood { padding: 14px; border: 2px solid var(--border); transition: background .6s, border-color .6s; }
+.oc-dark { background: linear-gradient(180deg, rgba(8, 10, 22, .75), rgba(8, 10, 22, .35)); border-color: #262a44; }
+.oc-dark .card { background: rgba(10, 12, 24, .7); }
+.oc-blood { background: linear-gradient(180deg, rgba(70, 8, 8, .55), rgba(30, 4, 4, .3)); border-color: #7a1c16; }
+.oc-blood .card { background: rgba(40, 8, 8, .6); border-color: #5a1a15; }
+.oc-blood h2, .oc-blood h3 { color: #ff8a80; }
+@media (prefers-reduced-motion: no-preference) {
+  .oc-blood { animation: oc-pulse 4s ease-in-out infinite; }
+  @keyframes oc-pulse { 50% { border-color: #c0392b; } }
+}
+
+/* 3D skin on profiles */
+.pf-skin { display: flex; justify-content: center; margin: 6px 0 10px; }
+.pf-skin canvas { cursor: grab; max-width: 100%; }

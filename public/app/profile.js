@@ -37,6 +37,7 @@ async function load() {
           <div class="pc-level"><span class="big">${l.level}</span><span class="small">${t("lvl.level")}</span></div>
         </div>
         <div class="pc-rank" style="color:${l.color}">${esc(l.rank)}</div>
+        <div class="pf-skin" id="pf-skin" hidden></div>
         <div class="xpbar"><div style="width:${l.pct}%"></div></div>
         <div class="small muted pc-xp">${t("pf2.toNext", { into: l.into.toLocaleString(), needed: l.needed.toLocaleString(), next: l.level + 1 })} · <b>${esc(t("xp.toNext", { n: (l.needed - l.into).toLocaleString(), level: l.level + 1 }))}</b></div>
         ${p.next_reward ? `<div class="next-reward small">🎁 ${t("pf2.nextReward", { level: p.next_reward.level })}:
@@ -93,6 +94,7 @@ async function load() {
 
   main.querySelector("#tz-edit")?.addEventListener("click", () => openLocalePicker(user));
   mountOcasoProfile(main.querySelector("#ocaso-profile"), p.user.id);
+  mountSkin(main.querySelector("#pf-skin"), p.user.mc_name);
   mountAchievements(main.querySelector("#achievements"), p.user.id, own);
   if (user && user.role !== "pending") mountRival(main.querySelector("#rival"), p.user, own);
   api(`/api/tournaments?user=${p.user.id}`).then(({ trophies }) => {
@@ -245,4 +247,23 @@ function profileTabs() {
   tabs.forEach((b) => (b.onclick = () => show(b.dataset.pane, true)));
   addEventListener("hashchange", () => show(pick()));
   show(pick());
+}
+
+// Rotating 3D Minecraft skin. Loaded on demand; if anything fails (no WebGL, no skin, offline) the profile just goes without it.
+async function mountSkin(box, name) {
+  if (!box || !name || name.startsWith(".")) return; // Bedrock names (Geyser adds the dot) have no Java skin
+  try {
+    const { SkinViewer, WalkingAnimation } = await import("https://esm.sh/skinview3d@3");
+    const canvas = document.createElement("canvas");
+    canvas.title = name;
+    const v = new SkinViewer({ canvas, width: 150, height: 200 });
+    try { await v.loadSkin(`https://mc-heads.net/skin/${encodeURIComponent(name)}`); }
+    catch { await v.loadSkin(`https://minotar.net/skin/${encodeURIComponent(name)}`); }
+    v.zoom = 0.9;
+    if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      v.autoRotate = true; v.autoRotateSpeed = 0.6;
+      v.animation = new WalkingAnimation(); v.animation.speed = 0.5;
+    }
+    box.append(canvas); box.hidden = false;
+  } catch { /* stays hidden */ }
 }

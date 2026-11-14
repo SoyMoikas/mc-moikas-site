@@ -72,6 +72,13 @@ function deathText(msg) {
   return msg;
 }
 
+// Night look for the Ocaso panel: red during a Blood Moon, dim after dark (the viewer's own clock) otherwise.
+function setMood(el, w) {
+  const h = new Date().getHours();
+  el.classList.toggle("oc-blood", !!w.lunasangre);
+  el.classList.toggle("oc-dark", !w.lunasangre && (h >= 19 || h < 6));
+}
+
 function moonBanner(w) {
   if (w.lunasangre) return `<div class="oc-moon red">🩸 <b>${t("oc.moonNow")}</b><span>${t("oc.moonNowSub")}</span></div>`;
   return `<div class="oc-moon ${w.faltan === 1 ? "soon" : ""}">🌕 <b>${w.faltan === 1 ? t("oc.moonTomorrow") : t("oc.moonIn", { n: w.faltan })}</b>
@@ -128,6 +135,7 @@ export async function mountOcaso(el, serverId) {
     <h3 style="margin-top:18px">☠ ${t("oc.deaths")}</h3>
     <div class="card">${deathsHTML(d.deaths)}</div>
     <div class="oc-bounties"></div>`;
+  setMood(el, w);
   mountBounties(el.querySelector(".oc-bounties"));
   return true;
 }
@@ -143,6 +151,7 @@ export async function mountOcasoHome(el) {
     ${moonBanner(w)}
     <div class="card">${deathsHTML(d.deaths.slice(0, 8))}</div>
     <div class="oc-bounties"></div>`;
+  setMood(el, w);
   mountBounties(el.querySelector(".oc-bounties"));
   return d;
 }

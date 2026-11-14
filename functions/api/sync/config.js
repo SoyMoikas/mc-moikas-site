@@ -18,8 +18,12 @@ export async function onRequestGet({ request, env }) {
     "SELECT id, ptero_uuid, action, name, edition, reason FROM mc_moderation WHERE done_at IS NULL ORDER BY id LIMIT 50"
   ).all();
   // start requests from the last 10 minutes; older ones are dropped rather than started late
-  const { results: starts } = await env.DB.prepare(
-    "SELECT id, ptero_uuid FROM server_starts WHERE done_at IS NULL AND created_at > ? ORDER BY id LIMIT 20"
-  ).bind(now() - 10 * 60 * 1000).all();
+  // (if the table isn't there yet because the migration hasn't been run, the rest of the sync must still work)
+  let starts = [];
+  try {
+    starts = (await env.DB.prepare(
+      "SELECT id, ptero_uuid FROM server_starts WHERE done_at IS NULL AND created_at > ? ORDER BY id LIMIT 20"
+    ).bind(now() - 10 * 60 * 1000).all()).results;
+  } catch { /* migration 046 not run yet */ }
   return json({ stats, advancements, verify, moderation, starts });
 }

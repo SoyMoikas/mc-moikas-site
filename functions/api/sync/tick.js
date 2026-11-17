@@ -38,7 +38,8 @@ export async function onRequestPost({ request, env, waitUntil }) {
   await step("rol", () => rpgTick(env, waitUntil));
   await step("raffles", () => drawDueRaffles(env));
   await step("poker", () => pokerTick(env));
-  if (env.STEAM_API_KEY) await step("sales", () => steamSales(env));
+  // one price check every ~5 min is plenty (each game is only rechecked every 12 h)
+  if (env.STEAM_API_KEY && Math.floor(t / 60000) % 5 === 0) await step("sales", () => steamSales(env));
   // achievements every ~10 min (ticks are ~30 s apart)
   if (Math.floor(t / 60000) % 10 === 0) await step("achievements", () => checkAchievements(env));
   if (env.STEAM_API_KEY) await step("steam", async () => {

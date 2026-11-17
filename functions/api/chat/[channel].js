@@ -17,6 +17,9 @@ async function checkChannel(env, channel, user) {
   if (!s || (s.hidden && !hasPerm(user, "servers"))) throw new HttpError(404, "Server not found");
 }
 
+const PULSE_TTL_MS = 10_000;
+let pulseCache = null; // kept in this Worker's memory between requests; fine to lose at any time
+
 // GET /api/chat/:channel            → latest 50 messages
 // GET /api/chat/:channel?after=ID&since=ID → new messages after ID, plus ids deleted since `since`
 export async function onRequestGet({ request, env, params }) {
@@ -55,11 +58,15 @@ export async function onRequestGet({ request, env, params }) {
   const messages = rows.map(({ user_id, ...m }) => ({ ...m, mine: user_id === user.id, can_delete: staff || user_id === user.id }));
   // "Pulse": tiny fingerprints of the feed and announcements, so the page can refresh those
   // the moment they change without making its own requests.
-  const pulse = await env.DB.prepare(
-    `SELECT (SELECT MAX(id) FROM social_posts WHERE deleted = 0) AS feed,
-            (SELECT COUNT(*) || ':' || IFNULL(MAX(updated_at), 0) FROM posts) AS posts`
-  ).first();
-  return json({ messages, removed, pulse });
+  // Every open page asks for this every few seconds and it reads the whole announcements table, so the answer
+  // is reused for 10 seconds instead of being worked out on every poll (D1's free plan counts every row read).
+  if (!pulseCache || pulseCache.at < now() - PULSE_TTL_MS) {
+    pulseCache = { at: now(), value: await env.DB.prepare(
+      `SELECT (SELECT MAX(id) FROM social_posts WHERE deleted = 0) AS feed,
+              (SELECT COUNT(*) || ':' || IFNULL(MAX(updated_at), 0) FROM posts) AS posts`
+    ).first() };
+  }
+  return json({ messages, removed, pulse: pulseCache.value });
 }
 
 export async function onRequestPost({ request, env, params, waitUntil }) {

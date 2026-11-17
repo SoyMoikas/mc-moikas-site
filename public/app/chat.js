@@ -3,8 +3,8 @@
 import { ask, api, esc, rich, can, t, ago, toast, roleLabel, loginHint, levelBadge, avatarHTML, nameHTML, emitPulse, textAttrs } from "./common.js";
 import { STICKER_RE, catalogItem, stickerHTML, stickerCode } from "./cosmetics.js";
 
-const POLL_MS = 2500;       // while you're using the page
-const IDLE_POLL_MS = 8000;  // after 2 minutes without touching anything
+const POLL_MS = 3000;       // while you're using the page
+const IDLE_POLL_MS = 15000; // after 2 minutes without touching anything
 const IDLE_AFTER = 120_000;
 let lastInput = Date.now();
 for (const ev of ["pointermove", "pointerdown", "keydown", "scroll", "touchstart", "wheel"])
